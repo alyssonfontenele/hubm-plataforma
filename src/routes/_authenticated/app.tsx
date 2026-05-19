@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useAuth } from "@/contexts/AuthContext";
 
-export const Route = createFileRoute("/_authenticated/")({
+export const Route = createFileRoute("/_authenticated/app")({
   head: () => ({ meta: [{ title: "Home — HubM" }] }),
   component: HomePage,
 });
