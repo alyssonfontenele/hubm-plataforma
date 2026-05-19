@@ -337,7 +337,7 @@ function UserActionsMenu({
       },
     });
     if (error) {
-      toast.error("Falha ao reenviar acesso.");
+      toast.error("Falha ao reenviar acesso. Verifique se o e-mail de recuperação está correto.");
       return;
     }
     toast.success(`E-mail de acesso reenviado para ${profile.recovery_email}.`);
