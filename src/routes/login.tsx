@@ -1,11 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { createFileRoute, useNavigate, useRouterState } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import {
   cpfToDigits,
   isValidCpf,
   maskCpf,
-  recoverPasswordByCpf,
   signInWithCpf,
   signInWithGoogle,
 } from "@/lib/auth";
@@ -20,24 +21,61 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
+const ALLOWED_GOOGLE_DOMAIN = "@mowig.com.br";
+
+/** Runs after a successful Supabase Auth login; returns true if user is allowed in. */
+async function enforceLoginRules(): Promise<boolean> {
+  const { data: sessionRes } = await supabase.auth.getSession();
+  const user = sessionRes.session?.user;
+  if (!user) return false;
+
+  const { data: prof, error } = await supabase
+    .from("profiles")
+    .select("id, active, auth_type, deleted_at")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (error || !prof) {
+    await supabase.auth.signOut();
+    toast.error("Usuário não encontrado. Entre em contato com o administrador.");
+    return false;
+  }
+  if (!prof.active || prof.deleted_at) {
+    await supabase.auth.signOut();
+    toast.error("Seu acesso está suspenso. Entre em contato com o administrador.");
+    return false;
+  }
+  if (
+    prof.auth_type === "google" &&
+    !(user.email ?? "").toLowerCase().endsWith(ALLOWED_GOOGLE_DOMAIN)
+  ) {
+    await supabase.auth.signOut();
+    toast.error("Acesso restrito a contas @mowig.com.br.");
+    return false;
+  }
+  return true;
+}
+
 function LoginPage() {
   const { session, loading } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const [enforced, setEnforced] = useState(false);
 
   useEffect(() => {
-    if (!loading && session && pathname === "/login") {
-      void navigate({ to: "/app" });
-    }
-  }, [loading, session, pathname, navigate]);
+    if (loading || pathname !== "/login" || !session || enforced) return;
+    setEnforced(true);
+    void enforceLoginRules().then((ok) => {
+      if (ok) void navigate({ to: "/app" });
+      else setEnforced(false);
+    });
+  }, [loading, session, pathname, navigate, enforced]);
 
   return (
     <main className="min-h-screen flex items-center justify-center px-4 py-10 bg-background">
       <div className="w-full max-w-md">
         <header className="text-center mb-8">
-          <h1 className="text-4xl font-bold tracking-tight text-text-primary">
-            HubM
-          </h1>
+          <h1 className="text-4xl font-bold tracking-tight text-text-primary">HubM</h1>
           <p className="mt-1 text-sm text-text-secondary">Mowig</p>
         </header>
 
@@ -95,9 +133,7 @@ function GoogleSection() {
         className="w-full flex items-center justify-center gap-2 h-11 rounded-md border border-border bg-surface text-sm font-medium text-text-primary hover:bg-accent-light transition-colors disabled:opacity-60"
       >
         <GoogleGlyph />
-        <span>
-          {loading ? "Redirecionando…" : "Entrar com Google (@mowig.com.br)"}
-        </span>
+        <span>{loading ? "Redirecionando…" : "Entrar com Google (@mowig.com.br)"}</span>
       </button>
       {error && <p className="text-xs text-destructive">{error}</p>}
     </section>
@@ -109,55 +145,25 @@ function CpfSection() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
+  const [recoverOpen, setRecoverOpen] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    setInfo(null);
-
     if (!isValidCpf(cpf)) {
-      setError("Informe um CPF válido (11 dígitos).");
+      setError("Informe um CPF válido.");
       return;
     }
     if (password.length < 6) {
       setError("Senha deve ter ao menos 6 caracteres.");
       return;
     }
-
     setLoading(true);
     try {
       await signInWithCpf(cpf, password);
+      // post-login enforcement handled in LoginPage effect once session updates.
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "CPF ou senha incorretos.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleForgot = async () => {
-    setError(null);
-    setInfo(null);
-    if (!isValidCpf(cpf)) {
-      setError("Informe seu CPF para recuperar a senha.");
-      return;
-    }
-    setLoading(true);
-    try {
-      const email = await recoverPasswordByCpf(
-        cpf,
-        `${window.location.origin}/reset-password`,
-      );
-      const masked = email.replace(/(.{2}).+(@.+)/, "$1•••$2");
-      setInfo(`Enviamos um link para ${masked}.`);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Não foi possível enviar a recuperação.",
-      );
+      setError(err instanceof Error ? err.message : "CPF ou senha incorretos.");
     } finally {
       setLoading(false);
     }
@@ -168,10 +174,7 @@ function CpfSection() {
       <h2 className="text-sm font-medium text-text-primary">Acesso operacional</h2>
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
-          <label
-            htmlFor="cpf"
-            className="block text-xs font-medium text-text-secondary mb-1"
-          >
+          <label htmlFor="cpf" className="block text-xs font-medium text-text-secondary mb-1">
             CPF
           </label>
           <input
@@ -203,26 +206,118 @@ function CpfSection() {
         </div>
 
         {error && <p className="text-xs text-destructive">{error}</p>}
-        {info && <p className="text-xs text-text-secondary">{info}</p>}
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full h-11 rounded-md bg-accent text-surface text-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-60"
+          className="w-full h-11 rounded-md bg-text-primary text-background text-sm font-medium hover:bg-text-primary/90 disabled:opacity-60"
         >
           {loading ? "Entrando…" : "Entrar"}
         </button>
 
         <button
           type="button"
-          onClick={handleForgot}
-          disabled={loading || cpfToDigits(cpf).length === 0}
-          className="w-full text-xs text-text-secondary hover:text-text-primary disabled:opacity-50"
+          onClick={() => setRecoverOpen(true)}
+          className="w-full text-xs text-text-secondary hover:text-text-primary"
         >
           Esqueci minha senha
         </button>
       </form>
+
+      {recoverOpen && <RecoveryModal onClose={() => setRecoverOpen(false)} />}
     </section>
+  );
+}
+
+function RecoveryModal({ onClose }: { onClose: () => void }) {
+  const [cpf, setCpf] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!isValidCpf(cpf)) {
+      setError("Informe um CPF válido.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await supabase.functions
+        .invoke("recover-cpf-password", { body: { cpf: cpfToDigits(cpf) } })
+        .catch(() => undefined);
+    } finally {
+      setBusy(false);
+      setSent(true);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-text-primary/40 backdrop-blur-sm px-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm bg-surface border border-border rounded-lg p-6 space-y-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header>
+          <h3 className="text-base font-semibold text-text-primary">Recuperar senha</h3>
+          <p className="text-xs text-text-muted mt-1">
+            Informe seu CPF e enviaremos as instruções.
+          </p>
+        </header>
+
+        {sent ? (
+          <>
+            <p className="text-sm text-text-primary">
+              Se este CPF estiver cadastrado, você receberá um e-mail em breve.
+            </p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full h-10 rounded-md bg-text-primary text-background text-sm font-medium hover:bg-text-primary/90"
+            >
+              Fechar
+            </button>
+          </>
+        ) : (
+          <form onSubmit={submit} className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1">
+                CPF
+              </label>
+              <input
+                inputMode="numeric"
+                placeholder="000.000.000-00"
+                value={cpf}
+                onChange={(e) => setCpf(maskCpf(e.target.value))}
+                maxLength={14}
+                className="w-full h-11 rounded-md border border-border bg-background px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-text-primary"
+              />
+            </div>
+            {error && <p className="text-xs text-destructive">{error}</p>}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 h-10 rounded-md border border-border text-sm text-text-primary hover:bg-accent-light"
+              >
+                Fechar
+              </button>
+              <button
+                type="submit"
+                disabled={busy}
+                className="flex-1 h-10 rounded-md bg-text-primary text-background text-sm font-medium hover:bg-text-primary/90 disabled:opacity-60"
+              >
+                {busy ? "Enviando…" : "Enviar"}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
   );
 }
 
