@@ -74,6 +74,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
       if (!active) return;
       setSession(newSession);
+      const pt = newSession?.provider_token ?? null;
+      if (pt) {
+        setProviderToken(pt);
+        if (typeof window !== "undefined") {
+          window.sessionStorage.setItem("google_provider_token", pt);
+        }
+      } else if (!newSession) {
+        setProviderToken(null);
+        if (typeof window !== "undefined") {
+          window.sessionStorage.removeItem("google_provider_token");
+        }
+      }
       if (newSession?.user) {
         // defer DB calls to avoid recursive auth callbacks
         setTimeout(() => {
@@ -89,6 +101,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!active) return;
       setSession(data.session);
+      if (data.session?.provider_token) {
+        setProviderToken(data.session.provider_token);
+        if (typeof window !== "undefined") {
+          window.sessionStorage.setItem(
+            "google_provider_token",
+            data.session.provider_token,
+          );
+        }
+      }
       if (data.session?.user) {
         await loadProfile(data.session.user.id);
       }
