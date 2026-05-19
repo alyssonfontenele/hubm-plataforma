@@ -831,6 +831,46 @@ function UserFormModal({
                   placeholder="maria@exemplo.com"
                 />
               </div>
+              <div>
+                <Label htmlFor="initial_password">Senha inicial</Label>
+                <div className="relative">
+                  <Input
+                    id="initial_password"
+                    type={showPassword ? "text" : "password"}
+                    value={initialPassword}
+                    onChange={(e) => {
+                      setInitialPassword(e.target.value);
+                      if (passwordError) setPasswordError(null);
+                    }}
+                    onBlur={() => {
+                      if (initialPassword && !isValidInitialPassword(initialPassword)) {
+                        setPasswordError(
+                          "A senha deve ter no mínimo 8 caracteres, 1 número e 1 letra maiúscula",
+                        );
+                      }
+                    }}
+                    placeholder="Mínimo 8 caracteres"
+                    maxLength={72}
+                    autoComplete="new-password"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((s) => !s)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
+                    aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {passwordError ? (
+                  <p className="mt-1 text-xs text-destructive">{passwordError}</p>
+                ) : (
+                  <p className="mt-1 text-xs text-text-muted">
+                    Se não preenchida, uma senha será gerada automaticamente
+                  </p>
+                )}
+              </div>
             </>
           )}
 
