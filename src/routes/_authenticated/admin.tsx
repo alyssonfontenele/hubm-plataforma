@@ -404,7 +404,9 @@ function UserActionsMenu({
             <MoreHorizontal className="w-4 h-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuItem onSelect={onEdit}>Editar</DropdownMenuItem>
+          <DropdownMenuSeparator />
           {!isInactive && profile.active && (
             <DropdownMenuItem disabled={isSelf} onSelect={suspend}>
               Suspender
@@ -430,6 +432,21 @@ function UserActionsMenu({
             <DropdownMenuItem onSelect={() => void resendAccess()}>
               Reenviar acesso
             </DropdownMenuItem>
+          )}
+          {isInactive && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                disabled={isSelf}
+                onSelect={() => {
+                  setDeleteConfirmText("");
+                  setDeleteStep(1);
+                }}
+                className="text-destructive focus:text-destructive"
+              >
+                Excluir definitivamente
+              </DropdownMenuItem>
+            </>
           )}
         </DropdownMenuContent>
       </DropdownMenu>
