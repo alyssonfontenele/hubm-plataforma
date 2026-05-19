@@ -35,6 +35,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [company, setCompany] = useState<Company | null>(null);
   const [sectorMemberships, setSectorMemberships] = useState<SectorMembership[]>([]);
+  const [providerToken, setProviderToken] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return window.sessionStorage.getItem("google_provider_token");
+  });
   const [loading, setLoading] = useState(true);
 
   const loadProfile = useCallback(async (userId: string) => {
