@@ -21,20 +21,28 @@ export async function signInWithGoogle(redirectTo: string) {
   if (error) throw error;
 }
 
-/** Pure digits, e.g. "12345678901" */
+// ---------- CPF ----------
+
+const INVALID_CPF_SEQUENCES = new Set([
+  "00000000000",
+  "11111111111",
+  "22222222222",
+  "33333333333",
+  "44444444444",
+  "55555555555",
+  "66666666666",
+  "77777777777",
+  "88888888888",
+  "99999999999",
+]);
+
 export function cpfToDigits(cpf: string): string {
   return cpf.replace(/\D/g, "");
 }
 
-/** "000.000.000-00" */
 export function maskCpf(value: string): string {
   const d = cpfToDigits(value).slice(0, 11);
-  const parts = [
-    d.slice(0, 3),
-    d.slice(3, 6),
-    d.slice(6, 9),
-    d.slice(9, 11),
-  ];
+  const parts = [d.slice(0, 3), d.slice(3, 6), d.slice(6, 9), d.slice(9, 11)];
   let out = parts[0];
   if (parts[1]) out += "." + parts[1];
   if (parts[2]) out += "." + parts[2];
@@ -45,13 +53,53 @@ export function maskCpf(value: string): string {
 export function isValidCpf(cpf: string): boolean {
   const d = cpfToDigits(cpf);
   if (d.length !== 11) return false;
-  if (/^(\d)\1{10}$/.test(d)) return false;
+  if (INVALID_CPF_SEQUENCES.has(d)) return false;
+
+  // First check digit (weights 10..2)
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += parseInt(d[i], 10) * (10 - i);
+  let rest = (sum * 10) % 11;
+  if (rest === 10) rest = 0;
+  if (rest !== parseInt(d[9], 10)) return false;
+
+  // Second check digit (weights 11..2)
+  sum = 0;
+  for (let i = 0; i < 10; i++) sum += parseInt(d[i], 10) * (11 - i);
+  rest = (sum * 10) % 11;
+  if (rest === 10) rest = 0;
+  if (rest !== parseInt(d[10], 10)) return false;
+
   return true;
 }
+export const validateCPF = isValidCpf;
 
 export function cpfToEmail(cpf: string): string {
   return `${cpfToDigits(cpf)}@hubm.internal`;
 }
+
+// ---------- Cellphone (BR) ----------
+
+export function cellphoneToDigits(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
+export function maskCellphone(value: string): string {
+  const d = cellphoneToDigits(value).slice(0, 11);
+  if (d.length <= 2) return d.length ? `(${d}` : "";
+  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
+export function isValidCellphone(value: string): boolean {
+  const d = cellphoneToDigits(value);
+  if (d.length !== 11) return false;
+  const ddd = parseInt(d.slice(0, 2), 10);
+  if (ddd < 11 || ddd > 99) return false;
+  if (d[2] !== "9") return false;
+  return true;
+}
+
+// ---------- Auth flows ----------
 
 export async function signInWithCpf(cpf: string, password: string) {
   const email = cpfToEmail(cpf);
@@ -60,9 +108,6 @@ export async function signInWithCpf(cpf: string, password: string) {
 }
 
 export async function recoverPasswordByCpf(cpf: string, redirectTo: string) {
-  // Look up recovery email by cpf_hash so we send the reset to the user's real inbox.
-  // We store the digits-only CPF directly in cpf_hash for the lookup; if the project
-  // uses a different hashing scheme this should be adapted in one place.
   const cpfDigits = cpfToDigits(cpf);
   const { data, error } = await supabase
     .from("profiles")
