@@ -2,14 +2,19 @@ import { supabase } from "@/integrations/supabase/client";
 
 const ALLOWED_GOOGLE_DOMAIN = "mowig.com.br";
 
+export const GOOGLE_CALENDAR_SCOPE =
+  "https://www.googleapis.com/auth/calendar.events";
+
 export async function signInWithGoogle(redirectTo: string) {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
       redirectTo,
+      scopes: `openid email profile ${GOOGLE_CALENDAR_SCOPE}`,
       queryParams: {
         hd: ALLOWED_GOOGLE_DOMAIN,
         prompt: "select_account",
+        access_type: "offline",
       },
     },
   });
