@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import * as LucideIcons from "lucide-react";
-import { ExternalLink, FileText, FileSpreadsheet, Link2, Presentation, FolderOpen, File, Cog } from "lucide-react";
+import { FileText, FileSpreadsheet, Link2, Presentation, FolderOpen, File, Cog } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, type ResourceType } from "@/integrations/supabase/client";
+import { ResourceModal, type ResourceModalData } from "@/components/resource-modal";
 
 export const Route = createFileRoute("/_authenticated/sectors/$slug")({
   head: () => ({ meta: [{ title: "Setor — HubM" }] }),
@@ -27,6 +28,9 @@ interface Resource {
   folder_id: string | null;
   thumbnail_url: string | null;
   sort_order: number | null;
+  mime_type: string | null;
+  created_by: string | null;
+  created_at: string | null;
 }
 
 const TYPE_ICON: Record<ResourceType, typeof FileText> = {
@@ -54,11 +58,14 @@ function SectorPage() {
   const { sectorMemberships } = useAuth();
   const membership = sectorMemberships.find((m) => m.sector.slug === slug);
   const sectorId = membership?.sector.id;
+  const sectorName = membership?.sector.name ?? slug;
 
   const [folders, setFolders] = useState<Folder[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
   const [activeFolder, setActiveFolder] = useState<string | "all">("all");
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<ResourceModalData | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
     if (!sectorId) return;
@@ -74,7 +81,7 @@ function SectorPage() {
           .order("name", { ascending: true }),
         supabase
           .from("resources")
-          .select("id,name,description,url,type,folder_id,thumbnail_url,sort_order")
+          .select("id,name,description,url,type,folder_id,thumbnail_url,sort_order,mime_type,created_by,created_at")
           .order("sort_order", { ascending: true, nullsFirst: false })
           .order("name", { ascending: true }),
       ]);
@@ -88,10 +95,14 @@ function SectorPage() {
     };
   }, [sectorId]);
 
-  const sectorFolderIds = useMemo(() => new Set(folders.map((f) => f.id)), [folders]);
+  const folderMap = useMemo(() => {
+    const map = new Map<string, Folder>();
+    folders.forEach((f) => map.set(f.id, f));
+    return map;
+  }, [folders]);
   const sectorResources = useMemo(
-    () => resources.filter((r) => r.folder_id && sectorFolderIds.has(r.folder_id)),
-    [resources, sectorFolderIds],
+    () => resources.filter((r) => r.folder_id && folderMap.has(r.folder_id)),
+    [resources, folderMap],
   );
   const visibleResources = useMemo(
     () =>
@@ -108,6 +119,23 @@ function SectorPage() {
     return Cmp ?? FolderOpen;
   }, [membership?.sector.icon]);
 
+  const openResource = (r: Resource) => {
+    setSelected({
+      id: r.id,
+      name: r.name,
+      description: r.description,
+      url: r.url,
+      type: r.type,
+      folder_id: r.folder_id,
+      mime_type: r.mime_type,
+      created_by: r.created_by,
+      created_at: r.created_at,
+      folder_name: r.folder_id ? folderMap.get(r.folder_id)?.name ?? null : null,
+      sector_name: sectorName,
+    });
+    setModalOpen(true);
+  };
+
   return (
     <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
       <header className="flex items-center gap-3">
@@ -116,9 +144,7 @@ function SectorPage() {
         </div>
         <div>
           <p className="text-xs uppercase tracking-wider text-text-muted">Setor</p>
-          <h1 className="text-2xl font-bold text-text-primary">
-            {membership?.sector.name ?? slug}
-          </h1>
+          <h1 className="text-2xl font-bold text-text-primary">{sectorName}</h1>
         </div>
       </header>
 
@@ -163,10 +189,16 @@ function SectorPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {visibleResources.map((r) => (
-            <ResourceCard key={r.id} resource={r} />
+            <ResourceCard key={r.id} resource={r} onClick={() => openResource(r)} />
           ))}
         </div>
       )}
+
+      <ResourceModal
+        resource={selected}
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+      />
     </div>
   );
 }
@@ -200,26 +232,22 @@ function FolderPill({
   );
 }
 
-function ResourceCard({ resource }: { resource: Resource }) {
+function ResourceCard({
+  resource,
+  onClick,
+}: {
+  resource: Resource;
+  onClick: () => void;
+}) {
   const Icon = TYPE_ICON[resource.type] ?? File;
-  const hasUrl = Boolean(resource.url);
-  const Wrapper: React.ElementType = hasUrl ? "a" : "div";
-  const wrapperProps = hasUrl
-    ? { href: resource.url!, target: "_blank", rel: "noopener noreferrer" }
-    : {};
-
   return (
-    <Wrapper
-      {...wrapperProps}
-      className="group block rounded-lg border border-border bg-surface p-4 hover:bg-background transition-colors"
+    <button
+      type="button"
+      onClick={onClick}
+      className="group text-left block rounded-lg border border-border bg-surface p-4 hover:bg-background transition-colors"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="w-9 h-9 rounded-md bg-background border border-border flex items-center justify-center shrink-0">
-          <Icon className="w-4 h-4 text-text-primary" />
-        </div>
-        {hasUrl && (
-          <ExternalLink className="w-4 h-4 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
-        )}
+      <div className="w-9 h-9 rounded-md bg-background border border-border flex items-center justify-center">
+        <Icon className="w-4 h-4 text-text-primary" />
       </div>
       <div className="mt-3 space-y-1">
         <p className="text-xs uppercase tracking-wider text-text-muted">
@@ -232,6 +260,6 @@ function ResourceCard({ resource }: { resource: Resource }) {
           <p className="text-xs text-text-muted line-clamp-2">{resource.description}</p>
         )}
       </div>
-    </Wrapper>
+    </button>
   );
 }
