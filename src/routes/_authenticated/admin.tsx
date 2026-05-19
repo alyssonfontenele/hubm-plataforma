@@ -100,13 +100,25 @@ function AdminPage() {
 // ---------- Friendly error mapper ----------
 
 function friendlyCreateError(message: string): string {
-  const m = message.toLowerCase();
-  if (m.includes("already registered")) return "Este CPF já está cadastrado no sistema.";
+  const raw = message?.trim() ?? "";
+  const m = raw.toLowerCase();
+  if (!raw) return "Erro ao criar usuário. Tente novamente.";
+  if (m.includes("invalid cpf"))
+    return "CPF inválido. Verifique os dígitos informados.";
+  if (m.includes("not null violation") || m.includes("not-null"))
+    return "Preencha todos os campos obrigatórios.";
+  if (m.includes("foreign key"))
+    return "Empresa não encontrada. Tente novamente.";
+  if (
+    (m.includes("already registered") || m.includes("duplicate")) &&
+    (m.includes("hubm.internal") || m.includes("cpf"))
+  )
+    return "Este CPF já está cadastrado no sistema.";
   if (m.includes("duplicate") && m.includes("recovery_email"))
-    return "Este e-mail já está em uso.";
+    return "Este e-mail de recuperação já está em uso por outro usuário.";
   if (m.includes("duplicate") && m.includes("cellphone"))
-    return "Este celular já está cadastrado.";
-  return "Erro ao criar usuário. Tente novamente.";
+    return "Este celular já está cadastrado no sistema.";
+  return `Erro ao criar usuário: ${raw}`;
 }
 
 // ---------- Users tab ----------
@@ -325,7 +337,7 @@ function UserActionsMenu({
       },
     });
     if (error) {
-      toast.error("Falha ao reenviar acesso.");
+      toast.error("Falha ao reenviar acesso. Verifique se o e-mail de recuperação está correto.");
       return;
     }
     toast.success(`E-mail de acesso reenviado para ${profile.recovery_email}.`);
