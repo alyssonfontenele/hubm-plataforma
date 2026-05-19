@@ -140,6 +140,8 @@ function UsersTab({
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [rescueOpen, setRescueOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Profile | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -148,6 +150,7 @@ function UsersTab({
         .from("profiles")
         .select("*")
         .eq("company_id", companyId)
+        .is("deleted_at", null)
         .order("full_name", { ascending: true }),
       supabase
         .from("sectors")
