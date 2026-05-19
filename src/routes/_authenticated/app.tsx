@@ -6,6 +6,7 @@ import { Pin, Megaphone, ArrowRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CalendarCard } from "@/components/calendar-card";
 
 export const Route = createFileRoute("/_authenticated/app")({
   head: () => ({ meta: [{ title: "Home — HubM" }] }),
@@ -175,6 +176,8 @@ function HomePage() {
           </ul>
         )}
       </section>
+
+      <CalendarCard />
     </div>
   );
 }

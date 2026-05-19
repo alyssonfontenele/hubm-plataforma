@@ -22,6 +22,7 @@ interface AuthContextValue {
   company: Company | null;
   globalRole: GlobalRole | null;
   sectorMemberships: SectorMembership[];
+  providerToken: string | null;
   loading: boolean;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -34,6 +35,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [company, setCompany] = useState<Company | null>(null);
   const [sectorMemberships, setSectorMemberships] = useState<SectorMembership[]>([]);
+  const [providerToken, setProviderToken] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return window.sessionStorage.getItem("google_provider_token");
+  });
   const [loading, setLoading] = useState(true);
 
   const loadProfile = useCallback(async (userId: string) => {
@@ -69,6 +74,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
       if (!active) return;
       setSession(newSession);
+      const pt = newSession?.provider_token ?? null;
+      if (pt) {
+        setProviderToken(pt);
+        if (typeof window !== "undefined") {
+          window.sessionStorage.setItem("google_provider_token", pt);
+        }
+      } else if (!newSession) {
+        setProviderToken(null);
+        if (typeof window !== "undefined") {
+          window.sessionStorage.removeItem("google_provider_token");
+        }
+      }
       if (newSession?.user) {
         // defer DB calls to avoid recursive auth callbacks
         setTimeout(() => {
@@ -84,6 +101,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!active) return;
       setSession(data.session);
+      if (data.session?.provider_token) {
+        setProviderToken(data.session.provider_token);
+        if (typeof window !== "undefined") {
+          window.sessionStorage.setItem(
+            "google_provider_token",
+            data.session.provider_token,
+          );
+        }
+      }
       if (data.session?.user) {
         await loadProfile(data.session.user.id);
       }
@@ -111,11 +137,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       company,
       globalRole: profile?.global_role ?? null,
       sectorMemberships,
+      providerToken,
       loading,
       refresh,
       signOut,
     }),
-    [session, profile, company, sectorMemberships, loading, refresh, signOut],
+    [session, profile, company, sectorMemberships, providerToken, loading, refresh, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
