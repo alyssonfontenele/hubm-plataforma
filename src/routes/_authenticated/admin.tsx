@@ -579,6 +579,9 @@ function UserFormModal({
   const [recoveryEmail, setRecoveryEmail] = useState("");
   const [globalRole, setGlobalRole] = useState<GlobalRole>("member");
   const [assignments, setAssignments] = useState<SectorAssignment[]>([]);
+  const [initialPassword, setInitialPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -592,6 +595,9 @@ function UserFormModal({
       setRecoveryEmail("");
       setGlobalRole("member");
       setAssignments([]);
+      setInitialPassword("");
+      setShowPassword(false);
+      setPasswordError(null);
     }
   }, [open]);
 
