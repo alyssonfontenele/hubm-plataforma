@@ -373,18 +373,42 @@ function UserActionsMenu({
     });
 
   const resendAccess = async () => {
-    const { error } = await supabase.functions.invoke("create-cpf-user", {
+    if (!profile.recovery_email) {
+      toast.error("Este usuário não possui e-mail de recuperação cadastrado.");
+      return;
+    }
+    const cpfDisplay = profile.cpf_hash ?? "—";
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #111111;">
+        <h1 style="font-size: 22px; font-weight: 600; margin: 0 0 16px;">Olá, ${profile.full_name}</h1>
+        <p style="font-size: 14px; line-height: 1.6; margin: 0 0 16px;">
+          Seu acesso ao HubM está disponível. Use as informações abaixo para entrar.
+        </p>
+        <div style="border: 1px solid #e5e5e5; padding: 16px; margin: 16px 0;">
+          <p style="font-size: 13px; margin: 0 0 8px; color: #555555;">CPF de acesso</p>
+          <p style="font-size: 16px; font-weight: 600; margin: 0; letter-spacing: 0.5px;">${cpfDisplay}</p>
+        </div>
+        <p style="font-size: 14px; line-height: 1.6; margin: 0 0 16px;">
+          Entre com seu CPF e a senha atual. Caso não lembre da senha, utilize a opção
+          "Esqueci minha senha" na tela de login para redefini-la.
+        </p>
+        <p style="font-size: 12px; color: #888888; margin: 24px 0 0;">
+          Este é um e-mail automático. Se você não solicitou este acesso, ignore esta mensagem.
+        </p>
+      </div>
+    `;
+    const { error } = await supabase.functions.invoke("send-email", {
       body: {
-        resend: true,
-        cpf: profile.cpf_hash,
-        recovery_email: profile.recovery_email,
+        to: profile.recovery_email,
+        subject: "Seu acesso ao HubM",
+        html,
       },
     });
     if (error) {
-      toast.error("Falha ao reenviar acesso. Verifique se o e-mail de recuperação está correto.");
+      toast.error("Falha ao reenviar. Verifique se o e-mail de recuperação está correto.");
       return;
     }
-    toast.success(`E-mail de acesso reenviado para ${profile.recovery_email}.`);
+    toast.success("E-mail de acesso reenviado com sucesso.");
   };
 
   const isInactive = !!profile.deleted_at;
