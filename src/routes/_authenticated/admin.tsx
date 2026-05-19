@@ -306,11 +306,16 @@ function UserActionsMenu({
   profile,
   isSelf,
   onChanged,
+  onEdit,
 }: {
   profile: Profile;
   isSelf: boolean;
   onChanged: () => void | Promise<void>;
+  onEdit: () => void;
 }) {
+  const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmDef | null>(null);
 
   const updateProfile = async (patch: Record<string, unknown>, successMsg: string) => {
