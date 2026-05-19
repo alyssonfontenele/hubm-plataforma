@@ -137,11 +137,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       company,
       globalRole: profile?.global_role ?? null,
       sectorMemberships,
+      providerToken,
       loading,
       refresh,
       signOut,
     }),
-    [session, profile, company, sectorMemberships, loading, refresh, signOut],
+    [session, profile, company, sectorMemberships, providerToken, loading, refresh, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
