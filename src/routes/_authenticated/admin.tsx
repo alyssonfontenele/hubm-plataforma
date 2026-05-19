@@ -471,6 +471,86 @@ function UserActionsMenu({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={deleteStep === 1} onOpenChange={(o) => !o && setDeleteStep(0)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir definitivamente</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza? Esta ação é irreversível e removerá o acesso de {profile.full_name} permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                setDeleteStep(2);
+              }}
+            >
+              Continuar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={deleteStep === 2} onOpenChange={(o) => !o && setDeleteStep(0)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmação final</AlertDialogTitle>
+            <AlertDialogDescription>
+              Digite <strong>EXCLUIR</strong> para confirmar a exclusão permanente de {profile.full_name}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            value={deleteConfirmText}
+            onChange={(e) => setDeleteConfirmText(e.target.value)}
+            placeholder="EXCLUIR"
+            autoFocus
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteConfirmText !== "EXCLUIR" || deleting}
+              onClick={async (e) => {
+                e.preventDefault();
+                if (deleteConfirmText !== "EXCLUIR") return;
+                setDeleting(true);
+                try {
+                  const { error: fnErr } = await supabase.functions.invoke(
+                    "admin-delete-user",
+                    { body: { user_id: profile.id } },
+                  );
+                  if (fnErr) throw fnErr;
+                  const { error: profErr } = await supabase
+                    .from("profiles")
+                    .update({
+                      full_name: "Usuário removido",
+                      cpf_hash: null,
+                      recovery_email: null,
+                      cellphone: null,
+                    })
+                    .eq("id", profile.id);
+                  if (profErr) throw profErr;
+                  toast.success("Usuário excluído permanentemente.");
+                  setDeleteStep(0);
+                  await onChanged();
+                } catch (err) {
+                  toast.error(
+                    err instanceof Error
+                      ? `Falha ao excluir: ${err.message}`
+                      : "Falha ao excluir usuário.",
+                  );
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+            >
+              {deleting ? "Excluindo…" : "Excluir definitivamente"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
