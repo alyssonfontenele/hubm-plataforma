@@ -22,6 +22,7 @@ interface AuthContextValue {
   company: Company | null;
   globalRole: GlobalRole | null;
   sectorMemberships: SectorMembership[];
+  providerToken: string | null;
   loading: boolean;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
