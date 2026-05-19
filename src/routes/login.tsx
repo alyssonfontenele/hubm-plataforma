@@ -78,7 +78,7 @@ function GoogleSection() {
     setError(null);
     setLoading(true);
     try {
-      await signInWithGoogle(`${window.location.origin}/`);
+      await signInWithGoogle(`${window.location.origin}/app`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao iniciar login.");
       setLoading(false);
