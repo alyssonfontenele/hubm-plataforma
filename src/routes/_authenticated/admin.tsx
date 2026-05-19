@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { MoreHorizontal, Plus, UserCog } from "lucide-react";
+import { MoreHorizontal, Plus, UserCog, LifeBuoy, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -103,6 +103,8 @@ function friendlyCreateError(message: string): string {
   const raw = message?.trim() ?? "";
   const m = raw.toLowerCase();
   if (!raw) return "Erro ao criar usuário. Tente novamente.";
+  if (m.includes("user inactive") || m.includes("usuário inativado") || m.includes("usuario inativado"))
+    return "Este CPF pertence a um usuário inativado. Use a opção de resgate para reativá-lo.";
   if (m.includes("invalid cpf"))
     return "CPF inválido. Verifique os dígitos informados.";
   if (m.includes("not null violation") || m.includes("not-null"))
@@ -121,6 +123,10 @@ function friendlyCreateError(message: string): string {
   return `Erro ao criar usuário: ${raw}`;
 }
 
+function isValidInitialPassword(pw: string): boolean {
+  return pw.length >= 8 && /\d/.test(pw) && /[A-Z]/.test(pw);
+}
+
 // ---------- Users tab ----------
 
 function UsersTab({
@@ -134,6 +140,8 @@ function UsersTab({
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [rescueOpen, setRescueOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Profile | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -142,6 +150,7 @@ function UsersTab({
         .from("profiles")
         .select("*")
         .eq("company_id", companyId)
+        .is("deleted_at", null)
         .order("full_name", { ascending: true }),
       supabase
         .from("sectors")
@@ -168,12 +177,21 @@ function UsersTab({
             <UserCog className="w-6 h-6" /> Usuários
           </h1>
         </div>
-        <Button
-          onClick={() => setModalOpen(true)}
-          className="bg-text-primary text-background hover:bg-text-primary/90"
-        >
-          <Plus className="w-4 h-4 mr-2" /> Novo usuário
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setRescueOpen(true)}
+            className="border-border"
+          >
+            <LifeBuoy className="w-4 h-4 mr-2" /> Resgatar usuário
+          </Button>
+          <Button
+            onClick={() => setModalOpen(true)}
+            className="bg-text-primary text-background hover:bg-text-primary/90"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Novo usuário
+          </Button>
+        </div>
       </header>
 
       <div className="border border-border rounded-lg bg-surface overflow-hidden">
@@ -231,6 +249,7 @@ function UsersTab({
                       profile={p}
                       isSelf={currentUserId === p.id}
                       onChanged={load}
+                      onEdit={() => setEditTarget(p)}
                     />
                   </TableCell>
                 </TableRow>
@@ -247,6 +266,26 @@ function UsersTab({
         companyId={companyId}
         onCreated={() => {
           setModalOpen(false);
+          void load();
+        }}
+      />
+
+      <RescueUserModal
+        open={rescueOpen}
+        onOpenChange={setRescueOpen}
+        companyId={companyId}
+        onReactivated={() => {
+          setRescueOpen(false);
+          void load();
+        }}
+      />
+
+      <EditUserModal
+        profile={editTarget}
+        sectors={sectors}
+        onOpenChange={(o) => !o && setEditTarget(null)}
+        onSaved={() => {
+          setEditTarget(null);
           void load();
         }}
       />
@@ -267,11 +306,16 @@ function UserActionsMenu({
   profile,
   isSelf,
   onChanged,
+  onEdit,
 }: {
   profile: Profile;
   isSelf: boolean;
   onChanged: () => void | Promise<void>;
+  onEdit: () => void;
 }) {
+  const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmDef | null>(null);
 
   const updateProfile = async (patch: Record<string, unknown>, successMsg: string) => {
@@ -360,7 +404,9 @@ function UserActionsMenu({
             <MoreHorizontal className="w-4 h-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuItem onSelect={onEdit}>Editar</DropdownMenuItem>
+          <DropdownMenuSeparator />
           {!isInactive && profile.active && (
             <DropdownMenuItem disabled={isSelf} onSelect={suspend}>
               Suspender
@@ -387,6 +433,21 @@ function UserActionsMenu({
               Reenviar acesso
             </DropdownMenuItem>
           )}
+          {isInactive && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                disabled={isSelf}
+                onSelect={() => {
+                  setDeleteConfirmText("");
+                  setDeleteStep(1);
+                }}
+                className="text-destructive focus:text-destructive"
+              >
+                Excluir definitivamente
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -406,6 +467,86 @@ function UserActionsMenu({
               }}
             >
               {confirm?.actionLabel}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={deleteStep === 1} onOpenChange={(o) => !o && setDeleteStep(0)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir definitivamente</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza? Esta ação é irreversível e removerá o acesso de {profile.full_name} permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                setDeleteStep(2);
+              }}
+            >
+              Continuar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={deleteStep === 2} onOpenChange={(o) => !o && setDeleteStep(0)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmação final</AlertDialogTitle>
+            <AlertDialogDescription>
+              Digite <strong>EXCLUIR</strong> para confirmar a exclusão permanente de {profile.full_name}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            value={deleteConfirmText}
+            onChange={(e) => setDeleteConfirmText(e.target.value)}
+            placeholder="EXCLUIR"
+            autoFocus
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteConfirmText !== "EXCLUIR" || deleting}
+              onClick={async (e) => {
+                e.preventDefault();
+                if (deleteConfirmText !== "EXCLUIR") return;
+                setDeleting(true);
+                try {
+                  const { error: fnErr } = await supabase.functions.invoke(
+                    "admin-delete-user",
+                    { body: { user_id: profile.id } },
+                  );
+                  if (fnErr) throw fnErr;
+                  const { error: profErr } = await supabase
+                    .from("profiles")
+                    .update({
+                      full_name: "Usuário removido",
+                      cpf_hash: null,
+                      recovery_email: null,
+                      cellphone: null,
+                    })
+                    .eq("id", profile.id);
+                  if (profErr) throw profErr;
+                  toast.success("Usuário excluído permanentemente.");
+                  setDeleteStep(0);
+                  await onChanged();
+                } catch (err) {
+                  toast.error(
+                    err instanceof Error
+                      ? `Falha ao excluir: ${err.message}`
+                      : "Falha ao excluir usuário.",
+                  );
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+            >
+              {deleting ? "Excluindo…" : "Excluir definitivamente"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -438,6 +579,9 @@ function UserFormModal({
   const [recoveryEmail, setRecoveryEmail] = useState("");
   const [globalRole, setGlobalRole] = useState<GlobalRole>("member");
   const [assignments, setAssignments] = useState<SectorAssignment[]>([]);
+  const [initialPassword, setInitialPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -451,6 +595,9 @@ function UserFormModal({
       setRecoveryEmail("");
       setGlobalRole("member");
       setAssignments([]);
+      setInitialPassword("");
+      setShowPassword(false);
+      setPasswordError(null);
     }
   }, [open]);
 
@@ -537,6 +684,13 @@ function UserFormModal({
       toast.error("Informe um e-mail de recuperação");
       return;
     }
+    if (initialPassword && !isValidInitialPassword(initialPassword)) {
+      setPasswordError(
+        "A senha deve ter no mínimo 8 caracteres, 1 número e 1 letra maiúscula",
+      );
+      toast.error("Senha inicial inválida");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -549,6 +703,7 @@ function UserFormModal({
           company_id: companyId,
           global_role: globalRole,
           sector_assignments: assignmentsPayload,
+          initial_password: initialPassword || undefined,
         },
       });
       if (error) {
@@ -676,6 +831,46 @@ function UserFormModal({
                   placeholder="maria@exemplo.com"
                 />
               </div>
+              <div>
+                <Label htmlFor="initial_password">Senha inicial</Label>
+                <div className="relative">
+                  <Input
+                    id="initial_password"
+                    type={showPassword ? "text" : "password"}
+                    value={initialPassword}
+                    onChange={(e) => {
+                      setInitialPassword(e.target.value);
+                      if (passwordError) setPasswordError(null);
+                    }}
+                    onBlur={() => {
+                      if (initialPassword && !isValidInitialPassword(initialPassword)) {
+                        setPasswordError(
+                          "A senha deve ter no mínimo 8 caracteres, 1 número e 1 letra maiúscula",
+                        );
+                      }
+                    }}
+                    placeholder="Mínimo 8 caracteres"
+                    maxLength={72}
+                    autoComplete="new-password"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((s) => !s)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
+                    aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {passwordError ? (
+                  <p className="mt-1 text-xs text-destructive">{passwordError}</p>
+                ) : (
+                  <p className="mt-1 text-xs text-text-muted">
+                    Se não preenchida, uma senha será gerada automaticamente
+                  </p>
+                )}
+              </div>
             </>
           )}
 
@@ -757,6 +952,482 @@ function UserFormModal({
             className="bg-text-primary text-background hover:bg-text-primary/90"
           >
             {submitting ? "Salvando…" : "Criar usuário"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---------- Rescue user modal ----------
+
+function RescueUserModal({
+  open,
+  onOpenChange,
+  companyId,
+  onReactivated,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  companyId: string;
+  onReactivated: () => void;
+}) {
+  const [cpf, setCpf] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [found, setFound] = useState<Profile | null>(null);
+  const [notFound, setNotFound] = useState(false);
+  const [reactivating, setReactivating] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setCpf("");
+      setFound(null);
+      setNotFound(false);
+      setSearching(false);
+      setReactivating(false);
+    }
+  }, [open]);
+
+  const search = async () => {
+    if (!isValidCpf(cpf)) {
+      toast.error("CPF inválido");
+      return;
+    }
+    setSearching(true);
+    setNotFound(false);
+    setFound(null);
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("company_id", companyId)
+        .eq("cpf_hash", cpfToDigits(cpf))
+        .not("deleted_at", "is", null)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) {
+        setNotFound(true);
+      } else {
+        setFound(data as Profile);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao buscar usuário.");
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const reactivate = async () => {
+    if (!found) return;
+    setReactivating(true);
+    try {
+      const { error: updErr } = await supabase
+        .from("profiles")
+        .update({
+          active: true,
+          deleted_at: null,
+          must_change_password: true,
+        })
+        .eq("id", found.id);
+      if (updErr) throw updErr;
+
+      if (found.recovery_email) {
+        await supabase.functions.invoke("send-email", {
+          body: {
+            to: found.recovery_email,
+            subject: "Seu acesso ao HubM foi reativado",
+            template: "user-reactivated",
+            data: { full_name: found.full_name },
+          },
+        });
+      }
+      toast.success("Usuário reativado com sucesso. E-mail de acesso reenviado.");
+      onReactivated();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? `Falha: ${err.message}` : "Falha ao reativar usuário.",
+      );
+    } finally {
+      setReactivating(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-surface border-border max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-text-primary">Resgatar usuário</DialogTitle>
+          <DialogDescription className="text-text-muted">
+            Informe o CPF do usuário inativado para reativar o acesso.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="rescue_cpf">CPF</Label>
+            <div className="flex gap-2">
+              <Input
+                id="rescue_cpf"
+                value={cpf}
+                onChange={(e) => {
+                  setCpf(maskCpf(e.target.value));
+                  setNotFound(false);
+                  setFound(null);
+                }}
+                placeholder="000.000.000-00"
+                maxLength={14}
+                inputMode="numeric"
+              />
+              <Button
+                onClick={() => void search()}
+                disabled={searching}
+                variant="outline"
+                className="border-border"
+              >
+                {searching ? "Buscando…" : "Buscar"}
+              </Button>
+            </div>
+            {notFound && (
+              <p className="mt-2 text-xs text-text-muted">
+                Nenhum usuário inativado encontrado com este CPF.
+              </p>
+            )}
+          </div>
+
+          {found && (
+            <div className="border border-border rounded-md p-4 space-y-2 bg-background">
+              <div>
+                <p className="text-xs text-text-muted">Nome</p>
+                <p className="text-sm text-text-primary">{found.full_name}</p>
+              </div>
+              <div>
+                <p className="text-xs text-text-muted">E-mail de recuperação</p>
+                <p className="text-sm text-text-primary">{found.recovery_email ?? "—"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-text-muted">Celular</p>
+                <p className="text-sm text-text-primary">
+                  {found.cellphone ? maskCellphone(found.cellphone) : "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-text-muted">Papel global</p>
+                <p className="text-sm text-text-primary capitalize">{found.global_role}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Fechar
+          </Button>
+          {found && (
+            <Button
+              onClick={() => void reactivate()}
+              disabled={reactivating}
+              className="bg-text-primary text-background hover:bg-text-primary/90"
+            >
+              {reactivating ? "Reativando…" : "Reativar acesso"}
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---------- Edit user modal ----------
+
+function EditUserModal({
+  profile,
+  sectors,
+  onOpenChange,
+  onSaved,
+}: {
+  profile: Profile | null;
+  sectors: Sector[];
+  onOpenChange: (o: boolean) => void;
+  onSaved: () => void;
+}) {
+  const [fullName, setFullName] = useState("");
+  const [cellphone, setCellphone] = useState("");
+  const [cellphoneError, setCellphoneError] = useState<string | null>(null);
+  const [recoveryEmail, setRecoveryEmail] = useState("");
+  const [globalRole, setGlobalRole] = useState<GlobalRole>("member");
+  const [assignments, setAssignments] = useState<SectorAssignment[]>([]);
+  const [newPassword, setNewPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (profile) {
+      setFullName(profile.full_name ?? "");
+      setCellphone(profile.cellphone ? maskCellphone(profile.cellphone) : "");
+      setRecoveryEmail(profile.recovery_email ?? "");
+      setGlobalRole(profile.global_role);
+      setNewPassword("");
+      setShowPw(false);
+      setPwError(null);
+      setCellphoneError(null);
+      void (async () => {
+        const { data } = await supabase
+          .from("sector_members")
+          .select("sector_id, role")
+          .eq("profile_id", profile.id);
+        setAssignments((data as SectorAssignment[] | null) ?? []);
+      })();
+    }
+  }, [profile]);
+
+  if (!profile) return null;
+
+  const toggleSector = (id: string) => {
+    setAssignments((prev) =>
+      prev.some((a) => a.sector_id === id)
+        ? prev.filter((a) => a.sector_id !== id)
+        : [...prev, { sector_id: id, role: "member" }],
+    );
+  };
+
+  const save = async () => {
+    if (!fullName.trim()) {
+      toast.error("Informe o nome completo");
+      return;
+    }
+    if (cellphone && !isValidCellphone(cellphone)) {
+      setCellphoneError("Celular inválido");
+      return;
+    }
+    if (newPassword && !isValidInitialPassword(newPassword)) {
+      setPwError(
+        "A senha deve ter no mínimo 8 caracteres, 1 número e 1 letra maiúscula",
+      );
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const patch: Record<string, unknown> = {
+        full_name: fullName.trim(),
+        cellphone: cellphone ? cellphoneToDigits(cellphone) : null,
+        recovery_email: recoveryEmail.trim().toLowerCase() || null,
+        global_role: globalRole,
+      };
+      if (newPassword) {
+        patch.must_change_password = true;
+      }
+      const { error: profErr } = await supabase
+        .from("profiles")
+        .update(patch)
+        .eq("id", profile.id);
+      if (profErr) throw profErr;
+
+      // Replace sector memberships
+      await supabase.from("sector_members").delete().eq("profile_id", profile.id);
+      if (assignments.length > 0) {
+        await supabase.from("sector_members").insert(
+          assignments.map((a) => ({
+            profile_id: profile.id,
+            sector_id: a.sector_id,
+            role: a.role,
+          })),
+        );
+      }
+
+      if (newPassword && profile.auth_type === "cpf") {
+        const { error: pwErr } = await supabase.functions.invoke(
+          "admin-update-password",
+          { body: { user_id: profile.id, new_password: newPassword } },
+        );
+        if (pwErr) throw pwErr;
+      }
+
+      toast.success("Dados do usuário atualizados com sucesso.");
+      onSaved();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? `Falha: ${err.message}` : "Falha ao salvar.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={!!profile} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-surface border-border max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-text-primary">Editar usuário</DialogTitle>
+          <DialogDescription className="text-text-muted">
+            Atualize as informações do usuário.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="e_name">Nome completo</Label>
+            <Input
+              id="e_name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              maxLength={120}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="e_cell">Celular</Label>
+            <Input
+              id="e_cell"
+              value={cellphone}
+              onChange={(e) => {
+                setCellphone(maskCellphone(e.target.value));
+                if (cellphoneError) setCellphoneError(null);
+              }}
+              onBlur={() => {
+                if (cellphone && !isValidCellphone(cellphone)) {
+                  setCellphoneError("Celular inválido");
+                }
+              }}
+              placeholder="(00) 00000-0000"
+              maxLength={16}
+              inputMode="numeric"
+            />
+            {cellphoneError && (
+              <p className="mt-1 text-xs text-destructive">{cellphoneError}</p>
+            )}
+          </div>
+
+          <div>
+            <Label htmlFor="e_rec">E-mail de recuperação</Label>
+            <Input
+              id="e_rec"
+              type="email"
+              value={recoveryEmail}
+              onChange={(e) => setRecoveryEmail(e.target.value)}
+              maxLength={255}
+            />
+          </div>
+
+          <div>
+            <Label>Papel global</Label>
+            <Select value={globalRole} onValueChange={(v) => setGlobalRole(v as GlobalRole)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {GLOBAL_ROLES.map((r) => (
+                  <SelectItem key={r} value={r} className="capitalize">
+                    {r}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label>Setores</Label>
+            <div className="mt-2 space-y-2 border border-border rounded-md p-3">
+              {sectors.length === 0 && (
+                <p className="text-sm text-text-muted">Nenhum setor disponível.</p>
+              )}
+              {sectors.map((s) => {
+                const assigned = assignments.find((a) => a.sector_id === s.id);
+                return (
+                  <div key={s.id} className="flex items-center justify-between gap-3">
+                    <label className="flex items-center gap-2 text-sm text-text-primary">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(assigned)}
+                        onChange={() => toggleSector(s.id)}
+                        className="accent-text-primary"
+                      />
+                      {s.name}
+                    </label>
+                    {assigned && (
+                      <Select
+                        value={assigned.role}
+                        onValueChange={(v) =>
+                          setAssignments((prev) =>
+                            prev.map((a) =>
+                              a.sector_id === s.id ? { ...a, role: v as SectorRole } : a,
+                            ),
+                          )
+                        }
+                      >
+                        <SelectTrigger className="w-32 h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SECTOR_ROLES.map((r) => (
+                            <SelectItem key={r} value={r} className="capitalize">
+                              {r}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {profile.auth_type === "cpf" && (
+            <div>
+              <Label htmlFor="e_pw">Nova senha inicial</Label>
+              <div className="relative">
+                <Input
+                  id="e_pw"
+                  type={showPw ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value);
+                    if (pwError) setPwError(null);
+                  }}
+                  onBlur={() => {
+                    if (newPassword && !isValidInitialPassword(newPassword)) {
+                      setPwError(
+                        "A senha deve ter no mínimo 8 caracteres, 1 número e 1 letra maiúscula",
+                      );
+                    }
+                  }}
+                  placeholder="Deixe em branco para manter"
+                  maxLength={72}
+                  autoComplete="new-password"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw((s) => !s)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
+                  aria-label={showPw ? "Ocultar senha" : "Mostrar senha"}
+                >
+                  {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {pwError ? (
+                <p className="mt-1 text-xs text-destructive">{pwError}</p>
+              ) : (
+                <p className="mt-1 text-xs text-text-muted">
+                  Se preenchida, a senha será redefinida e o usuário precisará alterá-la no próximo acesso.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={() => void save()}
+            disabled={saving}
+            className="bg-text-primary text-background hover:bg-text-primary/90"
+          >
+            {saving ? "Salvando…" : "Salvar alterações"}
           </Button>
         </DialogFooter>
       </DialogContent>

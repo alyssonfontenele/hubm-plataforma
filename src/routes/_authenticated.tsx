@@ -24,6 +24,16 @@ function AuthenticatedLayout() {
   useEffect(() => {
     if (!loading && session && profile?.must_change_password) {
       void navigate({ to: "/change-password" });
+      return;
+    }
+    if (
+      !loading &&
+      session &&
+      profile &&
+      !profile.must_change_password &&
+      (!profile.cellphone || profile.cellphone.trim() === "")
+    ) {
+      void navigate({ to: "/complete-profile" });
     }
   }, [loading, session, profile, navigate]);
 
