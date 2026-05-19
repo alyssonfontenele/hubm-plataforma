@@ -177,12 +177,21 @@ function UsersTab({
             <UserCog className="w-6 h-6" /> Usuários
           </h1>
         </div>
-        <Button
-          onClick={() => setModalOpen(true)}
-          className="bg-text-primary text-background hover:bg-text-primary/90"
-        >
-          <Plus className="w-4 h-4 mr-2" /> Novo usuário
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setRescueOpen(true)}
+            className="border-border"
+          >
+            <LifeBuoy className="w-4 h-4 mr-2" /> Resgatar usuário
+          </Button>
+          <Button
+            onClick={() => setModalOpen(true)}
+            className="bg-text-primary text-background hover:bg-text-primary/90"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Novo usuário
+          </Button>
+        </div>
       </header>
 
       <div className="border border-border rounded-lg bg-surface overflow-hidden">
