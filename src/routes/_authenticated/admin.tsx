@@ -249,6 +249,7 @@ function UsersTab({
                       profile={p}
                       isSelf={currentUserId === p.id}
                       onChanged={load}
+                      onEdit={() => setEditTarget(p)}
                     />
                   </TableCell>
                 </TableRow>
@@ -265,6 +266,26 @@ function UsersTab({
         companyId={companyId}
         onCreated={() => {
           setModalOpen(false);
+          void load();
+        }}
+      />
+
+      <RescueUserModal
+        open={rescueOpen}
+        onOpenChange={setRescueOpen}
+        companyId={companyId}
+        onReactivated={() => {
+          setRescueOpen(false);
+          void load();
+        }}
+      />
+
+      <EditUserModal
+        profile={editTarget}
+        sectors={sectors}
+        onOpenChange={(o) => !o && setEditTarget(null)}
+        onSaved={() => {
+          setEditTarget(null);
           void load();
         }}
       />
