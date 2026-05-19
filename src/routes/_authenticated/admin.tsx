@@ -252,11 +252,6 @@ function UserFormModal({
     }
   }, [open]);
 
-  const sectorById = useMemo(() => {
-    const m = new Map<string, Sector>();
-    sectors.forEach((s) => m.set(s.id, s));
-    return m;
-  }, [sectors]);
 
   const toggleSector = (sectorId: string) => {
     setAssignments((prev) => {
