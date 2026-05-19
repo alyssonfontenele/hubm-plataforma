@@ -189,7 +189,7 @@ function FolderPill({
       className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
         active
           ? "bg-text-primary text-background border-text-primary"
-          : "bg-surface text-text-primary border-border hover:bg-surface-hover"
+          : "bg-surface text-text-primary border-border hover:bg-background"
       }`}
     >
       {label}
@@ -211,7 +211,7 @@ function ResourceCard({ resource }: { resource: Resource }) {
   return (
     <Wrapper
       {...wrapperProps}
-      className="group block rounded-lg border border-border bg-surface p-4 hover:bg-surface-hover transition-colors"
+      className="group block rounded-lg border border-border bg-surface p-4 hover:bg-background transition-colors"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="w-9 h-9 rounded-md bg-background border border-border flex items-center justify-center shrink-0">
