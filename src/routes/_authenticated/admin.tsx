@@ -684,6 +684,13 @@ function UserFormModal({
       toast.error("Informe um e-mail de recuperação");
       return;
     }
+    if (initialPassword && !isValidInitialPassword(initialPassword)) {
+      setPasswordError(
+        "A senha deve ter no mínimo 8 caracteres, 1 número e 1 letra maiúscula",
+      );
+      toast.error("Senha inicial inválida");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -696,6 +703,7 @@ function UserFormModal({
           company_id: companyId,
           global_role: globalRole,
           sector_assignments: assignmentsPayload,
+          initial_password: initialPassword || undefined,
         },
       });
       if (error) {
