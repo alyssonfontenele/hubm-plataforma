@@ -253,6 +253,12 @@ function RecoveryModal({ onClose }: { onClose: () => void }) {
     }
   };
 
+  useEffect(() => {
+    if (!sent) return;
+    const t = setTimeout(onClose, 3000);
+    return () => clearTimeout(t);
+  }, [sent, onClose]);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-text-primary/40 backdrop-blur-sm px-4"
