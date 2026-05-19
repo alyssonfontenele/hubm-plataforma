@@ -176,6 +176,8 @@ function HomePage() {
           </ul>
         )}
       </section>
+
+      <CalendarCard />
     </div>
   );
 }
