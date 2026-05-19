@@ -27,7 +27,7 @@ function LoginPage() {
 
   useEffect(() => {
     if (!loading && session && pathname === "/login") {
-      void navigate({ to: "/" });
+      void navigate({ to: "/app" });
     }
   }, [loading, session, pathname, navigate]);
 
