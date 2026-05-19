@@ -35,9 +35,12 @@ export interface Profile {
   auth_type: AuthType;
   cpf_hash: string | null;
   recovery_email: string | null;
+  cellphone: string | null;
   avatar_url: string | null;
   global_role: GlobalRole;
   active: boolean;
+  must_change_password: boolean;
+  deleted_at: string | null;
   last_login_at: string | null;
   consent_at: string | null;
 }

@@ -21,6 +21,12 @@ function AuthenticatedLayout() {
     }
   }, [loading, session, href, navigate]);
 
+  useEffect(() => {
+    if (!loading && session && profile?.must_change_password) {
+      void navigate({ to: "/change-password" });
+    }
+  }, [loading, session, profile, navigate]);
+
   if (loading || !session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
