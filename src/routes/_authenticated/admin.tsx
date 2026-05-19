@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Plus, UserCog } from "lucide-react";
+import { MoreHorizontal, Plus, UserCog } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -38,7 +38,31 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { cpfToDigits, cpfToEmail, isValidCpf, maskCpf } from "@/lib/auth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  cellphoneToDigits,
+  cpfToDigits,
+  isValidCellphone,
+  isValidCpf,
+  maskCellphone,
+  maskCpf,
+} from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Admin — HubM" }] }),
@@ -60,7 +84,7 @@ const GLOBAL_ROLES: GlobalRole[] = ["admin", "manager", "member", "viewer", "ope
 const SECTOR_ROLES: SectorRole[] = ["manager", "member", "viewer"];
 
 function AdminPage() {
-  const { globalRole, company, loading } = useAuth();
+  const { globalRole, company, loading, session } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -70,10 +94,30 @@ function AdminPage() {
   }, [loading, globalRole, navigate]);
 
   if (globalRole !== "admin" || !company) return null;
-  return <UsersTab companyId={company.id} />;
+  return <UsersTab companyId={company.id} currentUserId={session?.user?.id ?? null} />;
 }
 
-function UsersTab({ companyId }: { companyId: string }) {
+// ---------- Friendly error mapper ----------
+
+function friendlyCreateError(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes("already registered")) return "Este CPF já está cadastrado no sistema.";
+  if (m.includes("duplicate") && m.includes("recovery_email"))
+    return "Este e-mail já está em uso.";
+  if (m.includes("duplicate") && m.includes("cellphone"))
+    return "Este celular já está cadastrado.";
+  return "Erro ao criar usuário. Tente novamente.";
+}
+
+// ---------- Users tab ----------
+
+function UsersTab({
+  companyId,
+  currentUserId,
+}: {
+  companyId: string;
+  currentUserId: string | null;
+}) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,21 +146,6 @@ function UsersTab({ companyId }: { companyId: string }) {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId]);
-
-  const toggleActive = async (p: Profile) => {
-    const next = !p.active;
-    setProfiles((prev) => prev.map((x) => (x.id === p.id ? { ...x, active: next } : x)));
-    const { error } = await supabase
-      .from("profiles")
-      .update({ active: next })
-      .eq("id", p.id);
-    if (error) {
-      toast.error("Falha ao atualizar status: " + error.message);
-      setProfiles((prev) => prev.map((x) => (x.id === p.id ? { ...x, active: !next } : x)));
-    } else {
-      toast.success(next ? "Usuário ativado" : "Usuário desativado");
-    }
-  };
 
   return (
     <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
@@ -169,32 +198,27 @@ function UsersTab({ companyId }: { companyId: string }) {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant="outline"
-                      className="border-border text-text-primary"
-                    >
+                    <Badge variant="outline" className="border-border text-text-primary">
                       {p.auth_type === "google" ? "Google" : "CPF"}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-text-primary capitalize">
-                    {p.global_role}
-                  </TableCell>
+                  <TableCell className="text-text-primary capitalize">{p.global_role}</TableCell>
                   <TableCell>
                     <span
                       className={`text-xs px-2 py-0.5 rounded-full border ${
-                        p.active
+                        p.active && !p.deleted_at
                           ? "border-border text-text-primary bg-background"
                           : "border-border text-text-muted bg-surface"
                       }`}
                     >
-                      {p.active ? "Ativo" : "Inativo"}
+                      {p.deleted_at ? "Inativo" : p.active ? "Ativo" : "Suspenso"}
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Switch
-                      checked={p.active}
-                      onCheckedChange={() => toggleActive(p)}
-                      aria-label="Alternar ativo"
+                    <UserActionsMenu
+                      profile={p}
+                      isSelf={currentUserId === p.id}
+                      onChanged={load}
                     />
                   </TableCell>
                 </TableRow>
@@ -218,6 +242,168 @@ function UsersTab({ companyId }: { companyId: string }) {
   );
 }
 
+// ---------- Actions menu ----------
+
+type ConfirmDef = {
+  title: string;
+  description: string;
+  actionLabel: string;
+  run: () => Promise<void>;
+};
+
+function UserActionsMenu({
+  profile,
+  isSelf,
+  onChanged,
+}: {
+  profile: Profile;
+  isSelf: boolean;
+  onChanged: () => void | Promise<void>;
+}) {
+  const [confirm, setConfirm] = useState<ConfirmDef | null>(null);
+
+  const updateProfile = async (patch: Record<string, unknown>, successMsg: string) => {
+    const { error } = await supabase.from("profiles").update(patch).eq("id", profile.id);
+    if (error) {
+      toast.error("Falha: " + error.message);
+      return;
+    }
+    toast.success(successMsg);
+    await onChanged();
+  };
+
+  const suspend = () =>
+    setConfirm({
+      title: "Suspender usuário",
+      description: `Tem certeza que deseja suspender ${profile.full_name}? O acesso será bloqueado imediatamente.`,
+      actionLabel: "Suspender",
+      run: () => updateProfile({ active: false }, `${profile.full_name} suspenso.`),
+    });
+
+  const inactivate = () =>
+    setConfirm({
+      title: "Inativar usuário",
+      description: `Esta ação desativará permanentemente ${profile.full_name}. Os dados serão preservados mas o acesso será removido.`,
+      actionLabel: "Inativar",
+      run: () =>
+        updateProfile(
+          { active: false, deleted_at: new Date().toISOString() },
+          `${profile.full_name} inativado.`,
+        ),
+    });
+
+  const reactivate = () =>
+    setConfirm({
+      title: "Reativar usuário",
+      description: `Deseja reativar o acesso de ${profile.full_name}?`,
+      actionLabel: "Reativar",
+      run: () =>
+        updateProfile(
+          { active: true, deleted_at: null },
+          `${profile.full_name} reativado.`,
+        ),
+    });
+
+  const forcePw = () =>
+    setConfirm({
+      title: "Forçar troca de senha",
+      description: `${profile.full_name} será solicitado a redefinir a senha no próximo acesso.`,
+      actionLabel: "Confirmar",
+      run: () =>
+        updateProfile(
+          { must_change_password: true },
+          "Troca de senha exigida no próximo acesso.",
+        ),
+    });
+
+  const resendAccess = async () => {
+    const { error } = await supabase.functions.invoke("create-cpf-user", {
+      body: {
+        resend: true,
+        cpf: profile.cpf_hash,
+        recovery_email: profile.recovery_email,
+      },
+    });
+    if (error) {
+      toast.error("Falha ao reenviar acesso.");
+      return;
+    }
+    toast.success(`E-mail de acesso reenviado para ${profile.recovery_email}.`);
+  };
+
+  const isInactive = !!profile.deleted_at;
+  const canForcePw = profile.auth_type === "cpf" && !isInactive;
+  const canResend =
+    profile.auth_type === "cpf" && profile.must_change_password && !isInactive;
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`Ações para ${profile.full_name}`}
+          >
+            <MoreHorizontal className="w-4 h-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          {!isInactive && profile.active && (
+            <DropdownMenuItem disabled={isSelf} onSelect={suspend}>
+              Suspender
+            </DropdownMenuItem>
+          )}
+          {!isInactive && (
+            <DropdownMenuItem disabled={isSelf} onSelect={inactivate}>
+              Inativar
+            </DropdownMenuItem>
+          )}
+          {(!profile.active || isInactive) && (
+            <DropdownMenuItem onSelect={reactivate}>Reativar</DropdownMenuItem>
+          )}
+          {canForcePw && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={forcePw}>
+                Forçar troca de senha
+              </DropdownMenuItem>
+            </>
+          )}
+          {canResend && (
+            <DropdownMenuItem onSelect={() => void resendAccess()}>
+              Reenviar acesso
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirm?.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirm?.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                const c = confirm;
+                setConfirm(null);
+                if (c) await c.run();
+              }}
+            >
+              {confirm?.actionLabel}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+// ---------- Create user modal ----------
+
 function UserFormModal({
   open,
   onOpenChange,
@@ -235,6 +421,8 @@ function UserFormModal({
   const [authType, setAuthType] = useState<AuthType>("google");
   const [email, setEmail] = useState("");
   const [cpf, setCpf] = useState("");
+  const [cellphone, setCellphone] = useState("");
+  const [cellphoneError, setCellphoneError] = useState<string | null>(null);
   const [recoveryEmail, setRecoveryEmail] = useState("");
   const [globalRole, setGlobalRole] = useState<GlobalRole>("member");
   const [assignments, setAssignments] = useState<SectorAssignment[]>([]);
@@ -246,20 +434,20 @@ function UserFormModal({
       setAuthType("google");
       setEmail("");
       setCpf("");
+      setCellphone("");
+      setCellphoneError(null);
       setRecoveryEmail("");
       setGlobalRole("member");
       setAssignments([]);
     }
   }, [open]);
 
-
   const toggleSector = (sectorId: string) => {
-    setAssignments((prev) => {
-      if (prev.some((a) => a.sector_id === sectorId)) {
-        return prev.filter((a) => a.sector_id !== sectorId);
-      }
-      return [...prev, { sector_id: sectorId, role: "member" }];
-    });
+    setAssignments((prev) =>
+      prev.some((a) => a.sector_id === sectorId)
+        ? prev.filter((a) => a.sector_id !== sectorId)
+        : [...prev, { sector_id: sectorId, role: "member" }],
+    );
   };
 
   const setAssignmentRole = (sectorId: string, role: SectorRole) => {
@@ -268,72 +456,105 @@ function UserFormModal({
     );
   };
 
+  const assignmentsPayload = useMemo(
+    () => assignments.map((a) => ({ sector_id: a.sector_id, role: a.role })),
+    [assignments],
+  );
+
   const handleSubmit = async () => {
     if (!fullName.trim()) {
       toast.error("Informe o nome completo");
       return;
     }
-    if (authType === "google" && !email.trim()) {
-      toast.error("Informe o e-mail do Google");
+
+    if (authType === "google") {
+      if (!email.trim()) {
+        toast.error("Informe o e-mail do Google");
+        return;
+      }
+      // Google flow keeps the previous direct insert behaviour.
+      setSubmitting(true);
+      try {
+        const newId = crypto.randomUUID();
+        const { error } = await supabase.from("profiles").insert({
+          id: newId,
+          company_id: companyId,
+          full_name: fullName.trim(),
+          display_name: fullName.trim().split(" ")[0],
+          auth_type: "google",
+          global_role: globalRole,
+          active: true,
+          must_change_password: false,
+          recovery_email: email.trim().toLowerCase(),
+        });
+        if (error) throw error;
+        if (assignmentsPayload.length > 0) {
+          await supabase
+            .from("sector_members")
+            .insert(
+              assignmentsPayload.map((a) => ({
+                profile_id: newId,
+                sector_id: a.sector_id,
+                role: a.role,
+              })),
+            );
+        }
+        toast.success("Usuário criado com sucesso.");
+        onCreated();
+      } catch (err) {
+        toast.error(
+          friendlyCreateError(err instanceof Error ? err.message : ""),
+        );
+      } finally {
+        setSubmitting(false);
+      }
       return;
     }
-    if (authType === "cpf") {
-      if (!isValidCpf(cpf)) {
-        toast.error("CPF inválido");
-        return;
-      }
-      if (!recoveryEmail.trim()) {
-        toast.error("Informe um e-mail de recuperação");
-        return;
-      }
+
+    // CPF flow → Edge Function
+    if (!isValidCpf(cpf)) {
+      toast.error("CPF inválido");
+      return;
+    }
+    if (!isValidCellphone(cellphone)) {
+      setCellphoneError("Celular inválido");
+      toast.error("Celular inválido");
+      return;
+    }
+    if (!recoveryEmail.trim()) {
+      toast.error("Informe um e-mail de recuperação");
+      return;
     }
 
     setSubmitting(true);
     try {
-      const newId = crypto.randomUUID();
-      const profilePayload: Record<string, unknown> = {
-        id: newId,
-        company_id: companyId,
-        full_name: fullName.trim(),
-        display_name: fullName.trim().split(" ")[0],
-        auth_type: authType,
-        global_role: globalRole,
-        active: true,
-      };
-      if (authType === "google") {
-        profilePayload.recovery_email = email.trim().toLowerCase();
-      } else {
-        profilePayload.cpf_hash = cpfToDigits(cpf);
-        profilePayload.recovery_email = recoveryEmail.trim().toLowerCase();
+      const { data, error } = await supabase.functions.invoke("create-cpf-user", {
+        body: {
+          full_name: fullName.trim(),
+          cpf: cpfToDigits(cpf),
+          recovery_email: recoveryEmail.trim().toLowerCase(),
+          cellphone: cellphoneToDigits(cellphone),
+          company_id: companyId,
+          global_role: globalRole,
+          sector_assignments: assignmentsPayload,
+        },
+      });
+      if (error) {
+        // supabase-js wraps function errors; inspect message + context
+        const ctxMsg =
+          (data as { error?: string } | null)?.error ??
+          (error as { context?: { error?: string } }).context?.error ??
+          error.message ??
+          "";
+        toast.error(friendlyCreateError(ctxMsg));
+        return;
       }
-
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .insert(profilePayload);
-      if (profileError) throw profileError;
-
-      if (assignments.length > 0) {
-        const { error: membersError } = await supabase
-          .from("sector_members")
-          .insert(
-            assignments.map((a) => ({
-              profile_id: newId,
-              sector_id: a.sector_id,
-              role: a.role,
-            })),
-          );
-        if (membersError) throw membersError;
-      }
-
-      const note =
-        authType === "cpf"
-          ? `Login interno: ${cpfToEmail(cpf)} (definir senha pelo fluxo de recuperação)`
-          : "Acesso será ativado no primeiro login Google";
-      toast.success("Usuário criado", { description: note });
+      toast.success(
+        `Usuário criado com sucesso. E-mail de acesso enviado para ${recoveryEmail.trim().toLowerCase()}.`,
+      );
       onCreated();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro desconhecido";
-      toast.error("Falha ao criar usuário: " + msg);
+      toast.error(friendlyCreateError(err instanceof Error ? err.message : ""));
     } finally {
       setSubmitting(false);
     }
@@ -411,6 +632,28 @@ function UserFormModal({
                 />
               </div>
               <div>
+                <Label htmlFor="cellphone">Celular</Label>
+                <Input
+                  id="cellphone"
+                  value={cellphone}
+                  onChange={(e) => {
+                    setCellphone(maskCellphone(e.target.value));
+                    if (cellphoneError) setCellphoneError(null);
+                  }}
+                  onBlur={() => {
+                    if (cellphone && !isValidCellphone(cellphone)) {
+                      setCellphoneError("Celular inválido");
+                    }
+                  }}
+                  placeholder="(00) 00000-0000"
+                  maxLength={16}
+                  inputMode="numeric"
+                />
+                {cellphoneError && (
+                  <p className="mt-1 text-xs text-destructive">{cellphoneError}</p>
+                )}
+              </div>
+              <div>
                 <Label htmlFor="recovery">E-mail de recuperação</Label>
                 <Input
                   id="recovery"
@@ -426,10 +669,7 @@ function UserFormModal({
 
           <div>
             <Label>Papel global</Label>
-            <Select
-              value={globalRole}
-              onValueChange={(v) => setGlobalRole(v as GlobalRole)}
-            >
+            <Select value={globalRole} onValueChange={(v) => setGlobalRole(v as GlobalRole)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -447,9 +687,7 @@ function UserFormModal({
             <Label>Setores</Label>
             <div className="mt-2 space-y-2 border border-border rounded-md p-3">
               {sectors.length === 0 && (
-                <p className="text-sm text-text-muted">
-                  Nenhum setor disponível.
-                </p>
+                <p className="text-sm text-text-muted">Nenhum setor disponível.</p>
               )}
               {sectors.map((s) => {
                 const assigned = assignments.find((a) => a.sector_id === s.id);
