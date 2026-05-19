@@ -958,3 +958,479 @@ function UserFormModal({
     </Dialog>
   );
 }
+
+// ---------- Rescue user modal ----------
+
+function RescueUserModal({
+  open,
+  onOpenChange,
+  companyId,
+  onReactivated,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  companyId: string;
+  onReactivated: () => void;
+}) {
+  const [cpf, setCpf] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [found, setFound] = useState<Profile | null>(null);
+  const [notFound, setNotFound] = useState(false);
+  const [reactivating, setReactivating] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setCpf("");
+      setFound(null);
+      setNotFound(false);
+      setSearching(false);
+      setReactivating(false);
+    }
+  }, [open]);
+
+  const search = async () => {
+    if (!isValidCpf(cpf)) {
+      toast.error("CPF inválido");
+      return;
+    }
+    setSearching(true);
+    setNotFound(false);
+    setFound(null);
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("company_id", companyId)
+        .eq("cpf_hash", cpfToDigits(cpf))
+        .not("deleted_at", "is", null)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) {
+        setNotFound(true);
+      } else {
+        setFound(data as Profile);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao buscar usuário.");
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const reactivate = async () => {
+    if (!found) return;
+    setReactivating(true);
+    try {
+      const { error: updErr } = await supabase
+        .from("profiles")
+        .update({
+          active: true,
+          deleted_at: null,
+          must_change_password: true,
+        })
+        .eq("id", found.id);
+      if (updErr) throw updErr;
+
+      if (found.recovery_email) {
+        await supabase.functions.invoke("send-email", {
+          body: {
+            to: found.recovery_email,
+            subject: "Seu acesso ao HubM foi reativado",
+            template: "user-reactivated",
+            data: { full_name: found.full_name },
+          },
+        });
+      }
+      toast.success("Usuário reativado com sucesso. E-mail de acesso reenviado.");
+      onReactivated();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? `Falha: ${err.message}` : "Falha ao reativar usuário.",
+      );
+    } finally {
+      setReactivating(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-surface border-border max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-text-primary">Resgatar usuário</DialogTitle>
+          <DialogDescription className="text-text-muted">
+            Informe o CPF do usuário inativado para reativar o acesso.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="rescue_cpf">CPF</Label>
+            <div className="flex gap-2">
+              <Input
+                id="rescue_cpf"
+                value={cpf}
+                onChange={(e) => {
+                  setCpf(maskCpf(e.target.value));
+                  setNotFound(false);
+                  setFound(null);
+                }}
+                placeholder="000.000.000-00"
+                maxLength={14}
+                inputMode="numeric"
+              />
+              <Button
+                onClick={() => void search()}
+                disabled={searching}
+                variant="outline"
+                className="border-border"
+              >
+                {searching ? "Buscando…" : "Buscar"}
+              </Button>
+            </div>
+            {notFound && (
+              <p className="mt-2 text-xs text-text-muted">
+                Nenhum usuário inativado encontrado com este CPF.
+              </p>
+            )}
+          </div>
+
+          {found && (
+            <div className="border border-border rounded-md p-4 space-y-2 bg-background">
+              <div>
+                <p className="text-xs text-text-muted">Nome</p>
+                <p className="text-sm text-text-primary">{found.full_name}</p>
+              </div>
+              <div>
+                <p className="text-xs text-text-muted">E-mail de recuperação</p>
+                <p className="text-sm text-text-primary">{found.recovery_email ?? "—"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-text-muted">Celular</p>
+                <p className="text-sm text-text-primary">
+                  {found.cellphone ? maskCellphone(found.cellphone) : "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-text-muted">Papel global</p>
+                <p className="text-sm text-text-primary capitalize">{found.global_role}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Fechar
+          </Button>
+          {found && (
+            <Button
+              onClick={() => void reactivate()}
+              disabled={reactivating}
+              className="bg-text-primary text-background hover:bg-text-primary/90"
+            >
+              {reactivating ? "Reativando…" : "Reativar acesso"}
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---------- Edit user modal ----------
+
+function EditUserModal({
+  profile,
+  sectors,
+  onOpenChange,
+  onSaved,
+}: {
+  profile: Profile | null;
+  sectors: Sector[];
+  onOpenChange: (o: boolean) => void;
+  onSaved: () => void;
+}) {
+  const [fullName, setFullName] = useState("");
+  const [cellphone, setCellphone] = useState("");
+  const [cellphoneError, setCellphoneError] = useState<string | null>(null);
+  const [recoveryEmail, setRecoveryEmail] = useState("");
+  const [globalRole, setGlobalRole] = useState<GlobalRole>("member");
+  const [assignments, setAssignments] = useState<SectorAssignment[]>([]);
+  const [newPassword, setNewPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (profile) {
+      setFullName(profile.full_name ?? "");
+      setCellphone(profile.cellphone ? maskCellphone(profile.cellphone) : "");
+      setRecoveryEmail(profile.recovery_email ?? "");
+      setGlobalRole(profile.global_role);
+      setNewPassword("");
+      setShowPw(false);
+      setPwError(null);
+      setCellphoneError(null);
+      void (async () => {
+        const { data } = await supabase
+          .from("sector_members")
+          .select("sector_id, role")
+          .eq("profile_id", profile.id);
+        setAssignments((data as SectorAssignment[] | null) ?? []);
+      })();
+    }
+  }, [profile]);
+
+  if (!profile) return null;
+
+  const toggleSector = (id: string) => {
+    setAssignments((prev) =>
+      prev.some((a) => a.sector_id === id)
+        ? prev.filter((a) => a.sector_id !== id)
+        : [...prev, { sector_id: id, role: "member" }],
+    );
+  };
+
+  const save = async () => {
+    if (!fullName.trim()) {
+      toast.error("Informe o nome completo");
+      return;
+    }
+    if (cellphone && !isValidCellphone(cellphone)) {
+      setCellphoneError("Celular inválido");
+      return;
+    }
+    if (newPassword && !isValidInitialPassword(newPassword)) {
+      setPwError(
+        "A senha deve ter no mínimo 8 caracteres, 1 número e 1 letra maiúscula",
+      );
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const patch: Record<string, unknown> = {
+        full_name: fullName.trim(),
+        cellphone: cellphone ? cellphoneToDigits(cellphone) : null,
+        recovery_email: recoveryEmail.trim().toLowerCase() || null,
+        global_role: globalRole,
+      };
+      if (newPassword) {
+        patch.must_change_password = true;
+      }
+      const { error: profErr } = await supabase
+        .from("profiles")
+        .update(patch)
+        .eq("id", profile.id);
+      if (profErr) throw profErr;
+
+      // Replace sector memberships
+      await supabase.from("sector_members").delete().eq("profile_id", profile.id);
+      if (assignments.length > 0) {
+        await supabase.from("sector_members").insert(
+          assignments.map((a) => ({
+            profile_id: profile.id,
+            sector_id: a.sector_id,
+            role: a.role,
+          })),
+        );
+      }
+
+      if (newPassword && profile.auth_type === "cpf") {
+        const { error: pwErr } = await supabase.functions.invoke(
+          "admin-update-password",
+          { body: { user_id: profile.id, new_password: newPassword } },
+        );
+        if (pwErr) throw pwErr;
+      }
+
+      toast.success("Dados do usuário atualizados com sucesso.");
+      onSaved();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? `Falha: ${err.message}` : "Falha ao salvar.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={!!profile} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-surface border-border max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-text-primary">Editar usuário</DialogTitle>
+          <DialogDescription className="text-text-muted">
+            Atualize as informações do usuário.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="e_name">Nome completo</Label>
+            <Input
+              id="e_name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              maxLength={120}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="e_cell">Celular</Label>
+            <Input
+              id="e_cell"
+              value={cellphone}
+              onChange={(e) => {
+                setCellphone(maskCellphone(e.target.value));
+                if (cellphoneError) setCellphoneError(null);
+              }}
+              onBlur={() => {
+                if (cellphone && !isValidCellphone(cellphone)) {
+                  setCellphoneError("Celular inválido");
+                }
+              }}
+              placeholder="(00) 00000-0000"
+              maxLength={16}
+              inputMode="numeric"
+            />
+            {cellphoneError && (
+              <p className="mt-1 text-xs text-destructive">{cellphoneError}</p>
+            )}
+          </div>
+
+          <div>
+            <Label htmlFor="e_rec">E-mail de recuperação</Label>
+            <Input
+              id="e_rec"
+              type="email"
+              value={recoveryEmail}
+              onChange={(e) => setRecoveryEmail(e.target.value)}
+              maxLength={255}
+            />
+          </div>
+
+          <div>
+            <Label>Papel global</Label>
+            <Select value={globalRole} onValueChange={(v) => setGlobalRole(v as GlobalRole)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {GLOBAL_ROLES.map((r) => (
+                  <SelectItem key={r} value={r} className="capitalize">
+                    {r}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label>Setores</Label>
+            <div className="mt-2 space-y-2 border border-border rounded-md p-3">
+              {sectors.length === 0 && (
+                <p className="text-sm text-text-muted">Nenhum setor disponível.</p>
+              )}
+              {sectors.map((s) => {
+                const assigned = assignments.find((a) => a.sector_id === s.id);
+                return (
+                  <div key={s.id} className="flex items-center justify-between gap-3">
+                    <label className="flex items-center gap-2 text-sm text-text-primary">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(assigned)}
+                        onChange={() => toggleSector(s.id)}
+                        className="accent-text-primary"
+                      />
+                      {s.name}
+                    </label>
+                    {assigned && (
+                      <Select
+                        value={assigned.role}
+                        onValueChange={(v) =>
+                          setAssignments((prev) =>
+                            prev.map((a) =>
+                              a.sector_id === s.id ? { ...a, role: v as SectorRole } : a,
+                            ),
+                          )
+                        }
+                      >
+                        <SelectTrigger className="w-32 h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SECTOR_ROLES.map((r) => (
+                            <SelectItem key={r} value={r} className="capitalize">
+                              {r}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {profile.auth_type === "cpf" && (
+            <div>
+              <Label htmlFor="e_pw">Nova senha inicial</Label>
+              <div className="relative">
+                <Input
+                  id="e_pw"
+                  type={showPw ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value);
+                    if (pwError) setPwError(null);
+                  }}
+                  onBlur={() => {
+                    if (newPassword && !isValidInitialPassword(newPassword)) {
+                      setPwError(
+                        "A senha deve ter no mínimo 8 caracteres, 1 número e 1 letra maiúscula",
+                      );
+                    }
+                  }}
+                  placeholder="Deixe em branco para manter"
+                  maxLength={72}
+                  autoComplete="new-password"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw((s) => !s)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
+                  aria-label={showPw ? "Ocultar senha" : "Mostrar senha"}
+                >
+                  {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {pwError ? (
+                <p className="mt-1 text-xs text-destructive">{pwError}</p>
+              ) : (
+                <p className="mt-1 text-xs text-text-muted">
+                  Se preenchida, a senha será redefinida e o usuário precisará alterá-la no próximo acesso.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={() => void save()}
+            disabled={saving}
+            className="bg-text-primary text-background hover:bg-text-primary/90"
+          >
+            {saving ? "Salvando…" : "Salvar alterações"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
