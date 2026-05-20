@@ -833,6 +833,21 @@ function UserFormModal({
         toast.error(friendlyCreateError(ctxMsg));
         return;
       }
+      const createdId =
+        (data as { user_id?: string; id?: string } | null)?.user_id ??
+        (data as { user_id?: string; id?: string } | null)?.id ??
+        cpfToDigits(cpf);
+      await logAdminAction({
+        adminId,
+        action: "create_user",
+        targetId: createdId,
+        targetName: fullName.trim(),
+        details: {
+          auth_type: "cpf",
+          global_role: globalRole,
+          recovery_email: recoveryEmail.trim().toLowerCase(),
+        },
+      });
       toast.success(
         `Usuário criado com sucesso. E-mail de acesso enviado para ${recoveryEmail.trim().toLowerCase()}.`,
       );
