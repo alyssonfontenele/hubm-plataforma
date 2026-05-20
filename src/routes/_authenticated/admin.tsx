@@ -1175,6 +1175,13 @@ function RescueUserModal({
           },
         });
       }
+      await logAdminAction({
+        adminId,
+        action: "reactivate_user",
+        targetId: found.id,
+        targetName: found.full_name,
+        details: { via: "rescue", new_status: "active" },
+      });
       toast.success("Usuário reativado com sucesso. E-mail de acesso reenviado.");
       onReactivated();
     } catch (err) {
