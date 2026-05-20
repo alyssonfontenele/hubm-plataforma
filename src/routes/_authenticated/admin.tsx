@@ -629,6 +629,13 @@ function UserActionsMenu({
                     })
                     .eq("id", profile.id);
                   if (profErr) throw profErr;
+                  await logAdminAction({
+                    adminId,
+                    action: "delete_user",
+                    targetId: profile.id,
+                    targetName: profile.full_name,
+                    details: { auth_type: profile.auth_type },
+                  });
                   toast.success("Usuário excluído permanentemente.");
                   setDeleteStep(0);
                   await onChanged();
