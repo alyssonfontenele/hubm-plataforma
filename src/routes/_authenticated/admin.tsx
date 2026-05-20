@@ -386,7 +386,11 @@ function UserActionsMenu({
       title: "Suspender usuário",
       description: `Tem certeza que deseja suspender ${profile.full_name}? O acesso será bloqueado imediatamente.`,
       actionLabel: "Suspender",
-      run: () => updateProfile({ active: false }, `${profile.full_name} suspenso.`),
+      run: () =>
+        updateProfile({ active: false }, `${profile.full_name} suspenso.`, {
+          action: "suspend_user",
+          details: { previous_status: "active", new_status: "suspended" },
+        }),
     });
 
   const inactivate = () =>
@@ -398,6 +402,10 @@ function UserActionsMenu({
         updateProfile(
           { active: false, deleted_at: new Date().toISOString() },
           `${profile.full_name} inativado.`,
+          {
+            action: "inactivate_user",
+            details: { previous_status: profile.active ? "active" : "suspended" },
+          },
         ),
     });
 
@@ -410,6 +418,10 @@ function UserActionsMenu({
         updateProfile(
           { active: true, deleted_at: null },
           `${profile.full_name} reativado.`,
+          {
+            action: "reactivate_user",
+            details: { new_status: "active" },
+          },
         ),
     });
 
@@ -422,6 +434,7 @@ function UserActionsMenu({
         updateProfile(
           { must_change_password: true },
           "Troca de senha exigida no próximo acesso.",
+          { action: "force_password_reset" },
         ),
     });
 
