@@ -474,6 +474,13 @@ function UserActionsMenu({
       toast.error("Falha ao reenviar. Verifique se o e-mail de recuperação está correto.");
       return;
     }
+    await logAdminAction({
+      adminId,
+      action: "resend_access",
+      targetId: profile.id,
+      targetName: profile.full_name,
+      details: { recovery_email: profile.recovery_email },
+    });
     toast.success("E-mail de acesso reenviado com sucesso.");
   };
 
