@@ -63,6 +63,18 @@ import {
   maskCellphone,
   maskCpf,
 } from "@/lib/auth";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  ADMIN_ACTION_LABEL,
+  logAdminAction,
+  type AdminAction,
+  type AdminLogRow,
+} from "@/lib/admin-log";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Admin — HubM" }] }),
@@ -94,7 +106,29 @@ function AdminPage() {
   }, [loading, globalRole, navigate]);
 
   if (globalRole !== "admin" || !company) return null;
-  return <UsersTab companyId={company.id} currentUserId={session?.user?.id ?? null} />;
+  const adminId = session?.user?.id ?? null;
+  return (
+    <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
+      <header>
+        <p className="text-xs uppercase tracking-wider text-text-muted">Administração</p>
+        <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
+          <UserCog className="w-6 h-6" /> Painel administrativo
+        </h1>
+      </header>
+      <Tabs defaultValue="users" className="space-y-6">
+        <TabsList className="bg-surface border border-border">
+          <TabsTrigger value="users">Usuários</TabsTrigger>
+          <TabsTrigger value="history">Histórico de ações</TabsTrigger>
+        </TabsList>
+        <TabsContent value="users" className="mt-0">
+          <UsersTab companyId={company.id} currentUserId={adminId} />
+        </TabsContent>
+        <TabsContent value="history" className="mt-0">
+          <HistoryTab companyId={company.id} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
 }
 
 // ---------- Friendly error mapper ----------
@@ -169,13 +203,13 @@ function UsersTab({
   }, [companyId]);
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
+    <div className="space-y-6">
       <header className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-wider text-text-muted">Administração</p>
-          <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-            <UserCog className="w-6 h-6" /> Usuários
-          </h1>
+          <p className="text-sm font-medium text-text-primary flex items-center gap-2">
+            <UserCog className="w-4 h-4" /> Usuários da empresa
+          </p>
+          <p className="text-xs text-text-muted">Gerencie os acessos da sua organização.</p>
         </div>
         <div className="flex gap-2">
           <Button
@@ -248,6 +282,7 @@ function UsersTab({
                     <UserActionsMenu
                       profile={p}
                       isSelf={currentUserId === p.id}
+                      adminId={currentUserId}
                       onChanged={load}
                       onEdit={() => setEditTarget(p)}
                     />
@@ -264,6 +299,7 @@ function UsersTab({
         onOpenChange={setModalOpen}
         sectors={sectors}
         companyId={companyId}
+        adminId={currentUserId}
         onCreated={() => {
           setModalOpen(false);
           void load();
@@ -274,6 +310,7 @@ function UsersTab({
         open={rescueOpen}
         onOpenChange={setRescueOpen}
         companyId={companyId}
+        adminId={currentUserId}
         onReactivated={() => {
           setRescueOpen(false);
           void load();
@@ -283,6 +320,7 @@ function UsersTab({
       <EditUserModal
         profile={editTarget}
         sectors={sectors}
+        adminId={currentUserId}
         onOpenChange={(o) => !o && setEditTarget(null)}
         onSaved={() => {
           setEditTarget(null);
@@ -305,11 +343,13 @@ type ConfirmDef = {
 function UserActionsMenu({
   profile,
   isSelf,
+  adminId,
   onChanged,
   onEdit,
 }: {
   profile: Profile;
   isSelf: boolean;
+  adminId: string | null;
   onChanged: () => void | Promise<void>;
   onEdit: () => void;
 }) {
@@ -318,11 +358,24 @@ function UserActionsMenu({
   const [deleting, setDeleting] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmDef | null>(null);
 
-  const updateProfile = async (patch: Record<string, unknown>, successMsg: string) => {
+  const updateProfile = async (
+    patch: Record<string, unknown>,
+    successMsg: string,
+    log?: { action: AdminAction; details?: Record<string, unknown> },
+  ) => {
     const { error } = await supabase.from("profiles").update(patch).eq("id", profile.id);
     if (error) {
       toast.error("Falha: " + error.message);
       return;
+    }
+    if (log) {
+      await logAdminAction({
+        adminId,
+        action: log.action,
+        targetId: profile.id,
+        targetName: profile.full_name,
+        details: log.details,
+      });
     }
     toast.success(successMsg);
     await onChanged();
@@ -333,7 +386,11 @@ function UserActionsMenu({
       title: "Suspender usuário",
       description: `Tem certeza que deseja suspender ${profile.full_name}? O acesso será bloqueado imediatamente.`,
       actionLabel: "Suspender",
-      run: () => updateProfile({ active: false }, `${profile.full_name} suspenso.`),
+      run: () =>
+        updateProfile({ active: false }, `${profile.full_name} suspenso.`, {
+          action: "suspend_user",
+          details: { previous_status: "active", new_status: "suspended" },
+        }),
     });
 
   const inactivate = () =>
@@ -345,6 +402,10 @@ function UserActionsMenu({
         updateProfile(
           { active: false, deleted_at: new Date().toISOString() },
           `${profile.full_name} inativado.`,
+          {
+            action: "inactivate_user",
+            details: { previous_status: profile.active ? "active" : "suspended" },
+          },
         ),
     });
 
@@ -357,6 +418,10 @@ function UserActionsMenu({
         updateProfile(
           { active: true, deleted_at: null },
           `${profile.full_name} reativado.`,
+          {
+            action: "reactivate_user",
+            details: { new_status: "active" },
+          },
         ),
     });
 
@@ -369,6 +434,7 @@ function UserActionsMenu({
         updateProfile(
           { must_change_password: true },
           "Troca de senha exigida no próximo acesso.",
+          { action: "force_password_reset" },
         ),
     });
 
@@ -408,6 +474,13 @@ function UserActionsMenu({
       toast.error("Falha ao reenviar. Verifique se o e-mail de recuperação está correto.");
       return;
     }
+    await logAdminAction({
+      adminId,
+      action: "resend_access",
+      targetId: profile.id,
+      targetName: profile.full_name,
+      details: { recovery_email: profile.recovery_email },
+    });
     toast.success("E-mail de acesso reenviado com sucesso.");
   };
 
@@ -556,6 +629,13 @@ function UserActionsMenu({
                     })
                     .eq("id", profile.id);
                   if (profErr) throw profErr;
+                  await logAdminAction({
+                    adminId,
+                    action: "delete_user",
+                    targetId: profile.id,
+                    targetName: profile.full_name,
+                    details: { auth_type: profile.auth_type },
+                  });
                   toast.success("Usuário excluído permanentemente.");
                   setDeleteStep(0);
                   await onChanged();
@@ -586,12 +666,14 @@ function UserFormModal({
   onOpenChange,
   sectors,
   companyId,
+  adminId,
   onCreated,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   sectors: Sector[];
   companyId: string;
+  adminId: string | null;
   onCreated: () => void;
 }) {
   const [fullName, setFullName] = useState("");
@@ -682,6 +764,17 @@ function UserFormModal({
               })),
             );
         }
+        await logAdminAction({
+          adminId,
+          action: "create_user",
+          targetId: newId,
+          targetName: fullName.trim(),
+          details: {
+            auth_type: "google",
+            global_role: globalRole,
+            email: email.trim().toLowerCase(),
+          },
+        });
         toast.success("Usuário criado com sucesso.");
         onCreated();
       } catch (err) {
@@ -740,6 +833,21 @@ function UserFormModal({
         toast.error(friendlyCreateError(ctxMsg));
         return;
       }
+      const createdId =
+        (data as { user_id?: string; id?: string } | null)?.user_id ??
+        (data as { user_id?: string; id?: string } | null)?.id ??
+        cpfToDigits(cpf);
+      await logAdminAction({
+        adminId,
+        action: "create_user",
+        targetId: createdId,
+        targetName: fullName.trim(),
+        details: {
+          auth_type: "cpf",
+          global_role: globalRole,
+          recovery_email: recoveryEmail.trim().toLowerCase(),
+        },
+      });
       toast.success(
         `Usuário criado com sucesso. E-mail de acesso enviado para ${recoveryEmail.trim().toLowerCase()}.`,
       );
@@ -989,11 +1097,13 @@ function RescueUserModal({
   open,
   onOpenChange,
   companyId,
+  adminId,
   onReactivated,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   companyId: string;
+  adminId: string | null;
   onReactivated: () => void;
 }) {
   const [cpf, setCpf] = useState("");
@@ -1065,6 +1175,13 @@ function RescueUserModal({
           },
         });
       }
+      await logAdminAction({
+        adminId,
+        action: "reactivate_user",
+        targetId: found.id,
+        targetName: found.full_name,
+        details: { via: "rescue", new_status: "active" },
+      });
       toast.success("Usuário reativado com sucesso. E-mail de acesso reenviado.");
       onReactivated();
     } catch (err) {
@@ -1166,11 +1283,13 @@ function RescueUserModal({
 function EditUserModal({
   profile,
   sectors,
+  adminId,
   onOpenChange,
   onSaved,
 }: {
   profile: Profile | null;
   sectors: Sector[];
+  adminId: string | null;
   onOpenChange: (o: boolean) => void;
   onSaved: () => void;
 }) {
@@ -1268,6 +1387,26 @@ function EditUserModal({
         if (pwErr) throw pwErr;
       }
 
+      await logAdminAction({
+        adminId,
+        action: "edit_user",
+        targetId: profile.id,
+        targetName: fullName.trim(),
+        details: {
+          global_role: globalRole,
+          sectors_count: assignments.length,
+          name_changed: profile.full_name !== fullName.trim(),
+        },
+      });
+      if (newPassword && profile.auth_type === "cpf") {
+        await logAdminAction({
+          adminId,
+          action: "reset_password",
+          targetId: profile.id,
+          targetName: fullName.trim(),
+          details: { must_change_password: true },
+        });
+      }
       toast.success("Dados do usuário atualizados com sucesso.");
       onSaved();
     } catch (err) {
@@ -1456,5 +1595,120 @@ function EditUserModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ---------- History tab ----------
+
+function HistoryTab({ companyId }: { companyId: string }) {
+  const [logs, setLogs] = useState<AdminLogRow[]>([]);
+  const [adminNames, setAdminNames] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      const { data: logRows } = await supabase
+        .from("admin_logs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(200);
+      const rows = (logRows as AdminLogRow[] | null) ?? [];
+      const adminIds = Array.from(
+        new Set(rows.map((r) => r.admin_id).filter((v): v is string => !!v)),
+      );
+      let names: Record<string, string> = {};
+      if (adminIds.length > 0) {
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", adminIds);
+        names = Object.fromEntries(
+          (profs ?? []).map((p) => [p.id as string, (p.full_name as string) ?? "—"]),
+        );
+      }
+      if (!cancelled) {
+        setLogs(rows);
+        setAdminNames(names);
+        setLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [companyId]);
+
+  const formatDate = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return iso;
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <header>
+        <p className="text-sm font-medium text-text-primary">Histórico de ações</p>
+        <p className="text-xs text-text-muted">
+          Registro auditável das ações realizadas no painel administrativo.
+        </p>
+      </header>
+
+      <div className="border border-border rounded-lg bg-surface overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-border">
+              <TableHead className="w-44">Data/hora</TableHead>
+              <TableHead>Admin</TableHead>
+              <TableHead>Ação</TableHead>
+              <TableHead>Usuário afetado</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center text-text-muted py-8">
+                  Carregando…
+                </TableCell>
+              </TableRow>
+            ) : logs.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center text-text-muted py-8">
+                  Nenhuma ação registrada até o momento.
+                </TableCell>
+              </TableRow>
+            ) : (
+              logs.map((log) => (
+                <TableRow key={log.id} className="border-border">
+                  <TableCell className="text-text-muted text-xs whitespace-nowrap">
+                    {formatDate(log.created_at)}
+                  </TableCell>
+                  <TableCell className="text-text-primary">
+                    {log.admin_id ? adminNames[log.admin_id] ?? "—" : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="border-border text-text-primary">
+                      {ADMIN_ACTION_LABEL[log.action] ?? log.action}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-text-primary">
+                    {log.target_name ?? "—"}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
   );
 }
