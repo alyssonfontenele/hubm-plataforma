@@ -124,6 +124,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   }, []);
 
+  const clearPasswordRecovery = useCallback(() => {
+    setIsPasswordRecovery(false);
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
@@ -133,10 +137,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sectorMemberships,
       providerToken,
       loading,
+      isPasswordRecovery,
+      clearPasswordRecovery,
       refresh,
       signOut,
     }),
-    [session, profile, company, sectorMemberships, providerToken, loading, refresh, signOut],
+    [session, profile, company, sectorMemberships, providerToken, loading, isPasswordRecovery, clearPasswordRecovery, refresh, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
