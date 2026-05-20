@@ -343,11 +343,13 @@ type ConfirmDef = {
 function UserActionsMenu({
   profile,
   isSelf,
+  adminId,
   onChanged,
   onEdit,
 }: {
   profile: Profile;
   isSelf: boolean;
+  adminId: string | null;
   onChanged: () => void | Promise<void>;
   onEdit: () => void;
 }) {
@@ -356,11 +358,24 @@ function UserActionsMenu({
   const [deleting, setDeleting] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmDef | null>(null);
 
-  const updateProfile = async (patch: Record<string, unknown>, successMsg: string) => {
+  const updateProfile = async (
+    patch: Record<string, unknown>,
+    successMsg: string,
+    log?: { action: AdminAction; details?: Record<string, unknown> },
+  ) => {
     const { error } = await supabase.from("profiles").update(patch).eq("id", profile.id);
     if (error) {
       toast.error("Falha: " + error.message);
       return;
+    }
+    if (log) {
+      await logAdminAction({
+        adminId,
+        action: log.action,
+        targetId: profile.id,
+        targetName: profile.full_name,
+        details: log.details,
+      });
     }
     toast.success(successMsg);
     await onChanged();
