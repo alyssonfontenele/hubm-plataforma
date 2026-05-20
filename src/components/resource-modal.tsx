@@ -187,7 +187,7 @@ export function ResourceModal({ resource, open, onOpenChange }: Props) {
           >
             {hasUrl ? (
               <a
-                href={resource.url!}
+                href={href}
                 target="_blank"
                 rel="noopener noreferrer"
                 {...(isDownload ? { download: "" } : {})}
