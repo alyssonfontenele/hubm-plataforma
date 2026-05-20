@@ -25,7 +25,7 @@ function evaluateStrength(pw: string): Strength | null {
 }
 
 function ChangePasswordPage() {
-  const { session, profile, signOut } = useAuth();
+  const { session, profile, signOut, isPasswordRecovery, clearPasswordRecovery } = useAuth();
   const navigate = useNavigate();
   const [pw, setPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -48,7 +48,7 @@ function ChangePasswordPage() {
       toast.error(err);
       return;
     }
-    if (!session?.user || !profile) {
+    if (!session?.user) {
       toast.error("Sessão expirada. Faça login novamente.");
       return;
     }
@@ -56,13 +56,21 @@ function ChangePasswordPage() {
     try {
       const { error: updErr } = await supabase.auth.updateUser({ password: pw });
       if (updErr) throw updErr;
-      const { error: profErr } = await supabase
-        .from("profiles")
-        .update({ must_change_password: false })
-        .eq("id", session.user.id);
-      if (profErr) throw profErr;
+      if (profile) {
+        const { error: profErr } = await supabase
+          .from("profiles")
+          .update({ must_change_password: false })
+          .eq("id", session.user.id);
+        if (profErr) throw profErr;
+      }
+      const recovery = isPasswordRecovery;
+      clearPasswordRecovery();
       await supabase.auth.signOut();
-      toast.success("Senha alterada. Faça login novamente.");
+      toast.success(
+        recovery
+          ? "Senha redefinida com sucesso. Faça login com sua nova senha."
+          : "Senha alterada. Faça login novamente.",
+      );
       void navigate({ to: "/login" });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao definir senha.");
