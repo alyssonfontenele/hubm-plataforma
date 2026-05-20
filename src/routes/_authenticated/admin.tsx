@@ -203,13 +203,13 @@ function UsersTab({
   }, [companyId]);
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
+    <div className="space-y-6">
       <header className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-wider text-text-muted">Administração</p>
-          <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-            <UserCog className="w-6 h-6" /> Usuários
-          </h1>
+          <p className="text-sm font-medium text-text-primary flex items-center gap-2">
+            <UserCog className="w-4 h-4" /> Usuários da empresa
+          </p>
+          <p className="text-xs text-text-muted">Gerencie os acessos da sua organização.</p>
         </div>
         <div className="flex gap-2">
           <Button
