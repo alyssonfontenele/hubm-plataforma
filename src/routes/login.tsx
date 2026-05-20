@@ -208,7 +208,8 @@ function CpfSection() {
         setError(msg);
         toast.error(msg);
       } else {
-        setError(err instanceof Error ? err.message : "CPF ou senha incorretos.");
+        void err;
+        setError("CPF ou senha incorretos.");
       }
     } finally {
       setLoading(false);
