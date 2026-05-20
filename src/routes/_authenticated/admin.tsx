@@ -106,7 +106,29 @@ function AdminPage() {
   }, [loading, globalRole, navigate]);
 
   if (globalRole !== "admin" || !company) return null;
-  return <UsersTab companyId={company.id} currentUserId={session?.user?.id ?? null} />;
+  const adminId = session?.user?.id ?? null;
+  return (
+    <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
+      <header>
+        <p className="text-xs uppercase tracking-wider text-text-muted">Administração</p>
+        <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
+          <UserCog className="w-6 h-6" /> Painel administrativo
+        </h1>
+      </header>
+      <Tabs defaultValue="users" className="space-y-6">
+        <TabsList className="bg-surface border border-border">
+          <TabsTrigger value="users">Usuários</TabsTrigger>
+          <TabsTrigger value="history">Histórico de ações</TabsTrigger>
+        </TabsList>
+        <TabsContent value="users" className="mt-0">
+          <UsersTab companyId={company.id} currentUserId={adminId} />
+        </TabsContent>
+        <TabsContent value="history" className="mt-0">
+          <HistoryTab companyId={company.id} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
 }
 
 // ---------- Friendly error mapper ----------
