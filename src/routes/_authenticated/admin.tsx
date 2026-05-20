@@ -1097,11 +1097,13 @@ function RescueUserModal({
   open,
   onOpenChange,
   companyId,
+  adminId,
   onReactivated,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   companyId: string;
+  adminId: string | null;
   onReactivated: () => void;
 }) {
   const [cpf, setCpf] = useState("");
