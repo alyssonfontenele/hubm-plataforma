@@ -764,6 +764,17 @@ function UserFormModal({
               })),
             );
         }
+        await logAdminAction({
+          adminId,
+          action: "create_user",
+          targetId: newId,
+          targetName: fullName.trim(),
+          details: {
+            auth_type: "google",
+            global_role: globalRole,
+            email: email.trim().toLowerCase(),
+          },
+        });
         toast.success("Usuário criado com sucesso.");
         onCreated();
       } catch (err) {
