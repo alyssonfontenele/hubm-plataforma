@@ -1387,6 +1387,26 @@ function EditUserModal({
         if (pwErr) throw pwErr;
       }
 
+      await logAdminAction({
+        adminId,
+        action: "edit_user",
+        targetId: profile.id,
+        targetName: fullName.trim(),
+        details: {
+          global_role: globalRole,
+          sectors_count: assignments.length,
+          name_changed: profile.full_name !== fullName.trim(),
+        },
+      });
+      if (newPassword && profile.auth_type === "cpf") {
+        await logAdminAction({
+          adminId,
+          action: "reset_password",
+          targetId: profile.id,
+          targetName: fullName.trim(),
+          details: { must_change_password: true },
+        });
+      }
       toast.success("Dados do usuário atualizados com sucesso.");
       onSaved();
     } catch (err) {
