@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import type { Session } from "@supabase/supabase-js";
 import {
   supabase,
@@ -24,6 +25,8 @@ interface AuthContextValue {
   sectorMemberships: SectorMembership[];
   providerToken: string | null;
   loading: boolean;
+  isPasswordRecovery: boolean;
+  clearPasswordRecovery: () => void;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
 }
