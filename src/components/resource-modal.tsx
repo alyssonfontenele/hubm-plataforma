@@ -22,6 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { supabase, type ResourceType } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { isSafeUrl, safeUrl } from "@/lib/safe-url";
 
 export interface ResourceModalData {
   id: string;
@@ -129,7 +130,8 @@ export function ResourceModal({ resource, open, onOpenChange }: Props) {
   if (!resource) return null;
 
   const Icon = TYPE_ICON[resource.type] ?? File;
-  const hasUrl = Boolean(resource.url);
+  const hasUrl = isSafeUrl(resource.url);
+  const href = safeUrl(resource.url);
   const isDownload = resource.type === "pdf" || resource.type === "file";
 
   return (
@@ -185,7 +187,7 @@ export function ResourceModal({ resource, open, onOpenChange }: Props) {
           >
             {hasUrl ? (
               <a
-                href={resource.url!}
+                href={href}
                 target="_blank"
                 rel="noopener noreferrer"
                 {...(isDownload ? { download: "" } : {})}
