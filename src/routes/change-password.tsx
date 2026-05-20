@@ -25,7 +25,7 @@ function evaluateStrength(pw: string): Strength | null {
 }
 
 function ChangePasswordPage() {
-  const { session, profile, refresh, signOut } = useAuth();
+  const { session, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const [pw, setPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
