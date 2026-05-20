@@ -257,10 +257,10 @@ function CpfSection() {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || isLocked}
           className="w-full h-11 rounded-md bg-text-primary text-background text-sm font-medium hover:bg-text-primary/90 disabled:opacity-60"
         >
-          {loading ? "Entrando…" : "Entrar"}
+          {isLocked ? `Bloqueado (${lockMinutes} min)` : loading ? "Entrando…" : "Entrar"}
         </button>
 
         <button
