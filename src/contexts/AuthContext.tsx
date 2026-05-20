@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
       if (!active) return;
       setSession(newSession);
       const pt = newSession?.provider_token ?? null;
@@ -81,6 +81,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProviderToken(pt);
       } else if (!newSession) {
         setProviderToken(null);
+      }
+      if (event === "PASSWORD_RECOVERY") {
+        setIsPasswordRecovery(true);
+        void navigate({ to: "/change-password" });
       }
       if (newSession?.user) {
         // defer DB calls to avoid recursive auth callbacks
