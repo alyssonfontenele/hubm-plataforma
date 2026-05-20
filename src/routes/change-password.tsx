@@ -25,7 +25,7 @@ function evaluateStrength(pw: string): Strength | null {
 }
 
 function ChangePasswordPage() {
-  const { session, profile, refresh, signOut } = useAuth();
+  const { session, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const [pw, setPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -61,9 +61,9 @@ function ChangePasswordPage() {
         .update({ must_change_password: false })
         .eq("id", session.user.id);
       if (profErr) throw profErr;
-      await refresh();
-      toast.success("Senha definida com sucesso. Bem-vindo ao HubM.");
-      void navigate({ to: "/app" });
+      await supabase.auth.signOut();
+      toast.success("Senha alterada. Faça login novamente.");
+      void navigate({ to: "/login" });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao definir senha.");
     } finally {
