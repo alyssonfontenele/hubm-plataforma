@@ -40,6 +40,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [sectorMemberships, setSectorMemberships] = useState<SectorMembership[]>([]);
   const [providerToken, setProviderToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+  const navigate = useNavigate();
 
   const loadProfile = useCallback(async (userId: string) => {
     const { data: prof, error: profErr } = await supabase
