@@ -37,12 +37,12 @@ async function enforceLoginRules(): Promise<boolean> {
 
   if (error || !prof) {
     await supabase.auth.signOut();
-    toast.error("Usuário não encontrado. Entre em contato com o administrador.");
+    toast.error("Não foi possível realizar o login. Entre em contato com o administrador.");
     return false;
   }
   if (!prof.active || prof.deleted_at) {
     await supabase.auth.signOut();
-    toast.error("Seu acesso está suspenso. Entre em contato com o administrador.");
+    toast.error("Não foi possível realizar o login. Entre em contato com o administrador.");
     return false;
   }
   if (
@@ -208,7 +208,8 @@ function CpfSection() {
         setError(msg);
         toast.error(msg);
       } else {
-        setError(err instanceof Error ? err.message : "CPF ou senha incorretos.");
+        void err;
+        setError("CPF ou senha incorretos.");
       }
     } finally {
       setLoading(false);
