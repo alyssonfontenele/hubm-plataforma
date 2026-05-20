@@ -140,16 +140,44 @@ function GoogleSection() {
   );
 }
 
+const MAX_ATTEMPTS = 3;
+const WINDOW_MS = 5 * 60 * 1000;
+const LOCKOUT_MS = 5 * 60 * 1000;
+const loginAttempts: { count: number; firstAt: number; lockedUntil: number } = {
+  count: 0,
+  firstAt: 0,
+  lockedUntil: 0,
+};
+
 function CpfSection() {
   const [cpf, setCpf] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recoverOpen, setRecoverOpen] = useState(false);
+  const [lockRemaining, setLockRemaining] = useState(0);
+
+  useEffect(() => {
+    if (loginAttempts.lockedUntil > Date.now()) {
+      setLockRemaining(loginAttempts.lockedUntil - Date.now());
+    }
+  }, []);
+
+  useEffect(() => {
+    if (lockRemaining <= 0) return;
+    const id = setInterval(() => {
+      const left = loginAttempts.lockedUntil - Date.now();
+      setLockRemaining(left > 0 ? left : 0);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [lockRemaining]);
+
+  const isLocked = lockRemaining > 0;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (isLocked) return;
     if (!isValidCpf(cpf)) {
       setError("Informe um CPF válido.");
       return;
@@ -161,13 +189,33 @@ function CpfSection() {
     setLoading(true);
     try {
       await signInWithCpf(cpf, password);
+      loginAttempts.count = 0;
+      loginAttempts.firstAt = 0;
+      loginAttempts.lockedUntil = 0;
       // post-login enforcement handled in LoginPage effect once session updates.
     } catch (err) {
-      setError(err instanceof Error ? err.message : "CPF ou senha incorretos.");
+      const now = Date.now();
+      if (now - loginAttempts.firstAt > WINDOW_MS) {
+        loginAttempts.count = 1;
+        loginAttempts.firstAt = now;
+      } else {
+        loginAttempts.count += 1;
+      }
+      if (loginAttempts.count >= MAX_ATTEMPTS) {
+        loginAttempts.lockedUntil = now + LOCKOUT_MS;
+        setLockRemaining(LOCKOUT_MS);
+        const msg = "Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.";
+        setError(msg);
+        toast.error(msg);
+      } else {
+        setError(err instanceof Error ? err.message : "CPF ou senha incorretos.");
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  const lockMinutes = Math.ceil(lockRemaining / 60000);
 
   return (
     <section className="space-y-3">
@@ -209,10 +257,10 @@ function CpfSection() {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || isLocked}
           className="w-full h-11 rounded-md bg-text-primary text-background text-sm font-medium hover:bg-text-primary/90 disabled:opacity-60"
         >
-          {loading ? "Entrando…" : "Entrar"}
+          {isLocked ? `Bloqueado (${lockMinutes} min)` : loading ? "Entrando…" : "Entrar"}
         </button>
 
         <button
