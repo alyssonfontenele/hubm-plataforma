@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Calendar as CalendarIcon, Plus, ExternalLink, RefreshCw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { signInWithGoogle } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
   DialogContent,
@@ -18,7 +19,6 @@ interface GCalEvent {
   htmlLink?: string;
 }
 
-const CAL_API = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
 
 function startOfToday() {
   const d = new Date();
@@ -66,24 +66,26 @@ export function CalendarCard() {
       return;
     }
     setError(null);
-    const params = new URLSearchParams({
-      timeMin: startOfToday().toISOString(),
-      timeMax: endOfTomorrow().toISOString(),
-      singleEvents: "true",
-      orderBy: "startTime",
-      maxResults: "20",
-    });
     try {
-      const res = await fetch(`${CAL_API}?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${providerToken}` },
+      const { data, error: fnErr } = await supabase.functions.invoke("google-proxy", {
+        body: {
+          action: "list_events",
+          provider_token: providerToken,
+          payload: {
+            timeMin: startOfToday().toISOString(),
+            timeMax: endOfTomorrow().toISOString(),
+            singleEvents: true,
+            orderBy: "startTime",
+            maxResults: 20,
+          },
+        },
       });
-      if (res.status === 401 || res.status === 403) {
+      if (fnErr) {
         setError("expired");
         setEvents([]);
         return;
       }
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = (await res.json()) as { items?: GCalEvent[] };
+      const json = (data ?? {}) as { items?: GCalEvent[] };
       setEvents(json.items ?? []);
     } catch {
       setError("expired");
@@ -244,20 +246,19 @@ function NewEventDialog({
     setErr(null);
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const body = {
+      const event = {
         summary: title.trim(),
         start: { dateTime: `${date}T${startTime}:00`, timeZone: tz },
         end: { dateTime: `${date}T${endTime}:00`, timeZone: tz },
       };
-      const res = await fetch(CAL_API, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${providerToken}`,
-          "Content-Type": "application/json",
+      const { error: fnErr } = await supabase.functions.invoke("google-proxy", {
+        body: {
+          action: "create_event",
+          provider_token: providerToken,
+          payload: { event },
         },
-        body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (fnErr) throw new Error(fnErr.message);
       onCreated();
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : "Falha ao criar evento.");
