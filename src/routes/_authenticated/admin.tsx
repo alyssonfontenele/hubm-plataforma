@@ -1283,11 +1283,13 @@ function RescueUserModal({
 function EditUserModal({
   profile,
   sectors,
+  adminId,
   onOpenChange,
   onSaved,
 }: {
   profile: Profile | null;
   sectors: Sector[];
+  adminId: string | null;
   onOpenChange: (o: boolean) => void;
   onSaved: () => void;
 }) {
