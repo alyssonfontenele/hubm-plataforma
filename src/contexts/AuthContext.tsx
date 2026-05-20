@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import type { Session } from "@supabase/supabase-js";
 import {
   supabase,
@@ -24,6 +25,8 @@ interface AuthContextValue {
   sectorMemberships: SectorMembership[];
   providerToken: string | null;
   loading: boolean;
+  isPasswordRecovery: boolean;
+  clearPasswordRecovery: () => void;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -37,6 +40,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [sectorMemberships, setSectorMemberships] = useState<SectorMembership[]>([]);
   const [providerToken, setProviderToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+  const navigate = useNavigate();
 
   const loadProfile = useCallback(async (userId: string) => {
     const { data: prof, error: profErr } = await supabase
@@ -68,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
       if (!active) return;
       setSession(newSession);
       const pt = newSession?.provider_token ?? null;
@@ -76,6 +81,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProviderToken(pt);
       } else if (!newSession) {
         setProviderToken(null);
+      }
+      if (event === "PASSWORD_RECOVERY") {
+        setIsPasswordRecovery(true);
+        void navigate({ to: "/change-password" });
       }
       if (newSession?.user) {
         // defer DB calls to avoid recursive auth callbacks
@@ -115,6 +124,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   }, []);
 
+  const clearPasswordRecovery = useCallback(() => {
+    setIsPasswordRecovery(false);
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
@@ -124,10 +137,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sectorMemberships,
       providerToken,
       loading,
+      isPasswordRecovery,
+      clearPasswordRecovery,
       refresh,
       signOut,
     }),
-    [session, profile, company, sectorMemberships, providerToken, loading, refresh, signOut],
+    [session, profile, company, sectorMemberships, providerToken, loading, isPasswordRecovery, clearPasswordRecovery, refresh, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
