@@ -282,6 +282,7 @@ function UsersTab({
                     <UserActionsMenu
                       profile={p}
                       isSelf={currentUserId === p.id}
+                      adminId={currentUserId}
                       onChanged={load}
                       onEdit={() => setEditTarget(p)}
                     />
@@ -298,6 +299,7 @@ function UsersTab({
         onOpenChange={setModalOpen}
         sectors={sectors}
         companyId={companyId}
+        adminId={currentUserId}
         onCreated={() => {
           setModalOpen(false);
           void load();
@@ -308,6 +310,7 @@ function UsersTab({
         open={rescueOpen}
         onOpenChange={setRescueOpen}
         companyId={companyId}
+        adminId={currentUserId}
         onReactivated={() => {
           setRescueOpen(false);
           void load();
@@ -317,6 +320,7 @@ function UsersTab({
       <EditUserModal
         profile={editTarget}
         sectors={sectors}
+        adminId={currentUserId}
         onOpenChange={(o) => !o && setEditTarget(null)}
         onSaved={() => {
           setEditTarget(null);
