@@ -666,12 +666,14 @@ function UserFormModal({
   onOpenChange,
   sectors,
   companyId,
+  adminId,
   onCreated,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   sectors: Sector[];
   companyId: string;
+  adminId: string | null;
   onCreated: () => void;
 }) {
   const [fullName, setFullName] = useState("");
