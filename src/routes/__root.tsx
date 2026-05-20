@@ -118,6 +118,39 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const [recoveryHandling, setRecoveryHandling] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const hash = window.location.hash.startsWith("#")
+      ? window.location.hash.substring(1)
+      : "";
+    const params = new URLSearchParams(hash);
+    return params.get("type") === "recovery" && !!params.get("access_token");
+  });
+
+  useEffect(() => {
+    if (!recoveryHandling) return;
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const access_token = params.get("access_token") ?? "";
+    const refresh_token = params.get("refresh_token") ?? "";
+    (async () => {
+      try {
+        await supabase.auth.setSession({ access_token, refresh_token });
+      } catch (e) {
+        console.error("Failed to set recovery session", e);
+      } finally {
+        window.location.replace("/change-password");
+      }
+    })();
+  }, [recoveryHandling]);
+
+  if (recoveryHandling) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="h-3 w-24 bg-accent-light rounded animate-pulse" />
+      </div>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
