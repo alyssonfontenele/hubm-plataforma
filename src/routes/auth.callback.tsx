@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/auth/callback")({
@@ -10,40 +11,62 @@ function AuthCallbackPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const hash = window.location.hash.startsWith("#")
-      ? window.location.hash.substring(1)
-      : "";
-    const params = new URLSearchParams(hash);
+    const run = async () => {
+      const hash = window.location.hash.startsWith("#")
+        ? window.location.hash.substring(1)
+        : "";
+      const hashParams = new URLSearchParams(hash);
+      const type = hashParams.get("type");
+      const accessToken = hashParams.get("access_token");
+      const refreshToken = hashParams.get("refresh_token");
 
-    const type = params.get("type");
-    const accessToken = params.get("access_token");
-    const refreshToken = params.get("refresh_token");
+      // 1. Hash-based tokens (legacy / direct token redirects)
+      if (accessToken) {
+        try {
+          await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken ?? "",
+          });
+        } catch (e) {
+          console.error("Failed to set session from callback hash", e);
+          window.location.replace("/login");
+          return;
+        }
+        window.location.replace(type === "recovery" ? "/change-password" : "/app");
+        return;
+      }
 
-    if (!accessToken) {
-      window.location.replace("/login");
-      return;
-    }
-
-    const handleAuth = async () => {
-      try {
-        await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken ?? "",
-        });
-      } catch (e) {
-        console.error("Failed to set session from callback", e);
+      // 2. Error params in search
+      const search = new URLSearchParams(window.location.search);
+      if (search.get("error") || search.get("error_code")) {
+        toast.error("Link inválido ou expirado. Solicite um novo.");
         window.location.replace("/login");
         return;
       }
 
-      if (type === "recovery") {
+      // 3. Check existing session (Supabase already set it server-side)
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session?.user) {
+        window.location.replace("/login");
+        return;
+      }
+
+      // 4. Look up must_change_password
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("must_change_password")
+        .eq("id", session.user.id)
+        .maybeSingle();
+
+      if (profile?.must_change_password) {
         window.location.replace("/change-password");
       } else {
         window.location.replace("/app");
       }
     };
 
-    void handleAuth();
+    void run();
   }, [navigate]);
 
   return (
