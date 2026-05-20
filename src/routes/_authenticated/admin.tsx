@@ -63,6 +63,18 @@ import {
   maskCellphone,
   maskCpf,
 } from "@/lib/auth";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  ADMIN_ACTION_LABEL,
+  logAdminAction,
+  type AdminAction,
+  type AdminLogRow,
+} from "@/lib/admin-log";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Admin — HubM" }] }),
