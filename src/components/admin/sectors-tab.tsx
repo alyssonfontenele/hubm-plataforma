@@ -264,6 +264,7 @@ function SectorFormSheet({
   companyId,
   sector,
   existingSlugs,
+  existingGroups,
   nextSortOrder,
   onSaved,
 }: {
@@ -272,6 +273,7 @@ function SectorFormSheet({
   companyId: string;
   sector: SectorRow | null;
   existingSlugs: string[];
+  existingGroups: (string | null)[];
   nextSortOrder: number;
   onSaved: () => void | Promise<void>;
 }) {
