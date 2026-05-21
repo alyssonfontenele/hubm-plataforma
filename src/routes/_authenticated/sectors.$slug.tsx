@@ -70,10 +70,11 @@ function SectorPage() {
   const { slug } = Route.useParams();
   const search = Route.useSearch();
   const navigate = useNavigate();
-  const { sectorMemberships } = useAuth();
+  const { sectorMemberships, globalRole } = useAuth();
   const membership = sectorMemberships.find((m) => m.sector.slug === slug);
   const sectorId = membership?.sector.id;
   const sectorName = membership?.sector.name ?? slug;
+  const isAdmin = globalRole === "admin";
 
   const [folders, setFolders] = useState<Folder[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
@@ -98,8 +99,9 @@ function SectorPage() {
       const [foldersRes, resourcesRes] = await Promise.all([
         supabase
           .from("folders")
-          .select("id,name,sector_id,parent_id,sort_order")
+          .select("id,name,sector_id,parent_id,sort_order,is_page")
           .eq("sector_id", sectorId)
+          .is("deleted_at", null)
           .order("sort_order", { ascending: true, nullsFirst: false })
           .order("name", { ascending: true }),
         supabase
@@ -111,7 +113,12 @@ function SectorPage() {
           .order("name", { ascending: true }),
       ]);
       if (cancelled) return;
-      setFolders((foldersRes.data as Folder[] | null) ?? []);
+      setFolders(
+        ((foldersRes.data as Folder[] | null) ?? []).map((f) => ({
+          ...f,
+          is_page: Boolean(f.is_page),
+        })),
+      );
       setResources((resourcesRes.data as Resource[] | null) ?? []);
       setLoading(false);
     })();
