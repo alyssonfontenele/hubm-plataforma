@@ -295,6 +295,9 @@ function isValidInitialPassword(pw: string): boolean {
 
 // ---------- Users tab ----------
 
+const adminProfilesQueryKey = (companyId: string) =>
+  ["admin-profiles", companyId] as const;
+
 function UsersTab({
   companyId,
   currentUserId,
@@ -307,7 +310,8 @@ function UsersTab({
   const [rescueOpen, setRescueOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Profile | null>(null);
 
-  const profilesQueryKey = ["admin-profiles", companyId] as const;
+  const profilesQueryKey = adminProfilesQueryKey(companyId);
+
 
   const { data: profiles = [], isLoading: loadingProfiles } = useQuery({
     queryKey: profilesQueryKey,
