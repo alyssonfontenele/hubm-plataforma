@@ -82,6 +82,11 @@ import {
 } from "@/lib/admin-log";
 import { sanitize } from "@/lib/sanitize";
 import { SectorsTab } from "@/components/admin/sectors-tab";
+import { UserList } from "@/components/admin/UserList";
+import { DeleteUserDialog } from "@/components/admin/DeleteUserDialog";
+import { ReactivateUserDialog } from "@/components/admin/ReactivateUserDialog";
+import { RescueByCPFDialog } from "@/components/admin/RescueByCPFDialog";
+import { adminProfilesQueryKey, useAdminUsers } from "@/hooks/useAdminUsers";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Admin — HubM" }] }),
@@ -304,7 +309,7 @@ function isValidInitialPassword(pw: string): boolean {
 
 // ---------- Users tab ----------
 
-const adminProfilesQueryKey = (companyId: string) => ["admin-profiles", companyId] as const;
+
 
 function UsersTab({
   companyId,
@@ -320,19 +325,7 @@ function UsersTab({
 
   const profilesQueryKey = adminProfilesQueryKey(companyId);
 
-  const { data: profiles = [], isLoading: loadingProfiles } = useQuery({
-    queryKey: profilesQueryKey,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("company_id", companyId)
-        .is("deleted_at", null)
-        .order("full_name", { ascending: true });
-      if (error) throw error;
-      return (data as Profile[] | null) ?? [];
-    },
-  });
+  const { data: profiles = [], isLoading: loadingProfiles } = useAdminUsers(companyId);
 
   const { data: sectors = [], isLoading: loadingSectors } = useQuery({
     queryKey: ["admin-sectors", companyId] as const,
@@ -377,72 +370,20 @@ function UsersTab({
         </div>
       </header>
 
-      <div className="border border-border rounded-lg bg-surface overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-border">
-              <TableHead>Nome</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Papel global</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center text-text-muted py-8">
-                  Carregando…
-                </TableCell>
-              </TableRow>
-            ) : profiles.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center text-text-muted py-8">
-                  Nenhum usuário cadastrado.
-                </TableCell>
-              </TableRow>
-            ) : (
-              profiles.map((p) => (
-                <TableRow key={p.id} className="border-border">
-                  <TableCell>
-                    <div className="font-medium text-text-primary">{p.full_name}</div>
-                    {p.display_name && p.display_name !== p.full_name && (
-                      <div className="text-xs text-text-muted">{p.display_name}</div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="border-border text-text-primary">
-                      {p.auth_type === "google" ? "Google" : "CPF"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-text-primary capitalize">{p.global_role}</TableCell>
-                  <TableCell>
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full border ${
-                        p.active && !p.deleted_at
-                          ? "border-border text-text-primary bg-background"
-                          : "border-border text-text-muted bg-surface"
-                      }`}
-                    >
-                      {p.deleted_at ? "Inativo" : p.active ? "Ativo" : "Suspenso"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <UserActionsMenu
-                      profile={p}
-                      isSelf={currentUserId === p.id}
-                      adminId={currentUserId}
-                      companyId={companyId}
-                      onChanged={load}
-                      onEdit={() => setEditTarget(p)}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <UserList
+        profiles={profiles}
+        loading={loading}
+        renderActions={(p) => (
+          <UserActionsMenu
+            profile={p}
+            isSelf={currentUserId === p.id}
+            adminId={currentUserId}
+            companyId={companyId}
+            onChanged={load}
+            onEdit={() => setEditTarget(p)}
+          />
+        )}
+      />
 
       <UserFormModal
         open={modalOpen}
@@ -456,16 +397,16 @@ function UsersTab({
         }}
       />
 
-      <RescueUserModal
+      <RescueByCPFDialog
         open={rescueOpen}
         onOpenChange={setRescueOpen}
-        companyId={companyId}
         adminId={currentUserId}
         onReactivated={() => {
           setRescueOpen(false);
           void load();
         }}
       />
+
 
       <EditUserModal
         profile={editTarget}
@@ -510,8 +451,6 @@ function UserActionsMenu({
   const [deleting, setDeleting] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmDef | null>(null);
   const [simpleDeleteOpen, setSimpleDeleteOpen] = useState(false);
-  const [simpleDeleting, setSimpleDeleting] = useState(false);
-  const queryClient = useQueryClient();
 
   const updateProfile = async (
     patch: Record<string, unknown>,
@@ -676,62 +615,14 @@ function UserActionsMenu({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-
-      <AlertDialog
+      <DeleteUserDialog
         open={simpleDeleteOpen}
-        onOpenChange={(o) => !simpleDeleting && setSimpleDeleteOpen(o)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir usuário?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {profile.full_name} será removido da plataforma. Os registros de auditoria serão
-              preservados.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={simpleDeleting}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={simpleDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={async (e) => {
-                e.preventDefault();
-                setSimpleDeleting(true);
-                try {
-                  const { error: fnErr } = await supabase.functions.invoke("admin-delete-user", {
-                    body: { user_id: profile.id },
-                  });
-                  if (fnErr) throw fnErr;
-                  await logAdminAction({
-                    adminId,
-                    action: "delete_user",
-                    targetId: profile.id,
-                    targetName: profile.full_name,
-                    details: { auth_type: profile.auth_type },
-                  });
-                  await queryClient.invalidateQueries({
-                    queryKey: adminProfilesQueryKey(companyId),
-                  });
-                  toast.success("Usuário excluído.");
-                  setSimpleDeleteOpen(false);
-                  await onChanged();
-                } catch (err) {
-                  toast.error(
-                    err instanceof Error
-                      ? `Falha ao excluir: ${err.message}`
-                      : "Falha ao excluir usuário.",
-                  );
-                  setSimpleDeleteOpen(false);
-                } finally {
-                  setSimpleDeleting(false);
-                }
-              }}
-            >
-              {simpleDeleting ? "Excluindo…" : "Excluir"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        onOpenChange={setSimpleDeleteOpen}
+        profile={profile}
+        companyId={companyId}
+        adminId={adminId}
+        onDeleted={onChanged}
+      />
 
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
         <AlertDialogContent>
@@ -1494,231 +1385,18 @@ function UserFormModal({
         </DialogContent>
       </Dialog>
 
-      <AlertDialog
+      <ReactivateUserDialog
         open={showReactivateDialog || existingDeleted !== null}
+        loading={reactivating}
         onOpenChange={(o) => {
-          if (!o && !reactivating) {
+          if (!o) {
             setExistingDeleted(null);
             setShowReactivateDialog(false);
           }
         }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Usuário já cadastrado</AlertDialogTitle>
-            <AlertDialogDescription>
-              Este e-mail já possui um cadastro no sistema. Deseja reativar o acesso?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={reactivating}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={reactivating}
-              onClick={(e) => {
-                e.preventDefault();
-                void handleReactivate();
-              }}
-              className="bg-text-primary text-background hover:bg-text-primary/90"
-            >
-              {reactivating ? "Reativando…" : "Reativar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        onConfirm={() => void handleReactivate()}
+      />
     </>
-  );
-}
-
-// ---------- Rescue user modal ----------
-
-function RescueUserModal({
-  open,
-  onOpenChange,
-  companyId,
-  adminId,
-  onReactivated,
-}: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-  companyId: string;
-  adminId: string | null;
-  onReactivated: () => void;
-}) {
-  const [cpf, setCpf] = useState("");
-  const [searching, setSearching] = useState(false);
-  const [found, setFound] = useState<Profile | null>(null);
-  const [notFound, setNotFound] = useState(false);
-  const [reactivating, setReactivating] = useState(false);
-
-  useEffect(() => {
-    if (!open) {
-      setCpf("");
-      setFound(null);
-      setNotFound(false);
-      setSearching(false);
-      setReactivating(false);
-    }
-  }, [open]);
-
-  const search = async () => {
-    if (!isValidCpf(cpf)) {
-      toast.error("CPF inválido");
-      return;
-    }
-    setSearching(true);
-    setNotFound(false);
-    setFound(null);
-    try {
-      const cpfClean = cpfToDigits(cpf);
-      const { data: profile, error } = await supabase
-        .rpc("find_profile_by_cpf", { cpf_input: cpfClean })
-        .single();
-      console.log("[rescue] cpf rpc", { cpfClean, profile, error });
-      if (error && error.code !== "PGRST116") throw error;
-      const p = (profile as Profile | null) ?? null;
-      if (!p || p.deleted_at !== null) {
-        setNotFound(true);
-      } else {
-        setFound(p);
-      }
-
-
-
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao buscar usuário.");
-    } finally {
-      setSearching(false);
-    }
-  };
-
-  const reactivate = async () => {
-    if (!found) return;
-    setReactivating(true);
-    try {
-      const { error: updErr } = await supabase
-        .from("profiles")
-        .update({
-          active: true,
-          deleted_at: null,
-          must_change_password: true,
-        })
-        .eq("id", found.id);
-      if (updErr) throw updErr;
-
-      if (found.recovery_email) {
-        await supabase.functions.invoke("send-email", {
-          body: {
-            to: found.recovery_email,
-            subject: "Seu acesso ao HubM foi reativado",
-            template: "user-reactivated",
-            data: { full_name: found.full_name },
-          },
-        });
-      }
-      await logAdminAction({
-        adminId,
-        action: "reactivate_user",
-        targetId: found.id,
-        targetName: found.full_name,
-        details: { via: "rescue", new_status: "active" },
-      });
-      toast.success("Usuário reativado com sucesso. E-mail de acesso reenviado.");
-      onReactivated();
-    } catch (err) {
-      toast.error(err instanceof Error ? `Falha: ${err.message}` : "Falha ao reativar usuário.");
-    } finally {
-      setReactivating(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-surface border-border max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-text-primary">Resgatar usuário</DialogTitle>
-          <DialogDescription className="text-text-muted">
-            Informe o CPF do usuário para reativar o acesso.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="rescue_cpf">CPF</Label>
-            <div className="flex gap-2">
-              <Input
-                id="rescue_cpf"
-                value={cpf}
-                onChange={(e) => {
-                  setCpf(maskCpf(e.target.value));
-                  setNotFound(false);
-                  setFound(null);
-                }}
-                placeholder="000.000.000-00"
-                maxLength={14}
-                inputMode="numeric"
-              />
-              <Button
-                onClick={() => void search()}
-                disabled={searching}
-                variant="outline"
-                className="border-border"
-              >
-                {searching ? "Buscando…" : "Buscar"}
-              </Button>
-            </div>
-            {notFound && (
-              <p className="mt-2 text-xs text-text-muted">
-                Nenhum usuário ativo encontrado com este CPF.
-              </p>
-            )}
-            {found && found.active === false && (
-              <p className="mt-2 text-xs text-text-muted">
-                Usuário encontrado mas está suspenso. Deseja reativá-lo?
-              </p>
-            )}
-
-          </div>
-
-          {found && (
-            <div className="border border-border rounded-md p-4 space-y-2 bg-background">
-              <div>
-                <p className="text-xs text-text-muted">Nome</p>
-                <p className="text-sm text-text-primary">{found.full_name}</p>
-              </div>
-              <div>
-                <p className="text-xs text-text-muted">E-mail de recuperação</p>
-                <p className="text-sm text-text-primary">{found.recovery_email ?? "—"}</p>
-              </div>
-              <div>
-                <p className="text-xs text-text-muted">Celular</p>
-                <p className="text-sm text-text-primary">
-                  {found.cellphone ? maskCellphone(found.cellphone) : "—"}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-text-muted">Papel global</p>
-                <p className="text-sm text-text-primary capitalize">{found.global_role}</p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Fechar
-          </Button>
-          {found && (
-            <Button
-              onClick={() => void reactivate()}
-              disabled={reactivating}
-              className="bg-text-primary text-background hover:bg-text-primary/90"
-            >
-              {reactivating ? "Reativando…" : "Reativar acesso"}
-            </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 
