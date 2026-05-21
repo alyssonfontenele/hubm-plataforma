@@ -356,3 +356,157 @@ function ResourceCard({ resource, onClick }: { resource: Resource; onClick: () =
     </button>
   );
 }
+
+function ListLayout({
+  resources,
+  onOpen,
+}: {
+  resources: Resource[];
+  onOpen: (r: Resource) => void;
+}) {
+  return (
+    <ul className="border border-border rounded-lg bg-surface divide-y divide-border">
+      {resources.map((r) => {
+        const Icon = TYPE_ICON[r.type] ?? File;
+        return (
+          <li key={r.id}>
+            <button
+              type="button"
+              onClick={() => onOpen(r)}
+              className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-background transition-colors"
+            >
+              <div className="w-8 h-8 rounded-md bg-background border border-border flex items-center justify-center shrink-0">
+                <Icon className="w-4 h-4 text-text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-text-primary truncate">{r.name}</p>
+                {r.description && (
+                  <p className="text-xs text-text-muted truncate">{r.description}</p>
+                )}
+              </div>
+              <span className="text-xs uppercase tracking-wider text-text-muted shrink-0">
+                {TYPE_LABEL[r.type] ?? "Recurso"}
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function KanbanLayout({
+  resources,
+  folders,
+  onOpen,
+}: {
+  resources: Resource[];
+  folders: Folder[];
+  onOpen: (r: Resource) => void;
+}) {
+  const columns = useMemo(() => {
+    const map = new Map<string, { name: string; items: Resource[] }>();
+    folders.forEach((f) => map.set(f.id, { name: f.name, items: [] }));
+    const orphans: Resource[] = [];
+    resources.forEach((r) => {
+      const col = r.folder_id ? map.get(r.folder_id) : null;
+      if (col) col.items.push(r);
+      else orphans.push(r);
+    });
+    const cols = Array.from(map.entries())
+      .filter(([, v]) => v.items.length > 0)
+      .map(([id, v]) => ({ id, name: v.name, items: v.items }));
+    if (orphans.length > 0) {
+      cols.push({ id: "__orphans__", name: "Sem pasta", items: orphans });
+    }
+    return cols;
+  }, [resources, folders]);
+
+  return (
+    <div className="flex gap-4 overflow-x-auto pb-2">
+      {columns.map((col) => (
+        <div
+          key={col.id}
+          className="w-72 shrink-0 rounded-lg border border-border bg-surface p-3"
+        >
+          <header className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-text-primary truncate">
+              {col.name}
+            </h3>
+            <span className="text-xs text-text-muted">{col.items.length}</span>
+          </header>
+          <div className="space-y-2">
+            {col.items.map((r) => {
+              const Icon = TYPE_ICON[r.type] ?? File;
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => onOpen(r)}
+                  className="w-full text-left rounded-md border border-border bg-background p-3 hover:bg-surface transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Icon className="w-4 h-4 text-text-primary shrink-0" />
+                    <p className="text-sm font-medium text-text-primary truncate">
+                      {r.name}
+                    </p>
+                  </div>
+                  {r.description && (
+                    <p className="mt-1 text-xs text-text-muted line-clamp-2">
+                      {r.description}
+                    </p>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DashboardLayout({
+  resources,
+  onOpen,
+}: {
+  resources: Resource[];
+  onOpen: (r: Resource) => void;
+}) {
+  const counts = useMemo(() => {
+    const acc: Partial<Record<ResourceType, number>> = {};
+    resources.forEach((r) => {
+      acc[r.type] = (acc[r.type] ?? 0) + 1;
+    });
+    return acc;
+  }, [resources]);
+  const types = Object.keys(counts) as ResourceType[];
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="rounded-lg border border-border bg-surface p-4">
+          <p className="text-xs uppercase tracking-wider text-text-muted">Total</p>
+          <p className="mt-1 text-2xl font-bold text-text-primary">{resources.length}</p>
+        </div>
+        {types.map((t) => {
+          const Icon = TYPE_ICON[t] ?? File;
+          return (
+            <div key={t} className="rounded-lg border border-border bg-surface p-4">
+              <div className="flex items-center gap-2 text-text-muted">
+                <Icon className="w-4 h-4" />
+                <p className="text-xs uppercase tracking-wider">{TYPE_LABEL[t]}</p>
+              </div>
+              <p className="mt-1 text-2xl font-bold text-text-primary">{counts[t]}</p>
+            </div>
+          );
+        })}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {resources.map((r) => (
+          <ResourceCard key={r.id} resource={r} onClick={() => onOpen(r)} />
+        ))}
+      </div>
+    </div>
+  );
+}
