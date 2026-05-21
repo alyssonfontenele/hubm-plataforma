@@ -136,12 +136,32 @@ function SectorPage() {
     () => resources.filter((r) => r.folder_id && folderMap.has(r.folder_id)),
     [resources, folderMap],
   );
-  const visibleResources = useMemo(
-    () =>
-      activeFolder === "all"
-        ? sectorResources
-        : sectorResources.filter((r) => r.folder_id === activeFolder),
-    [sectorResources, activeFolder],
+  const childrenOfPage = useMemo(() => {
+    const map = new Map<string, string[]>();
+    folders.forEach((f) => {
+      if (f.parent_id) {
+        const arr = map.get(f.parent_id) ?? [];
+        arr.push(f.id);
+        map.set(f.parent_id, arr);
+      }
+    });
+    return map;
+  }, [folders]);
+  const visibleResources = useMemo(() => {
+    if (activeFolder === "all") return sectorResources;
+    const activeRecord = folderMap.get(activeFolder);
+    if (activeRecord?.is_page) {
+      const childIds = new Set(childrenOfPage.get(activeFolder) ?? []);
+      childIds.add(activeFolder);
+      return sectorResources.filter(
+        (r) => r.folder_id && childIds.has(r.folder_id),
+      );
+    }
+    return sectorResources.filter((r) => r.folder_id === activeFolder);
+  }, [sectorResources, activeFolder, folderMap, childrenOfPage]);
+  const pillFolders = useMemo(
+    () => folders.filter((f) => !f.parent_id),
+    [folders],
   );
 
   const SectorIcon = useMemo(() => {
