@@ -658,7 +658,7 @@ function UserActionsMenu({
             onSelect={() => setSimpleDeleteOpen(true)}
             className="text-destructive focus:text-destructive focus:bg-destructive/10"
           >
-            <Trash2 className="w-4 h-4 mr-2" /> Delete
+            <Trash2 className="w-4 h-4 mr-2" /> Excluir
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
