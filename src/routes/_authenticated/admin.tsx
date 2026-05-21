@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { MoreHorizontal, Plus, UserCog, LifeBuoy, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { MoreHorizontal, Plus, UserCog, LifeBuoy, Eye, EyeOff, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import {
