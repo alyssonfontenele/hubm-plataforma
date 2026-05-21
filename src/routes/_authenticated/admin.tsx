@@ -948,13 +948,18 @@ function UserFormModal({
       if (cpfDigits && p.cpf_hash === cpfDigits) return true;
       if (normalizedEmail && p.recovery_email?.toLowerCase() === normalizedEmail) return true;
       if (cleanFullName && p.full_name?.toLowerCase() === cleanFullName) return true;
+      // Anonymized profile from a previous deletion — recovery_email/cpf_hash
+      // were wiped, so we can only key on the placeholder name.
+      if (p.full_name === "Usuário removido") return true;
       return false;
     });
     return match ?? null;
   };
 
   const isAlreadyRegisteredError = (msg: string) =>
-    /already (been )?registered/i.test(msg) || /already exists/i.test(msg);
+    msg === "A user with this email address has already been registered" ||
+    /already (been )?registered/i.test(msg) ||
+    /already exists/i.test(msg);
 
 
   const handleReactivate = async () => {
