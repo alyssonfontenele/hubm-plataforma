@@ -275,33 +275,6 @@ function SecuritySection() {
   );
 }
 
-// ---------- Friendly error mapper ----------
-
-function friendlyCreateError(message: string): string {
-  const raw = message?.trim() ?? "";
-  const m = raw.toLowerCase();
-  if (!raw) return "Erro ao criar usuário. Tente novamente.";
-  if (
-    m.includes("user inactive") ||
-    m.includes("usuário inativado") ||
-    m.includes("usuario inativado")
-  )
-    return "Este CPF pertence a um usuário inativado. Use a opção de resgate para reativá-lo.";
-  if (m.includes("invalid cpf")) return "CPF inválido. Verifique os dígitos informados.";
-  if (m.includes("not null violation") || m.includes("not-null"))
-    return "Preencha todos os campos obrigatórios.";
-  if (m.includes("foreign key")) return "Empresa não encontrada. Tente novamente.";
-  if (
-    (m.includes("already registered") || m.includes("duplicate")) &&
-    (m.includes("hubm.internal") || m.includes("cpf"))
-  )
-    return "Este CPF já está cadastrado no sistema.";
-  if (m.includes("duplicate") && m.includes("recovery_email"))
-    return "Este e-mail de recuperação já está em uso por outro usuário.";
-  if (m.includes("duplicate") && m.includes("cellphone"))
-    return "Este celular já está cadastrado no sistema.";
-  return `Erro ao criar usuário: ${raw}`;
-}
 
 function isValidInitialPassword(pw: string): boolean {
   return pw.length >= 8 && /\d/.test(pw) && /[A-Z]/.test(pw);
