@@ -106,25 +106,37 @@ export function AppSidebar() {
   const isActive = (path: string) =>
     pathname === path || pathname.startsWith(path + "/");
 
+  const isAdmin = globalRole === "admin";
+  const companyId = company?.id;
+
   const sectorIds = useMemo(
     () => sectorMemberships.map((m) => m.sector.id).sort(),
     [sectorMemberships],
   );
 
-  // Fetch sectors with sort_order to respect admin-configured ordering.
+  // Admins see ALL active sectors of the company.
+  // Non-admins see only sectors they are members of.
   const { data: sectorsData } = useQuery({
-    queryKey: ["sidebar-sectors", sectorIds.join(",")],
-    enabled: sectorIds.length > 0,
+    queryKey: isAdmin
+      ? ["sidebar-sectors", "admin", companyId ?? ""]
+      : ["sidebar-sectors", "member", sectorIds.join(",")],
+    enabled: isAdmin ? !!companyId : sectorIds.length > 0,
     staleTime: 60_000,
     queryFn: async (): Promise<SidebarSector[]> => {
-      if (sectorIds.length === 0) return [];
-      const { data, error } = await supabase
+      let query = supabase
         .from("sectors")
         .select("id,name,slug,icon,group_name,sort_order")
-        .in("id", sectorIds)
         .eq("active", true)
+        .is("deleted_at", null)
         .order("sort_order", { ascending: true, nullsFirst: false })
         .order("name", { ascending: true });
+      if (isAdmin && companyId) {
+        query = query.eq("company_id", companyId);
+      } else {
+        if (sectorIds.length === 0) return [];
+        query = query.in("id", sectorIds);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return (data as SidebarSector[] | null) ?? [];
     },
@@ -132,7 +144,7 @@ export function AppSidebar() {
 
   const sectors = useMemo<SidebarSector[]>(() => {
     if (sectorsData && sectorsData.length > 0) return sectorsData;
-    // Fallback to membership data (unsorted) while query loads.
+    if (isAdmin) return [];
     return sectorMemberships.map((m) => ({
       id: m.sector.id,
       name: m.sector.name,
@@ -141,7 +153,7 @@ export function AppSidebar() {
       group_name: m.sector.group_name,
       sort_order: null,
     }));
-  }, [sectorsData, sectorMemberships]);
+  }, [sectorsData, sectorMemberships, isAdmin]);
 
   const groupedSectors = useMemo(() => {
     const map = new Map<string, SidebarSector[]>();
