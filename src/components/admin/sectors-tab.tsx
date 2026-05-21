@@ -421,3 +421,114 @@ function SectorFormSheet({
     </Sheet>
   );
 }
+
+const EMOJI_CATEGORIES: { label: string; emojis: string[] }[] = [
+  {
+    label: "Trabalho",
+    emojis: ["💼", "📋", "📊", "📈", "📉", "🗂️", "📁", "📂", "🗃️", "🗄️", "📝", "✏️"],
+  },
+  {
+    label: "Financeiro",
+    emojis: ["💰", "💵", "💳", "🏦", "📈", "🧾", "💹", "🪙"],
+  },
+  {
+    label: "Pessoas",
+    emojis: ["👥", "👤", "🧑‍💼", "🧑‍💻", "🧑‍🏫", "🧑‍⚕️", "🤝", "👨‍👩‍👧"],
+  },
+  {
+    label: "Logística",
+    emojis: ["🚚", "📦", "🏭", "🏗️", "🛠️", "🔧", "⛽", "🗺️"],
+  },
+  {
+    label: "Tecnologia",
+    emojis: ["💻", "🖥️", "📱", "⚙️", "🧠", "🤖", "🛰️", "🔌"],
+  },
+  {
+    label: "Geral",
+    emojis: ["🏢", "🏠", "⭐", "🎯", "🚀", "🔔", "📌", "🌐", "🎨", "🎓", "🛡️", "❤️"],
+  },
+];
+
+function EmojiPicker({
+  value,
+  onChange,
+  sectorName,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  sectorName: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const handlePick = (emoji: string) => {
+    onChange(emoji);
+    setOpen(false);
+  };
+
+  return (
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-3 w-full px-3 py-2 border border-border rounded-md bg-background hover:bg-background/60 text-left"
+        aria-expanded={open}
+      >
+        <span className="text-2xl w-8 text-center" aria-hidden>
+          {value || "📁"}
+        </span>
+        <span className="text-sm text-text-primary truncate">
+          {sectorName.trim() || "Selecionar ícone"}
+        </span>
+        <span className="ml-auto text-xs text-text-muted">
+          {open ? "Fechar" : "Escolher"}
+        </span>
+      </button>
+
+      {open && (
+        <div className="border border-border rounded-md bg-surface p-3 space-y-3">
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Digite ou cole um emoji…"
+            maxLength={8}
+            className="text-center text-lg"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && search.trim()) {
+                e.preventDefault();
+                handlePick(search.trim());
+                setSearch("");
+              }
+            }}
+          />
+          <p className="text-xs text-text-muted">
+            Pressione Enter para usar o emoji digitado.
+          </p>
+          <div className="max-h-64 overflow-y-auto space-y-3 pr-1">
+            {EMOJI_CATEGORIES.map((cat) => (
+              <div key={cat.label}>
+                <p className="text-xs font-medium text-text-muted mb-1">{cat.label}</p>
+                <div className="grid grid-cols-8 gap-1">
+                  {cat.emojis.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => handlePick(emoji)}
+                      className={`text-xl p-1 rounded hover:bg-background ${
+                        value === emoji ? "bg-background ring-1 ring-text-primary" : ""
+                      }`}
+                      aria-label={`Selecionar ${emoji}`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
