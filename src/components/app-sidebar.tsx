@@ -127,7 +127,6 @@ export function AppSidebar() {
         .from("sectors")
         .select("id,name,slug,icon,group_name,sort_order")
         .eq("active", true)
-        .is("deleted_at", null)
         .order("sort_order", { ascending: true, nullsFirst: false })
         .order("name", { ascending: true });
       if (isAdmin && companyId) {
