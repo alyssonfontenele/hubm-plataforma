@@ -341,6 +341,10 @@ function UsersTab({
 
       </header>
 
+      <div className="rounded-md border border-border bg-surface/50 p-3 text-xs text-text-muted">
+        Usuários Google são adicionados automaticamente ao fazer login pela primeira vez com um domínio autorizado.
+      </div>
+
       <UserList
         profiles={profiles}
         loading={loading}
