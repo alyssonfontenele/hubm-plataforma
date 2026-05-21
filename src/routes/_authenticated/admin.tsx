@@ -5,7 +5,7 @@ import {
   MoreHorizontal,
   Plus,
   UserCog,
-  LifeBuoy,
+  
   Eye,
   EyeOff,
   ShieldCheck,
@@ -85,7 +85,7 @@ import { SectorsTab } from "@/components/admin/sectors-tab";
 import { UserList } from "@/components/admin/UserList";
 import { DeleteUserDialog } from "@/components/admin/DeleteUserDialog";
 
-import { RescueByCPFDialog } from "@/components/admin/RescueByCPFDialog";
+
 import { adminProfilesQueryKey, useAdminUsers } from "@/hooks/useAdminUsers";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -293,7 +293,7 @@ function UsersTab({
 }) {
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
-  const [rescueOpen, setRescueOpen] = useState(false);
+  
   const [editTarget, setEditTarget] = useState<Profile | null>(null);
 
   const profilesQueryKey = adminProfilesQueryKey(companyId);
@@ -331,9 +331,6 @@ function UsersTab({
           <p className="text-xs text-text-muted">Gerencie os acessos da sua organização.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setRescueOpen(true)} className="border-border">
-            <LifeBuoy className="w-4 h-4 mr-2" /> Resgatar usuário
-          </Button>
           <Button
             onClick={() => setModalOpen(true)}
             className="bg-text-primary text-background hover:bg-text-primary/90"
@@ -341,6 +338,7 @@ function UsersTab({
             <Plus className="w-4 h-4 mr-2" /> Novo usuário
           </Button>
         </div>
+
       </header>
 
       <UserList
@@ -370,16 +368,6 @@ function UsersTab({
         }}
       />
 
-      <RescueByCPFDialog
-        open={rescueOpen}
-        onOpenChange={setRescueOpen}
-        adminId={currentUserId}
-        companyId={companyId}
-        onReactivated={() => {
-          setRescueOpen(false);
-          void load();
-        }}
-      />
 
 
       <EditUserModal
