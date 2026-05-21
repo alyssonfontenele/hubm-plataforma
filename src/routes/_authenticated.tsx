@@ -41,7 +41,14 @@ function AuthenticatedLayout() {
     }
   }, [loading, session, profile, mfaState, navigate]);
 
-  if (loading || !session) {
+  if (
+    loading ||
+    !session ||
+    (profile?.global_role === "admin" &&
+      (mfaState === "unknown" ||
+        mfaState === "needs_enrollment" ||
+        mfaState === "needs_challenge"))
+  ) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="h-3 w-24 bg-accent-light rounded animate-pulse" />
