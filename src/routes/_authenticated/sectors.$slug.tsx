@@ -200,7 +200,7 @@ function SectorPage() {
         </div>
       </header>
 
-      {folders.length > 0 && (
+      {pillFolders.length > 0 && (
         <div className="flex flex-wrap gap-2">
           <FolderPill
             label="Todos"
@@ -208,12 +208,18 @@ function SectorPage() {
             active={activeFolder === "all"}
             onClick={() => setActiveFolder("all")}
           />
-          {folders.map((f) => {
-            const count = sectorResources.filter((r) => r.folder_id === f.id).length;
+          {pillFolders.map((f) => {
+            const count = f.is_page
+              ? sectorResources.filter((r) => {
+                  if (!r.folder_id) return false;
+                  const childIds = childrenOfPage.get(f.id) ?? [];
+                  return r.folder_id === f.id || childIds.includes(r.folder_id);
+                }).length
+              : sectorResources.filter((r) => r.folder_id === f.id).length;
             return (
               <FolderPill
                 key={f.id}
-                label={f.name}
+                label={`${f.is_page ? "📄 " : ""}${f.name}`}
                 count={count}
                 active={activeFolder === f.id}
                 onClick={() => setActiveFolder(f.id)}
@@ -222,6 +228,8 @@ function SectorPage() {
           })}
         </div>
       )}
+
+      {sectorId && <FoldersManager sectorId={sectorId} canManage={isAdmin} />}
 
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
