@@ -970,7 +970,7 @@ function UserFormModal({
 
       await logAdminAction({
         adminId,
-        action: "update_user",
+        action: "reactivate_user",
         targetId: existingDeleted.id,
         targetName: cleanFullName,
         details: { reactivated: true, auth_type: authType, global_role: globalRole },
