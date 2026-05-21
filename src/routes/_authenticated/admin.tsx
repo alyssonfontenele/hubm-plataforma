@@ -767,7 +767,7 @@ function UserFormModal({
     try {
       const { data, error } = await supabase.functions.invoke("create-cpf-user", {
         body: {
-          full_name: fullName.trim(),
+          full_name: sanitize(fullName.trim()),
           cpf: cpfToDigits(cpf),
           recovery_email: recoveryEmail.trim().toLowerCase(),
           cellphone: cellphoneToDigits(cellphone),
