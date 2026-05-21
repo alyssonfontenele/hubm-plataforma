@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import * as LucideIcons from "lucide-react";
 import {
   FileText,
@@ -16,6 +16,9 @@ import { ResourceModal, type ResourceModalData } from "@/components/resource-mod
 
 export const Route = createFileRoute("/_authenticated/sectors/$slug")({
   head: () => ({ meta: [{ title: "Setor — HubM" }] }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    folder: typeof search.folder === "string" ? search.folder : undefined,
+  }),
   component: SectorPage,
 });
 
