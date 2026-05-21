@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Home,
@@ -13,8 +14,15 @@ import {
   Database,
   BarChart3,
   Wallet,
+  ChevronDown,
   type LucideIcon,
 } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 import {
   Sidebar,
