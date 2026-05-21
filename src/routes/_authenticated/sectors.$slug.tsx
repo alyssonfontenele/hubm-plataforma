@@ -1,15 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import * as LucideIcons from "lucide-react";
-import {
-  FileText,
-  FileSpreadsheet,
-  Link2,
-  Presentation,
-  FolderOpen,
-  File,
-  Cog,
-} from "lucide-react";
+import { FileText, FileSpreadsheet, Link2, Presentation, FolderOpen, File, Cog } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, type ResourceType } from "@/integrations/supabase/client";
 import { ResourceModal, type ResourceModalData } from "@/components/resource-modal";
@@ -88,7 +80,6 @@ function SectorPage() {
   const sectorName = sectorRecord?.name ?? membership?.sector.name ?? slug;
   const sectorIcon = sectorRecord?.icon ?? membership?.sector.icon ?? null;
   const layout: LayoutKind = sectorRecord?.config?.layout ?? "grid";
-  console.log('[SectorPage] sectorRecord:', sectorRecord, 'layout:', layout);
 
   const [folders, setFolders] = useState<Folder[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
@@ -109,23 +100,16 @@ function SectorPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      let query = supabase
-        .from("sectors")
-        .select("id,name,icon,config")
-        .eq("slug", slug)
-        .eq("active", true)
-        .limit(1);
+      let query = supabase.from("sectors").select("id,name,icon,config").eq("slug", slug).eq("active", true).limit(1);
       if (company?.id) query = query.eq("company_id", company.id);
-      const { data, error } = await query.maybeSingle();
-      console.log('[SectorPage] slug:', slug, 'data:', data, 'error:', error);
+      const { data } = await query.maybeSingle();
       if (cancelled) return;
       setSectorRecord((data as SectorRecord | null) ?? null);
     })();
     return () => {
-  cancelled = true;
-};
-}, [slug, company?.id]);
-
+      cancelled = true;
+    };
+  }, [slug, company?.id]);
 
   useEffect(() => {
     if (!sectorId) return;
@@ -142,9 +126,7 @@ function SectorPage() {
           .order("name", { ascending: true }),
         supabase
           .from("resources")
-          .select(
-            "id,name,description,url,type,folder_id,thumbnail_url,sort_order,mime_type,created_by,created_at",
-          )
+          .select("id,name,description,url,type,folder_id,thumbnail_url,sort_order,mime_type,created_by,created_at")
           .order("sort_order", { ascending: true, nullsFirst: false })
           .order("name", { ascending: true }),
       ]);
@@ -189,16 +171,11 @@ function SectorPage() {
     if (activeRecord?.is_page) {
       const childIds = new Set(childrenOfPage.get(activeFolder) ?? []);
       childIds.add(activeFolder);
-      return sectorResources.filter(
-        (r) => r.folder_id && childIds.has(r.folder_id),
-      );
+      return sectorResources.filter((r) => r.folder_id && childIds.has(r.folder_id));
     }
     return sectorResources.filter((r) => r.folder_id === activeFolder);
   }, [sectorResources, activeFolder, folderMap, childrenOfPage]);
-  const pillFolders = useMemo(
-    () => folders.filter((f) => !f.parent_id),
-    [folders],
-  );
+  const pillFolders = useMemo(() => folders.filter((f) => !f.parent_id), [folders]);
 
   const SectorIcon = useMemo(() => {
     if (!sectorIcon) return FolderOpen;
@@ -269,29 +246,20 @@ function SectorPage() {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-32 rounded-lg border border-border bg-surface animate-pulse"
-            />
+            <div key={i} className="h-32 rounded-lg border border-border bg-surface animate-pulse" />
           ))}
         </div>
       ) : visibleResources.length === 0 ? (
         <div className="border border-border rounded-lg bg-surface p-10 text-center">
           <FolderOpen className="w-8 h-8 mx-auto text-text-muted mb-2" />
           <p className="text-sm text-text-muted">
-            {folders.length === 0
-              ? "Nenhuma pasta cadastrada neste setor ainda."
-              : "Nenhum recurso nesta pasta."}
+            {folders.length === 0 ? "Nenhuma pasta cadastrada neste setor ainda." : "Nenhum recurso nesta pasta."}
           </p>
         </div>
       ) : layout === "list" ? (
         <ListLayout resources={visibleResources} onOpen={openResource} />
       ) : layout === "kanban" ? (
-        <KanbanLayout
-          resources={visibleResources}
-          folders={folders}
-          onOpen={openResource}
-        />
+        <KanbanLayout resources={visibleResources} folders={folders} onOpen={openResource} />
       ) : layout === "dashboard" ? (
         <DashboardLayout resources={visibleResources} onOpen={openResource} />
       ) : (
@@ -346,25 +314,15 @@ function ResourceCard({ resource, onClick }: { resource: Resource; onClick: () =
         <Icon className="w-4 h-4 text-text-primary" />
       </div>
       <div className="mt-3 space-y-1">
-        <p className="text-xs uppercase tracking-wider text-text-muted">
-          {TYPE_LABEL[resource.type] ?? "Recurso"}
-        </p>
+        <p className="text-xs uppercase tracking-wider text-text-muted">{TYPE_LABEL[resource.type] ?? "Recurso"}</p>
         <h3 className="text-sm font-semibold text-text-primary line-clamp-2">{resource.name}</h3>
-        {resource.description && (
-          <p className="text-xs text-text-muted line-clamp-2">{resource.description}</p>
-        )}
+        {resource.description && <p className="text-xs text-text-muted line-clamp-2">{resource.description}</p>}
       </div>
     </button>
   );
 }
 
-function ListLayout({
-  resources,
-  onOpen,
-}: {
-  resources: Resource[];
-  onOpen: (r: Resource) => void;
-}) {
+function ListLayout({ resources, onOpen }: { resources: Resource[]; onOpen: (r: Resource) => void }) {
   return (
     <ul className="border border-border rounded-lg bg-surface divide-y divide-border">
       {resources.map((r) => {
@@ -381,9 +339,7 @@ function ListLayout({
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-text-primary truncate">{r.name}</p>
-                {r.description && (
-                  <p className="text-xs text-text-muted truncate">{r.description}</p>
-                )}
+                {r.description && <p className="text-xs text-text-muted truncate">{r.description}</p>}
               </div>
               <span className="text-xs uppercase tracking-wider text-text-muted shrink-0">
                 {TYPE_LABEL[r.type] ?? "Recurso"}
@@ -426,14 +382,9 @@ function KanbanLayout({
   return (
     <div className="flex gap-4 overflow-x-auto pb-2">
       {columns.map((col) => (
-        <div
-          key={col.id}
-          className="w-72 shrink-0 rounded-lg border border-border bg-surface p-3"
-        >
+        <div key={col.id} className="w-72 shrink-0 rounded-lg border border-border bg-surface p-3">
           <header className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-text-primary truncate">
-              {col.name}
-            </h3>
+            <h3 className="text-sm font-semibold text-text-primary truncate">{col.name}</h3>
             <span className="text-xs text-text-muted">{col.items.length}</span>
           </header>
           <div className="space-y-2">
@@ -448,15 +399,9 @@ function KanbanLayout({
                 >
                   <div className="flex items-center gap-2">
                     <Icon className="w-4 h-4 text-text-primary shrink-0" />
-                    <p className="text-sm font-medium text-text-primary truncate">
-                      {r.name}
-                    </p>
+                    <p className="text-sm font-medium text-text-primary truncate">{r.name}</p>
                   </div>
-                  {r.description && (
-                    <p className="mt-1 text-xs text-text-muted line-clamp-2">
-                      {r.description}
-                    </p>
-                  )}
+                  {r.description && <p className="mt-1 text-xs text-text-muted line-clamp-2">{r.description}</p>}
                 </button>
               );
             })}
@@ -467,13 +412,7 @@ function KanbanLayout({
   );
 }
 
-function DashboardLayout({
-  resources,
-  onOpen,
-}: {
-  resources: Resource[];
-  onOpen: (r: Resource) => void;
-}) {
+function DashboardLayout({ resources, onOpen }: { resources: Resource[]; onOpen: (r: Resource) => void }) {
   const counts = useMemo(() => {
     const acc: Partial<Record<ResourceType, number>> = {};
     resources.forEach((r) => {
