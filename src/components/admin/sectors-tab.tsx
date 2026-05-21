@@ -67,7 +67,7 @@ export function SectorsTab({ companyId }: { companyId: string }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sectors")
-        .select("id,company_id,name,slug,icon,description,active,sort_order")
+        .select("id,company_id,name,slug,icon,description,active,sort_order,group_name")
         .eq("company_id", companyId)
         .order("sort_order", { ascending: true, nullsFirst: false })
         .order("name", { ascending: true });
