@@ -1468,16 +1468,19 @@ function UserFormModal({
     </Dialog>
 
     <AlertDialog
-      open={existingDeleted !== null}
+      open={showReactivateDialog || existingDeleted !== null}
       onOpenChange={(o) => {
-        if (!o && !reactivating) setExistingDeleted(null);
+        if (!o && !reactivating) {
+          setExistingDeleted(null);
+          setShowReactivateDialog(false);
+        }
       }}
     >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Usuário já cadastrado</AlertDialogTitle>
           <AlertDialogDescription>
-            Este usuário foi removido anteriormente. Deseja reativar o cadastro existente?
+            Este e-mail já possui um cadastro no sistema. Deseja reativar o acesso?
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
