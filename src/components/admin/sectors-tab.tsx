@@ -181,6 +181,7 @@ export function SectorsTab({ companyId }: { companyId: string }) {
         companyId={companyId}
         sector={editing}
         existingSlugs={sectors.map((s) => s.slug)}
+        existingGroups={sectors.map((s) => s.group_name)}
         nextSortOrder={sectors.length}
         onSaved={async () => {
           setSheetOpen(false);
