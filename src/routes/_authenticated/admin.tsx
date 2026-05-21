@@ -1208,15 +1208,9 @@ function UserFormModal({
           error.message ??
           "";
         if (isAlreadyRegisteredError(ctxMsg)) {
-          try {
-            const fallback = await findDeletedProfileFallback();
-            if (fallback) {
-              setExistingDeleted(fallback);
-              return;
-            }
-          } catch (fbErr) {
-            console.warn("[pre-check fallback] erro", fbErr);
-          }
+          setExistingDeleted(null);
+          setShowReactivateDialog(true);
+          return;
         }
         toast.error(friendlyCreateError(ctxMsg));
         return;
@@ -1241,6 +1235,12 @@ function UserFormModal({
       );
       onCreated();
     } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      if (isAlreadyRegisteredError(message)) {
+        setExistingDeleted(null);
+        setShowReactivateDialog(true);
+        return;
+      }
       toast.error(friendlyCreateError(err instanceof Error ? err.message : ""));
     } finally {
       setSubmitting(false);
