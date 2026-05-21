@@ -1152,25 +1152,8 @@ function UserFormModal({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <ReactivateUserDialog
-        open={showReactivateDialog || existingDeleted !== null}
-        onOpenChange={(o) => {
-          if (!o) {
-            setExistingDeleted(null);
-            setShowReactivateDialog(false);
-          }
-        }}
-        companyId={companyId}
-        fullName={sanitize(fullName.trim())}
-        globalRole={globalRole}
-        onReactivated={() => {
-          setExistingDeleted(null);
-          setShowReactivateDialog(false);
-          onCreated();
-        }}
-      />
     </>
+
   );
 }
 
