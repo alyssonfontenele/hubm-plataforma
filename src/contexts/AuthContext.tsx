@@ -17,6 +17,13 @@ import {
   type SectorMembership,
 } from "@/integrations/supabase/client";
 
+export type MfaState =
+  | "unknown"
+  | "not_required"
+  | "needs_enrollment"
+  | "needs_challenge"
+  | "verified";
+
 interface AuthContextValue {
   session: Session | null;
   profile: Profile | null;
@@ -26,6 +33,8 @@ interface AuthContextValue {
   providerToken: string | null;
   loading: boolean;
   isPasswordRecovery: boolean;
+  mfaState: MfaState;
+  refreshMfa: () => Promise<void>;
   clearPasswordRecovery: () => void;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
