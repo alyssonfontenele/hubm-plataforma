@@ -440,6 +440,26 @@ function SectorFormSheet({
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="sector-layout">Layout</Label>
+            <select
+              id="sector-layout"
+              value={layout}
+              onChange={(e) => setLayout(e.target.value as LayoutKind)}
+              className="flex h-9 w-full rounded-md border border-border bg-background px-3 py-1 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              {LAYOUT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-text-muted">
+              Define como a página do setor exibe os recursos.
+            </p>
+          </div>
+
+
+          <div className="space-y-2">
             <Label htmlFor="sector-slug">Slug</Label>
             <Input
               id="sector-slug"
