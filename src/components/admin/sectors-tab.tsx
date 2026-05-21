@@ -181,6 +181,7 @@ export function SectorsTab({ companyId }: { companyId: string }) {
         companyId={companyId}
         sector={editing}
         existingSlugs={sectors.map((s) => s.slug)}
+        existingGroups={sectors.map((s) => s.group_name)}
         nextSortOrder={sectors.length}
         onSaved={async () => {
           setSheetOpen(false);
@@ -263,6 +264,7 @@ function SectorFormSheet({
   companyId,
   sector,
   existingSlugs,
+  existingGroups,
   nextSortOrder,
   onSaved,
 }: {
@@ -271,6 +273,7 @@ function SectorFormSheet({
   companyId: string;
   sector: SectorRow | null;
   existingSlugs: string[];
+  existingGroups: (string | null)[];
   nextSortOrder: number;
   onSaved: () => void | Promise<void>;
 }) {
@@ -397,11 +400,25 @@ function SectorFormSheet({
             <Label htmlFor="sector-group">Grupo</Label>
             <Input
               id="sector-group"
+              list="sector-group-suggestions"
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
               placeholder="Ex.: Operações"
               maxLength={60}
             />
+            <datalist id="sector-group-suggestions">
+              {Array.from(
+                new Set(
+                  existingGroups.filter(
+                    (g): g is string => !!g && g.trim().length > 0,
+                  ),
+                ),
+              )
+                .sort((a, b) => a.localeCompare(b, "pt-BR"))
+                .map((g) => (
+                  <option key={g} value={g} />
+                ))}
+            </datalist>
             <p className="text-xs text-text-muted">
               Opcional. Setores com o mesmo grupo aparecem juntos na barra lateral.
             </p>
