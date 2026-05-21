@@ -1292,7 +1292,7 @@ function EditUserModal({
     setSaving(true);
     try {
       const patch: Record<string, unknown> = {
-        full_name: fullName.trim(),
+        full_name: sanitize(fullName.trim()),
         cellphone: cellphone ? cellphoneToDigits(cellphone) : null,
         recovery_email: recoveryEmail.trim().toLowerCase() || null,
         global_role: globalRole,
