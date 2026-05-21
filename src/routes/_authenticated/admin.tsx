@@ -70,6 +70,7 @@ import {
   type AdminAction,
   type AdminLogRow,
 } from "@/lib/admin-log";
+import { sanitize } from "@/lib/sanitize";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Admin — HubM" }] }),
