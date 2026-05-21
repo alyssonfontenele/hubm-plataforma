@@ -1574,7 +1574,7 @@ function RescueUserModal({
         .select("*")
         .eq("company_id", companyId)
         .eq("cpf_hash", cpfToDigits(cpf))
-        .not("deleted_at", "is", null)
+        .is("deleted_at", null)
         .maybeSingle();
       if (error) throw error;
       if (!data) {
@@ -1582,6 +1582,7 @@ function RescueUserModal({
       } else {
         setFound(data as Profile);
       }
+
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao buscar usuário.");
     } finally {
@@ -1666,9 +1667,15 @@ function RescueUserModal({
             </div>
             {notFound && (
               <p className="mt-2 text-xs text-text-muted">
-                Nenhum usuário inativado encontrado com este CPF.
+                Nenhum usuário ativo encontrado com este CPF.
               </p>
             )}
+            {found && found.active === false && (
+              <p className="mt-2 text-xs text-text-muted">
+                Usuário encontrado mas está suspenso. Deseja reativá-lo?
+              </p>
+            )}
+
           </div>
 
           {found && (
