@@ -425,9 +425,11 @@ function UsersTab({
                       profile={p}
                       isSelf={currentUserId === p.id}
                       adminId={currentUserId}
+                      companyId={companyId}
                       onChanged={load}
                       onEdit={() => setEditTarget(p)}
                     />
+
                   </TableCell>
                 </TableRow>
               ))
