@@ -1096,6 +1096,16 @@ function UserFormModal({
 
     setSubmitting(true);
     try {
+      const deleted = await findDeletedProfile();
+      if (deleted) {
+        setExistingDeleted(deleted);
+        setSubmitting(false);
+        return;
+      }
+    } catch {
+      // fall through to invoke; backend will surface its own error if any
+    }
+    try {
       const { data, error } = await supabase.functions.invoke("create-cpf-user", {
         body: {
           full_name: sanitize(fullName.trim()),
