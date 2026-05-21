@@ -332,12 +332,15 @@ function SectorFormSheet({
     }
 
     setSaving(true);
+    const existingConfig =
+      sector?.config && typeof sector.config === "object" ? sector.config : {};
     const payload = {
       name: cleanName,
       slug: cleanSlug,
       icon: icon.trim() || null,
       description: sanitize(description).trim() || null,
       group_name: sanitize(groupName).trim() || null,
+      config: { ...existingConfig, layout },
     };
 
 
