@@ -616,62 +616,14 @@ function UserActionsMenu({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-
-      <AlertDialog
+      <DeleteUserDialog
         open={simpleDeleteOpen}
-        onOpenChange={(o) => !simpleDeleting && setSimpleDeleteOpen(o)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir usuário?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {profile.full_name} será removido da plataforma. Os registros de auditoria serão
-              preservados.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={simpleDeleting}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={simpleDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={async (e) => {
-                e.preventDefault();
-                setSimpleDeleting(true);
-                try {
-                  const { error: fnErr } = await supabase.functions.invoke("admin-delete-user", {
-                    body: { user_id: profile.id },
-                  });
-                  if (fnErr) throw fnErr;
-                  await logAdminAction({
-                    adminId,
-                    action: "delete_user",
-                    targetId: profile.id,
-                    targetName: profile.full_name,
-                    details: { auth_type: profile.auth_type },
-                  });
-                  await queryClient.invalidateQueries({
-                    queryKey: adminProfilesQueryKey(companyId),
-                  });
-                  toast.success("Usuário excluído.");
-                  setSimpleDeleteOpen(false);
-                  await onChanged();
-                } catch (err) {
-                  toast.error(
-                    err instanceof Error
-                      ? `Falha ao excluir: ${err.message}`
-                      : "Falha ao excluir usuário.",
-                  );
-                  setSimpleDeleteOpen(false);
-                } finally {
-                  setSimpleDeleting(false);
-                }
-              }}
-            >
-              {simpleDeleting ? "Excluindo…" : "Excluir"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        onOpenChange={setSimpleDeleteOpen}
+        profile={profile}
+        companyId={companyId}
+        adminId={adminId}
+        onDeleted={onChanged}
+      />
 
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
         <AlertDialogContent>
