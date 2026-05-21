@@ -1035,8 +1035,8 @@ function UserFormModal({
           setSubmitting(false);
           return;
         }
-      } catch {
-        // fall through and let the insert attempt surface its own error
+      } catch (preErr) {
+        console.warn("[pre-check] erro ao consultar perfis removidos", preErr);
       }
       try {
         const newId = crypto.randomUUID();
