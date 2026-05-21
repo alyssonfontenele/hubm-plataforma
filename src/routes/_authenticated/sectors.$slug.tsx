@@ -13,6 +13,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, type ResourceType } from "@/integrations/supabase/client";
 import { ResourceModal, type ResourceModalData } from "@/components/resource-modal";
+import { FoldersManager } from "@/components/sectors/folders-manager";
 
 export const Route = createFileRoute("/_authenticated/sectors/$slug")({
   head: () => ({ meta: [{ title: "Setor — HubM" }] }),
