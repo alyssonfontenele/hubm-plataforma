@@ -210,3 +210,37 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+
+function CollapsibleSectorGroup({
+  label,
+  hasActive,
+  defaultCollapsedOnMobile,
+  children,
+}: {
+  label: string;
+  hasActive: boolean;
+  defaultCollapsedOnMobile: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(hasActive || !defaultCollapsedOnMobile);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <SidebarGroup>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex w-full items-center justify-between px-2 py-1.5 text-xs font-medium text-sidebar-foreground/70 hover:text-sidebar-foreground"
+          >
+            <span className="truncate">{label}</span>
+            <ChevronDown
+              className={`h-3.5 w-3.5 shrink-0 transition-transform ${open ? "" : "-rotate-90"}`}
+            />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SidebarGroupContent>{children}</SidebarGroupContent>
+        </CollapsibleContent>
+      </SidebarGroup>
+    </Collapsible>
+  );
+}
