@@ -963,6 +963,33 @@ function UserFormModal({
     /already (been )?registered/i.test(msg) ||
     /already exists/i.test(msg);
 
+  const getFunctionErrorText = async (data: unknown, error: unknown) => {
+    const messages: string[] = [];
+    if (typeof data === "string") messages.push(data);
+    if (data && typeof data === "object") {
+      const body = data as Record<string, unknown>;
+      [body.error, body.message, body.details].forEach((value) => {
+        if (typeof value === "string") messages.push(value);
+      });
+    }
+    if (error instanceof Error) messages.push(error.message);
+
+    const context = (error as { context?: unknown } | null)?.context;
+    if (context instanceof Response) {
+      try {
+        messages.push(await context.clone().text());
+      } catch {
+        // ignore unreadable response body
+      }
+    } else if (context && typeof context === "object") {
+      const ctx = context as Record<string, unknown>;
+      [ctx.error, ctx.message, ctx.details, ctx.statusText].forEach((value) => {
+        if (typeof value === "string") messages.push(value);
+      });
+    }
+
+    return messages.filter(Boolean).join(" ");
+  };
 
   const handleReactivate = async () => {
     setReactivating(true);
