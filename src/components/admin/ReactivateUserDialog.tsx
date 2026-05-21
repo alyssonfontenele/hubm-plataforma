@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -8,25 +9,62 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useReactivateUser } from "@/hooks/useReactivateUser";
 
 interface ReactivateUserDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  loading?: boolean;
-  onConfirm: () => void;
+  companyId: string;
+  fullName: string;
+  globalRole: string;
+  /** Called after a successful reactivation (success: true). */
+  onReactivated?: () => void;
 }
 
+/**
+ * Self-contained reactivation dialog.
+ *
+ * Shown when `create-cpf-user` returns
+ * "A user with this email address has already been registered".
+ * On confirm, calls `admin-reactivate-user` with `{ full_name, global_role }`
+ * via {@link useReactivateUser}, which always invalidates the admin profiles
+ * query (success or error).
+ */
 export function ReactivateUserDialog({
   open,
   onOpenChange,
-  loading = false,
-  onConfirm,
+  companyId,
+  fullName,
+  globalRole,
+  onReactivated,
 }: ReactivateUserDialogProps) {
+  const { mutate, isPending } = useReactivateUser(companyId);
+
+  const handleConfirm = () => {
+    mutate(
+      { full_name: fullName, global_role: globalRole },
+      {
+        onSuccess: (result) => {
+          if (result.success) {
+            toast.success("Usuário reativado com sucesso.");
+            onOpenChange(false);
+            onReactivated?.();
+          } else {
+            toast.error("Falha ao reativar usuário.");
+          }
+        },
+        onError: () => {
+          toast.error("Falha ao reativar usuário.");
+        },
+      },
+    );
+  };
+
   return (
     <AlertDialog
       open={open}
       onOpenChange={(o) => {
-        if (!o && loading) return;
+        if (!o && isPending) return;
         onOpenChange(o);
       }}
     >
@@ -34,20 +72,20 @@ export function ReactivateUserDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Usuário já cadastrado</AlertDialogTitle>
           <AlertDialogDescription>
-            Este e-mail já possui um cadastro no sistema. Deseja reativar o acesso?
+            Deseja reativar o acesso?
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
           <AlertDialogAction
-            disabled={loading}
+            disabled={isPending}
             onClick={(e) => {
               e.preventDefault();
-              onConfirm();
+              handleConfirm();
             }}
             className="bg-text-primary text-background hover:bg-text-primary/90"
           >
-            {loading ? "Reativando…" : "Reativar"}
+            {isPending ? "Reativando…" : "Reativar"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
