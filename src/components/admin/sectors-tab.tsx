@@ -397,11 +397,25 @@ function SectorFormSheet({
             <Label htmlFor="sector-group">Grupo</Label>
             <Input
               id="sector-group"
+              list="sector-group-suggestions"
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
               placeholder="Ex.: Operações"
               maxLength={60}
             />
+            <datalist id="sector-group-suggestions">
+              {Array.from(
+                new Set(
+                  existingGroups.filter(
+                    (g): g is string => !!g && g.trim().length > 0,
+                  ),
+                ),
+              )
+                .sort((a, b) => a.localeCompare(b, "pt-BR"))
+                .map((g) => (
+                  <option key={g} value={g} />
+                ))}
+            </datalist>
             <p className="text-xs text-text-muted">
               Opcional. Setores com o mesmo grupo aparecem juntos na barra lateral.
             </p>
