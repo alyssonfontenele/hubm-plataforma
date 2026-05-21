@@ -27,7 +27,7 @@ export function useReactivateUser(companyId: string) {
       }
       return { user_id: userId };
     },
-    onSuccess: async () => {
+    onSettled: async () => {
       await queryClient.invalidateQueries({
         queryKey: adminProfilesQueryKey(companyId),
       });
