@@ -113,15 +113,13 @@ function SectorPage() {
 
   useEffect(() => {
     if (!sectorId) return;
-    let cancelled = false;
-    setLoading(true);
-    (async () => {
-      const [foldersRes, resourcesRes] = await Promise.all([
-        supabase
-          .from("folders")
-          .select("id,name,sector_id,parent_id,sort_order,is_page")
-          .eq("sector_id", sectorId)
-          .is("deleted_at", null)
+    let query = supabase
+  .from("sectors")
+  .select("id,name,icon,config")
+  .eq("slug", slug)
+  .eq("active", true)
+  .is("deleted_at", null)
+  .limit(1);
           .order("sort_order", { ascending: true, nullsFirst: false })
           .order("name", { ascending: true }),
         supabase
