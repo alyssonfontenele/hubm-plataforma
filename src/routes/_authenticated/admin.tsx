@@ -700,7 +700,7 @@ function UserActionsMenu({
                     targetName: profile.full_name,
                     details: { auth_type: profile.auth_type },
                   });
-                  await queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
+                  await queryClient.invalidateQueries({ queryKey: adminProfilesQueryKey(companyId) });
                   toast.success("Usuário excluído.");
                   setSimpleDeleteOpen(false);
                   await onChanged();
