@@ -325,19 +325,7 @@ function UsersTab({
 
   const profilesQueryKey = adminProfilesQueryKey(companyId);
 
-  const { data: profiles = [], isLoading: loadingProfiles } = useQuery({
-    queryKey: profilesQueryKey,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("company_id", companyId)
-        .is("deleted_at", null)
-        .order("full_name", { ascending: true });
-      if (error) throw error;
-      return (data as Profile[] | null) ?? [];
-    },
-  });
+  const { data: profiles = [], isLoading: loadingProfiles } = useAdminUsers(companyId);
 
   const { data: sectors = [], isLoading: loadingSectors } = useQuery({
     queryKey: ["admin-sectors", companyId] as const,
@@ -382,72 +370,20 @@ function UsersTab({
         </div>
       </header>
 
-      <div className="border border-border rounded-lg bg-surface overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-border">
-              <TableHead>Nome</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Papel global</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center text-text-muted py-8">
-                  Carregando…
-                </TableCell>
-              </TableRow>
-            ) : profiles.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center text-text-muted py-8">
-                  Nenhum usuário cadastrado.
-                </TableCell>
-              </TableRow>
-            ) : (
-              profiles.map((p) => (
-                <TableRow key={p.id} className="border-border">
-                  <TableCell>
-                    <div className="font-medium text-text-primary">{p.full_name}</div>
-                    {p.display_name && p.display_name !== p.full_name && (
-                      <div className="text-xs text-text-muted">{p.display_name}</div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="border-border text-text-primary">
-                      {p.auth_type === "google" ? "Google" : "CPF"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-text-primary capitalize">{p.global_role}</TableCell>
-                  <TableCell>
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full border ${
-                        p.active && !p.deleted_at
-                          ? "border-border text-text-primary bg-background"
-                          : "border-border text-text-muted bg-surface"
-                      }`}
-                    >
-                      {p.deleted_at ? "Inativo" : p.active ? "Ativo" : "Suspenso"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <UserActionsMenu
-                      profile={p}
-                      isSelf={currentUserId === p.id}
-                      adminId={currentUserId}
-                      companyId={companyId}
-                      onChanged={load}
-                      onEdit={() => setEditTarget(p)}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <UserList
+        profiles={profiles}
+        loading={loading}
+        renderActions={(p) => (
+          <UserActionsMenu
+            profile={p}
+            isSelf={currentUserId === p.id}
+            adminId={currentUserId}
+            companyId={companyId}
+            onChanged={load}
+            onEdit={() => setEditTarget(p)}
+          />
+        )}
+      />
 
       <UserFormModal
         open={modalOpen}
@@ -461,16 +397,16 @@ function UsersTab({
         }}
       />
 
-      <RescueUserModal
+      <RescueByCPFDialog
         open={rescueOpen}
         onOpenChange={setRescueOpen}
-        companyId={companyId}
         adminId={currentUserId}
         onReactivated={() => {
           setRescueOpen(false);
           void load();
         }}
       />
+
 
       <EditUserModal
         profile={editTarget}
