@@ -64,8 +64,29 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { company, sectorMemberships, globalRole, profile, signOut } = useAuth();
+  const isMobile = useIsMobile();
 
   const isActive = (path: string) => pathname === path || pathname.startsWith(path + "/");
+
+  const UNGROUPED = "__ungrouped__";
+  const groupedSectors = useMemo(() => {
+    const map = new Map<string, typeof sectorMemberships>();
+    for (const m of sectorMemberships) {
+      const key = m.sector.group_name?.trim() || UNGROUPED;
+      const arr = map.get(key) ?? [];
+      arr.push(m);
+      map.set(key, arr);
+    }
+    // ungrouped first, then groups alphabetically
+    const entries = Array.from(map.entries());
+    entries.sort(([a], [b]) => {
+      if (a === UNGROUPED) return -1;
+      if (b === UNGROUPED) return 1;
+      return a.localeCompare(b, "pt-BR");
+    });
+    return entries;
+  }, [sectorMemberships]);
+
 
   return (
     <Sidebar collapsible="icon">
