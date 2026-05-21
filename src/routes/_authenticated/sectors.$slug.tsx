@@ -283,6 +283,16 @@ function SectorPage() {
               : "Nenhum recurso nesta pasta."}
           </p>
         </div>
+      ) : layout === "list" ? (
+        <ListLayout resources={visibleResources} onOpen={openResource} />
+      ) : layout === "kanban" ? (
+        <KanbanLayout
+          resources={visibleResources}
+          folders={folders}
+          onOpen={openResource}
+        />
+      ) : layout === "dashboard" ? (
+        <DashboardLayout resources={visibleResources} onOpen={openResource} />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {visibleResources.map((r) => (
