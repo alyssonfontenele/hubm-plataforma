@@ -42,11 +42,18 @@ export function AppTopbar() {
     <header className="h-14 shrink-0 border-b border-border bg-surface flex items-center gap-3 px-3 md:px-4">
       <SidebarTrigger />
 
-      <nav aria-label="Breadcrumb" className="hidden md:flex items-center gap-1 text-sm text-text-secondary">
+      <nav
+        aria-label="Breadcrumb"
+        className="hidden md:flex items-center gap-1 text-sm text-text-secondary"
+      >
         {crumbs.map((c, i) => (
           <span key={i} className="flex items-center gap-1">
             {i > 0 && <span className="text-text-muted">/</span>}
-            <span className={i === crumbs.length - 1 ? "text-text-primary font-medium capitalize" : "capitalize"}>
+            <span
+              className={
+                i === crumbs.length - 1 ? "text-text-primary font-medium capitalize" : "capitalize"
+              }
+            >
               {c}
             </span>
           </span>
@@ -72,9 +79,7 @@ export function AppTopbar() {
             >
               <Avatar className="h-8 w-8">
                 <AvatarImage src={profile?.avatar_url ?? undefined} alt={name} />
-                <AvatarFallback className="text-xs">
-                  {initialsOf(name, email)}
-                </AvatarFallback>
+                <AvatarFallback className="text-xs">{initialsOf(name, email)}</AvatarFallback>
               </Avatar>
             </button>
           </DropdownMenuTrigger>

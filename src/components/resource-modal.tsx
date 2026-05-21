@@ -90,8 +90,7 @@ export function ResourceModal({ resource, open, onOpenChange }: Props) {
         profile_id: profile.id,
         resource_id: resource.id,
         action: "view",
-        user_agent:
-          typeof navigator !== "undefined" ? navigator.userAgent : null,
+        user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
         metadata: { source: "resource_modal" },
       })
       .then(({ error }) => {
@@ -112,9 +111,7 @@ export function ResourceModal({ resource, open, onOpenChange }: Props) {
       .then(({ data }) => {
         if (cancelled) return;
         setAddedByName(
-          (data?.display_name as string | null) ??
-            (data?.full_name as string | null) ??
-            null,
+          (data?.display_name as string | null) ?? (data?.full_name as string | null) ?? null,
         );
       });
     return () => {

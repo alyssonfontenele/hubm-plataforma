@@ -12,9 +12,7 @@ function AuthCallbackPage() {
 
   useEffect(() => {
     const run = async () => {
-      const hash = window.location.hash.startsWith("#")
-        ? window.location.hash.substring(1)
-        : "";
+      const hash = window.location.hash.startsWith("#") ? window.location.hash.substring(1) : "";
       const hashParams = new URLSearchParams(hash);
       const type = hashParams.get("type");
       const accessToken = hashParams.get("access_token");
@@ -45,7 +43,9 @@ function AuthCallbackPage() {
       }
 
       // 3. Check existing session (Supabase already set it server-side)
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       if (!session?.user) {
         window.location.replace("/login");

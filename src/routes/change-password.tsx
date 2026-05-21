@@ -101,9 +101,7 @@ function ChangePasswordPage() {
     <main className="min-h-screen flex items-center justify-center px-4 py-10 bg-background">
       <div className="w-full max-w-md">
         <header className="text-center mb-8">
-          <h1 className="text-3xl font-bold tracking-tight text-text-primary">
-            Defina sua senha
-          </h1>
+          <h1 className="text-3xl font-bold tracking-tight text-text-primary">Defina sua senha</h1>
           <p className="mt-2 text-sm text-text-secondary">
             Primeiro acesso — crie uma senha para continuar.
           </p>
@@ -137,10 +135,7 @@ function ChangePasswordPage() {
           </div>
 
           <div>
-            <label
-              htmlFor="confirm"
-              className="block text-xs font-medium text-text-secondary mb-1"
-            >
+            <label htmlFor="confirm" className="block text-xs font-medium text-text-secondary mb-1">
               Confirmar nova senha
             </label>
             <input

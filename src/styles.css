@@ -16,9 +16,7 @@
   --radius-xl: 10px;
   --radius-2xl: 12px;
 
-  --font-sans:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
-    sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -61,18 +59,18 @@
   --radius: 8px;
 
   /* HubM tokens (converted to oklch) */
-  --background: oklch(0.972 0 0);       /* #F7F7F7 */
-  --surface: oklch(1 0 0);               /* #FFFFFF */
-  --sidebar-bg: oklch(0.165 0 0);        /* #111111 */
-  --sidebar-text: oklch(0.81 0 0);       /* #C8C8C8 */
-  --sidebar-muted: oklch(0.45 0 0);      /* #555555 */
-  --border: oklch(0.92 0 0);             /* #E5E5E5 */
-  --foreground: oklch(0.165 0 0);        /* #111111 */
+  --background: oklch(0.972 0 0); /* #F7F7F7 */
+  --surface: oklch(1 0 0); /* #FFFFFF */
+  --sidebar-bg: oklch(0.165 0 0); /* #111111 */
+  --sidebar-text: oklch(0.81 0 0); /* #C8C8C8 */
+  --sidebar-muted: oklch(0.45 0 0); /* #555555 */
+  --border: oklch(0.92 0 0); /* #E5E5E5 */
+  --foreground: oklch(0.165 0 0); /* #111111 */
   --text-primary: oklch(0.165 0 0);
-  --text-secondary: oklch(0.48 0 0);     /* #666666 */
-  --text-muted: oklch(0.66 0 0);         /* #999999 */
-  --accent: oklch(0.165 0 0);            /* #111111 */
-  --accent-light: oklch(0.955 0 0);      /* #F0F0F0 */
+  --text-secondary: oklch(0.48 0 0); /* #666666 */
+  --text-muted: oklch(0.66 0 0); /* #999999 */
+  --accent: oklch(0.165 0 0); /* #111111 */
+  --accent-light: oklch(0.955 0 0); /* #F0F0F0 */
 }
 
 .dark {

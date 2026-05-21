@@ -19,7 +19,6 @@ interface GCalEvent {
   htmlLink?: string;
 }
 
-
 function startOfToday() {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -110,9 +109,7 @@ export function CalendarCard() {
       <div className="flex items-center justify-between p-4 border-b border-border">
         <div className="flex items-center gap-2">
           <CalendarIcon className="h-4 w-4 text-text-secondary" />
-          <h2 className="text-sm font-medium text-text-primary capitalize">
-            {formatHeader()}
-          </h2>
+          <h2 className="text-sm font-medium text-text-primary capitalize">{formatHeader()}</h2>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -275,9 +272,7 @@ function NewEventDialog({
         </DialogHeader>
         <form onSubmit={submit} className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">
-              Título
-            </label>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Título</label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -285,9 +280,7 @@ function NewEventDialog({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">
-              Data
-            </label>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Data</label>
             <input
               type="date"
               value={date}
@@ -297,9 +290,7 @@ function NewEventDialog({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">
-                Início
-              </label>
+              <label className="block text-xs font-medium text-text-secondary mb-1">Início</label>
               <input
                 type="time"
                 value={startTime}
@@ -308,9 +299,7 @@ function NewEventDialog({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">
-                Fim
-              </label>
+              <label className="block text-xs font-medium text-text-secondary mb-1">Fim</label>
               <input
                 type="time"
                 value={endTime}

@@ -29,7 +29,9 @@ function resolveIcon(name: string | null | undefined) {
     .split(/[-_\s]/)
     .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
     .join("");
-  const Comp = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[key];
+  const Comp = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[
+    key
+  ];
   return Comp ?? Icons.Folder;
 }
 
@@ -115,21 +117,15 @@ function HomePage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2 min-w-0">
-                    {a.pinned && (
-                      <Pin className="h-3.5 w-3.5 text-text-primary shrink-0" />
-                    )}
-                    <h3 className="text-sm font-medium text-text-primary truncate">
-                      {a.title}
-                    </h3>
+                    {a.pinned && <Pin className="h-3.5 w-3.5 text-text-primary shrink-0" />}
+                    <h3 className="text-sm font-medium text-text-primary truncate">{a.title}</h3>
                   </div>
                   <span className="text-xs text-text-muted shrink-0">
                     {formatDate(a.created_at)}
                   </span>
                 </div>
                 {a.body && (
-                  <p className="text-sm text-text-secondary mt-1.5 line-clamp-2">
-                    {a.body}
-                  </p>
+                  <p className="text-sm text-text-secondary mt-1.5 line-clamp-2">{a.body}</p>
                 )}
                 {a.sector_id && (
                   <p className="text-xs text-text-muted mt-2">
@@ -145,9 +141,7 @@ function HomePage() {
       <section>
         <h2 className="text-sm font-medium text-text-primary mb-3">Seus setores</h2>
         {sectorMemberships.length === 0 ? (
-          <p className="text-sm text-text-muted">
-            Você ainda não foi adicionado a nenhum setor.
-          </p>
+          <p className="text-sm text-text-muted">Você ainda não foi adicionado a nenhum setor.</p>
         ) : (
           <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {sectorMemberships.map((m) => {
