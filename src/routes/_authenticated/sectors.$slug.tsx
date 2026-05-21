@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import * as LucideIcons from "lucide-react";
 import {
   FileText,
@@ -16,6 +16,9 @@ import { ResourceModal, type ResourceModalData } from "@/components/resource-mod
 
 export const Route = createFileRoute("/_authenticated/sectors/$slug")({
   head: () => ({ meta: [{ title: "Setor — HubM" }] }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    folder: typeof search.folder === "string" ? search.folder : undefined,
+  }),
   component: SectorPage,
 });
 
@@ -63,6 +66,8 @@ const TYPE_LABEL: Record<ResourceType, string> = {
 
 function SectorPage() {
   const { slug } = Route.useParams();
+  const search = Route.useSearch();
+  const navigate = useNavigate();
   const { sectorMemberships } = useAuth();
   const membership = sectorMemberships.find((m) => m.sector.slug === slug);
   const sectorId = membership?.sector.id;
@@ -70,7 +75,15 @@ function SectorPage() {
 
   const [folders, setFolders] = useState<Folder[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
-  const [activeFolder, setActiveFolder] = useState<string | "all">("all");
+  const activeFolder: string | "all" = search.folder ?? "all";
+  const setActiveFolder = (v: string | "all") => {
+    void navigate({
+      to: "/sectors/$slug",
+      params: { slug },
+      search: { folder: v === "all" ? undefined : v },
+      replace: true,
+    });
+  };
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<ResourceModalData | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
