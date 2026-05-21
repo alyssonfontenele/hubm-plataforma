@@ -864,6 +864,7 @@ function UserFormModal({
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [existingDeleted, setExistingDeleted] = useState<Profile | null>(null);
+  const [showReactivateDialog, setShowReactivateDialog] = useState(false);
   const [reactivating, setReactivating] = useState(false);
   const queryClient = useQueryClient();
 
@@ -882,6 +883,7 @@ function UserFormModal({
       setShowPassword(false);
       setPasswordError(null);
       setExistingDeleted(null);
+      setShowReactivateDialog(false);
       setReactivating(false);
     }
   }, [open]);
@@ -963,9 +965,26 @@ function UserFormModal({
 
 
   const handleReactivate = async () => {
-    if (!existingDeleted) return;
     setReactivating(true);
     try {
+      let profileToReactivate = existingDeleted;
+      if (!profileToReactivate) {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("company_id", companyId)
+          .not("deleted_at", "is", null)
+          .eq("full_name", "Usuário removido")
+          .order("deleted_at", { ascending: false })
+          .limit(1);
+        if (error) throw error;
+        profileToReactivate = ((data?.[0] as Profile | undefined) ?? null) as Profile | null;
+      }
+
+      if (!profileToReactivate) {
+        throw new Error("Não foi encontrado um cadastro removido para reativar.");
+      }
+
       const cleanFullName = sanitize(fullName.trim());
       const updates: Record<string, unknown> = {
         deleted_at: null,
@@ -989,18 +1008,18 @@ function UserFormModal({
       const { error: updErr } = await supabase
         .from("profiles")
         .update(updates)
-        .eq("id", existingDeleted.id);
+        .eq("id", profileToReactivate.id);
       if (updErr) throw updErr;
 
       if (authType === "cpf" && initialPassword) {
         const { error: pwErr } = await supabase.functions.invoke("admin-update-password", {
-          body: { user_id: existingDeleted.id, new_password: initialPassword },
+          body: { user_id: profileToReactivate.id, new_password: initialPassword },
         });
         if (pwErr) throw pwErr;
       }
 
       try {
-        await supabase.auth.admin.updateUserById(existingDeleted.id, {
+        await supabase.auth.admin.updateUserById(profileToReactivate.id, {
           ban_duration: "none",
         });
       } catch {
@@ -1010,7 +1029,7 @@ function UserFormModal({
       if (assignmentsPayload.length > 0) {
         await supabase.from("sector_members").insert(
           assignmentsPayload.map((a) => ({
-            profile_id: existingDeleted.id,
+            profile_id: profileToReactivate.id,
             sector_id: a.sector_id,
             role: a.role,
           })),
@@ -1020,7 +1039,7 @@ function UserFormModal({
       await logAdminAction({
         adminId,
         action: "reactivate_user",
-        targetId: existingDeleted.id,
+        targetId: profileToReactivate.id,
         targetName: cleanFullName,
         details: { reactivated: true, auth_type: authType, global_role: globalRole },
       });
@@ -1028,6 +1047,7 @@ function UserFormModal({
       await queryClient.invalidateQueries({ queryKey: adminProfilesQueryKey(companyId) });
       toast.success("Usuário reativado com sucesso.");
       setExistingDeleted(null);
+      setShowReactivateDialog(false);
       onCreated();
     } catch (err) {
       toast.error(
