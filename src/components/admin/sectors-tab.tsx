@@ -279,6 +279,7 @@ function SectorFormSheet({
   const [icon, setIcon] = useState("");
   const [description, setDescription] = useState("");
   const [slug, setSlug] = useState("");
+  const [groupName, setGroupName] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -288,6 +289,7 @@ function SectorFormSheet({
     setIcon(sector?.icon ?? "");
     setDescription(sector?.description ?? "");
     setSlug(sector?.slug ?? "");
+    setGroupName(sector?.group_name ?? "");
     setSlugTouched(!!sector);
   }, [open, sector]);
 
