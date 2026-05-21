@@ -297,37 +297,47 @@ function UsersTab({
   companyId: string;
   currentUserId: string | null;
 }) {
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [sectors, setSectors] = useState<Sector[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [rescueOpen, setRescueOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Profile | null>(null);
 
-  const load = async () => {
-    setLoading(true);
-    const [pRes, sRes] = await Promise.all([
-      supabase
+  const profilesQueryKey = ["admin-profiles", companyId] as const;
+
+  const { data: profiles = [], isLoading: loadingProfiles } = useQuery({
+    queryKey: profilesQueryKey,
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("company_id", companyId)
         .is("deleted_at", null)
-        .order("full_name", { ascending: true }),
-      supabase
+        .order("full_name", { ascending: true });
+      if (error) throw error;
+      return (data as Profile[] | null) ?? [];
+    },
+  });
+
+  const { data: sectors = [], isLoading: loadingSectors } = useQuery({
+    queryKey: ["admin-sectors", companyId] as const,
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from("sectors")
         .select("id,name,slug")
         .eq("company_id", companyId)
-        .order("name", { ascending: true }),
-    ]);
-    setProfiles((pRes.data as Profile[] | null) ?? []);
-    setSectors((sRes.data as Sector[] | null) ?? []);
-    setLoading(false);
-  };
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return (data as Sector[] | null) ?? [];
+    },
+  });
 
-  useEffect(() => {
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companyId]);
+  const loading = loadingProfiles || loadingSectors;
+  const load = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: profilesQueryKey }),
+      queryClient.invalidateQueries({ queryKey: ["admin-sectors", companyId] }),
+    ]);
+  };
 
   return (
     <div className="space-y-6">
