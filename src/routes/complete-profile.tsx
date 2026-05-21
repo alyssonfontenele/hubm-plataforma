@@ -37,11 +37,12 @@ function CompleteProfilePage() {
     if (!session?.user) return;
     setSaving(true);
     try {
+      const cleanDisplay = sanitize(displayName.trim());
       const { error: updErr } = await supabase
         .from("profiles")
         .update({
           cellphone: cellphoneToDigits(cellphone),
-          ...(displayName.trim() ? { display_name: displayName.trim() } : {}),
+          ...(cleanDisplay ? { display_name: cleanDisplay } : {}),
         })
         .eq("id", session.user.id);
       if (updErr) throw updErr;
