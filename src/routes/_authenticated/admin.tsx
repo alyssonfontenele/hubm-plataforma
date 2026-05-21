@@ -795,30 +795,19 @@ function UserFormModal({
   const findDeletedProfile = async (): Promise<Profile | null> => {
     const normalizedEmail =
       authType === "google" ? email.trim().toLowerCase() : recoveryEmail.trim().toLowerCase();
-    const cpfDigits = authType === "cpf" && isValidCpf(cpf) ? cpfToDigits(cpf) : "";
-
-    const orParts: string[] = [];
-    if (normalizedEmail) {
-      orParts.push(`recovery_email.eq.${normalizedEmail}`);
-    }
-    if (cpfDigits) {
-      orParts.push(`cpf_hash.eq.${cpfDigits}`);
-    }
-    if (orParts.length === 0) return null;
+    if (!normalizedEmail) return null;
 
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .eq("company_id", companyId)
-      .or(orParts.join(","))
+      .eq("recovery_email", normalizedEmail)
       .not("deleted_at", "is", null)
       .limit(1);
 
-    console.log("[pre-check soft-deleted profile]", {
+    console.log("[pre-check soft-deleted profile by email]", {
       authType,
       email: normalizedEmail,
-      cpf_hash: cpfDigits || null,
-      orFilter: orParts.join(","),
       error,
       data,
     });
@@ -827,40 +816,34 @@ function UserFormModal({
     return ((data?.[0] as Profile | undefined) ?? null) as Profile | null;
   };
 
-  // Fallback: when the Edge Function returns "already been registered" but the
-  // first pre-check returned nothing (recovery_email was wiped on a previous
-  // delete), scan the most recently soft-deleted profiles in this company and
-  // try to match by any available field.
+  // Fallback after "already been registered": ONLY match by exact recovery_email.
+  // If the email matches a deleted profile (including anonymized ones whose
+  // full_name was reset to "Usuário removido"), allow reactivation. Otherwise
+  // return null so the caller shows a generic error — never trigger the
+  // reactivation dialog by full_name alone.
   const findDeletedProfileFallback = async (): Promise<Profile | null> => {
     const normalizedEmail =
       authType === "google" ? email.trim().toLowerCase() : recoveryEmail.trim().toLowerCase();
-    const cleanFullName = sanitize(fullName.trim()).toLowerCase();
-    const cpfDigits = authType === "cpf" && isValidCpf(cpf) ? cpfToDigits(cpf) : "";
+    if (!normalizedEmail) return null;
 
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .eq("company_id", companyId)
+      .eq("recovery_email", normalizedEmail)
       .not("deleted_at", "is", null)
       .order("deleted_at", { ascending: false })
-      .limit(10);
+      .limit(1);
 
-    console.log("[pre-check fallback soft-deleted profiles]", { error, count: data?.length });
-    if (error) throw error;
-    const candidates = (data ?? []) as Profile[];
-    if (candidates.length === 0) return null;
-
-    const match = candidates.find((p) => {
-      if (cpfDigits && p.cpf_hash === cpfDigits) return true;
-      if (normalizedEmail && p.recovery_email?.toLowerCase() === normalizedEmail) return true;
-      if (cleanFullName && p.full_name?.toLowerCase() === cleanFullName) return true;
-      // Anonymized profile from a previous deletion — recovery_email/cpf_hash
-      // were wiped, so we can only key on the placeholder name.
-      if (p.full_name === "Usuário removido") return true;
-      return false;
+    console.log("[pre-check fallback by email]", {
+      email: normalizedEmail,
+      error,
+      count: data?.length,
     });
-    return match ?? null;
+    if (error) throw error;
+    return ((data?.[0] as Profile | undefined) ?? null) as Profile | null;
   };
+
 
   const isAlreadyRegisteredError = (msg: string) =>
     msg === "A user with this email address has already been registered" ||
