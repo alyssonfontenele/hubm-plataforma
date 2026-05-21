@@ -488,15 +488,18 @@ function UserActionsMenu({
   profile,
   isSelf,
   adminId,
+  companyId,
   onChanged,
   onEdit,
 }: {
   profile: Profile;
   isSelf: boolean;
   adminId: string | null;
+  companyId: string;
   onChanged: () => void | Promise<void>;
   onEdit: () => void;
 }) {
+
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
