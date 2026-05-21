@@ -84,7 +84,7 @@ import { sanitize } from "@/lib/sanitize";
 import { SectorsTab } from "@/components/admin/sectors-tab";
 import { UserList } from "@/components/admin/UserList";
 import { DeleteUserDialog } from "@/components/admin/DeleteUserDialog";
-import { ReactivateUserDialog } from "@/components/admin/ReactivateUserDialog";
+
 import { RescueByCPFDialog } from "@/components/admin/RescueByCPFDialog";
 import { adminProfilesQueryKey, useAdminUsers } from "@/hooks/useAdminUsers";
 
@@ -767,9 +767,6 @@ function UserFormModal({
   const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [existingDeleted, setExistingDeleted] = useState<Profile | null>(null);
-  const [showReactivateDialog, setShowReactivateDialog] = useState(false);
-  const [reactivating, setReactivating] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -786,9 +783,6 @@ function UserFormModal({
       setInitialPassword("");
       setShowPassword(false);
       setPasswordError(null);
-      setExistingDeleted(null);
-      setShowReactivateDialog(false);
-      setReactivating(false);
     }
   }, [open]);
 
