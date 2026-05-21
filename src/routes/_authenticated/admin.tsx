@@ -490,6 +490,9 @@ function UserActionsMenu({
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmDef | null>(null);
+  const [simpleDeleteOpen, setSimpleDeleteOpen] = useState(false);
+  const [simpleDeleting, setSimpleDeleting] = useState(false);
+  const queryClient = useQueryClient();
 
   const updateProfile = async (
     patch: Record<string, unknown>,
