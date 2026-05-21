@@ -1087,7 +1087,20 @@ function UserFormModal({
           must_change_password: false,
           recovery_email: email.trim().toLowerCase(),
         });
-        if (error) throw error;
+        if (error) {
+          if (isAlreadyRegisteredError(error.message)) {
+            try {
+              const fallback = await findDeletedProfileFallback();
+              if (fallback) {
+                setExistingDeleted(fallback);
+                return;
+              }
+            } catch (fbErr) {
+              console.warn("[pre-check fallback] erro", fbErr);
+            }
+          }
+          throw error;
+        }
         if (assignmentsPayload.length > 0) {
           await supabase.from("sector_members").insert(
             assignmentsPayload.map((a) => ({
