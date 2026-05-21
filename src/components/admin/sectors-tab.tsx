@@ -322,7 +322,9 @@ function SectorFormSheet({
       slug: cleanSlug,
       icon: icon.trim() || null,
       description: sanitize(description).trim() || null,
+      group_name: sanitize(groupName).trim() || null,
     };
+
 
     if (editing && sector) {
       const { error } = await supabase.from("sectors").update(payload).eq("id", sector.id);
