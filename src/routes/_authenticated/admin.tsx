@@ -24,15 +24,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -82,6 +73,11 @@ import {
 } from "@/lib/admin-log";
 import { sanitize } from "@/lib/sanitize";
 import { SectorsTab } from "@/components/admin/sectors-tab";
+import { UserList } from "@/components/admin/UserList";
+import { DeleteUserDialog } from "@/components/admin/DeleteUserDialog";
+import { ReactivateUserDialog } from "@/components/admin/ReactivateUserDialog";
+import { RescueByCPFDialog } from "@/components/admin/RescueByCPFDialog";
+import { adminProfilesQueryKey, useAdminUsers } from "@/hooks/useAdminUsers";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Admin — HubM" }] }),
