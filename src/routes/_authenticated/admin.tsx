@@ -720,8 +720,7 @@ function UserFormModal({
   onCreated: () => void;
 }) {
   const [fullName, setFullName] = useState("");
-  const [authType, setAuthType] = useState<AuthType>("google");
-  const [email, setEmail] = useState("");
+  const authType: AuthType = "cpf";
   const [cpf, setCpf] = useState("");
   const [cellphone, setCellphone] = useState("");
   const [cellphoneError, setCellphoneError] = useState<string | null>(null);
@@ -737,8 +736,6 @@ function UserFormModal({
   useEffect(() => {
     if (!open) {
       setFullName("");
-      setAuthType("google");
-      setEmail("");
       setCpf("");
       setCellphone("");
       setCellphoneError(null);
