@@ -50,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [providerToken, setProviderToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+  const [mfaState, setMfaState] = useState<MfaState>("unknown");
   const navigate = useNavigate();
 
   const loadProfile = useCallback(async (userId: string) => {
