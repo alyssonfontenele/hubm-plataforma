@@ -35,6 +35,8 @@ import {
 } from "@/components/ui/sheet";
 import { sanitize } from "@/lib/sanitize";
 
+type LayoutKind = "grid" | "list" | "kanban" | "dashboard";
+
 interface SectorRow {
   id: string;
   company_id: string;
@@ -45,7 +47,15 @@ interface SectorRow {
   active: boolean;
   sort_order: number | null;
   group_name: string | null;
+  config: { layout?: LayoutKind } | null;
 }
+
+const LAYOUT_OPTIONS: { value: LayoutKind; label: string }[] = [
+  { value: "grid", label: "Grid de cards" },
+  { value: "list", label: "Lista" },
+  { value: "kanban", label: "Kanban" },
+  { value: "dashboard", label: "Dashboard" },
+];
 
 
 function slugify(input: string): string {
