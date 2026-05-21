@@ -863,128 +863,89 @@ function UserFormModal({
               />
             </div>
 
-            <div className="flex items-center justify-between rounded-md border border-border p-3">
-              <div>
-                <p className="text-sm font-medium text-text-primary">Tipo de autenticação</p>
-                <p className="text-xs text-text-muted">
-                  {authType === "google"
-                    ? "Login via Google (@mowig.com.br)"
-                    : "Login via CPF + senha interna"}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <span className={authType === "cpf" ? "text-text-primary" : "text-text-muted"}>
-                  CPF
-                </span>
-                <Switch
-                  checked={authType === "google"}
-                  onCheckedChange={(c) => setAuthType(c ? "google" : "cpf")}
-                />
-                <span className={authType === "google" ? "text-text-primary" : "text-text-muted"}>
-                  Google
-                </span>
-              </div>
+            <div>
+              <Label htmlFor="cpf">CPF</Label>
+              <Input
+                id="cpf"
+                value={cpf}
+                onChange={(e) => setCpf(maskCpf(e.target.value))}
+                placeholder="000.000.000-00"
+                maxLength={14}
+              />
             </div>
-
-            {authType === "google" ? (
-              <div>
-                <Label htmlFor="email">E-mail Google</Label>
+            <div>
+              <Label htmlFor="cellphone">Celular</Label>
+              <Input
+                id="cellphone"
+                value={cellphone}
+                onChange={(e) => {
+                  setCellphone(maskCellphone(e.target.value));
+                  if (cellphoneError) setCellphoneError(null);
+                }}
+                onBlur={() => {
+                  if (cellphone && !isValidCellphone(cellphone)) {
+                    setCellphoneError("Celular inválido");
+                  }
+                }}
+                placeholder="(00) 00000-0000"
+                maxLength={16}
+                inputMode="numeric"
+              />
+              {cellphoneError && (
+                <p className="mt-1 text-xs text-destructive">{cellphoneError}</p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="recovery">E-mail de recuperação</Label>
+              <Input
+                id="recovery"
+                type="email"
+                value={recoveryEmail}
+                onChange={(e) => setRecoveryEmail(e.target.value)}
+                maxLength={255}
+                placeholder="maria@exemplo.com"
+              />
+            </div>
+            <div>
+              <Label htmlFor="initial_password">Senha inicial</Label>
+              <div className="relative">
                 <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  maxLength={255}
-                  placeholder="maria@mowig.com.br"
+                  id="initial_password"
+                  type={showPassword ? "text" : "password"}
+                  value={initialPassword}
+                  onChange={(e) => {
+                    setInitialPassword(e.target.value);
+                    if (passwordError) setPasswordError(null);
+                  }}
+                  onBlur={() => {
+                    if (initialPassword && !isValidInitialPassword(initialPassword)) {
+                      setPasswordError(
+                        "A senha deve ter no mínimo 8 caracteres, 1 número e 1 letra maiúscula",
+                      );
+                    }
+                  }}
+                  placeholder="Mínimo 8 caracteres"
+                  maxLength={72}
+                  autoComplete="new-password"
+                  className="pr-10"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((s) => !s)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
+                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
-            ) : (
-              <>
-                <div>
-                  <Label htmlFor="cpf">CPF</Label>
-                  <Input
-                    id="cpf"
-                    value={cpf}
-                    onChange={(e) => setCpf(maskCpf(e.target.value))}
-                    placeholder="000.000.000-00"
-                    maxLength={14}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="cellphone">Celular</Label>
-                  <Input
-                    id="cellphone"
-                    value={cellphone}
-                    onChange={(e) => {
-                      setCellphone(maskCellphone(e.target.value));
-                      if (cellphoneError) setCellphoneError(null);
-                    }}
-                    onBlur={() => {
-                      if (cellphone && !isValidCellphone(cellphone)) {
-                        setCellphoneError("Celular inválido");
-                      }
-                    }}
-                    placeholder="(00) 00000-0000"
-                    maxLength={16}
-                    inputMode="numeric"
-                  />
-                  {cellphoneError && (
-                    <p className="mt-1 text-xs text-destructive">{cellphoneError}</p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="recovery">E-mail de recuperação</Label>
-                  <Input
-                    id="recovery"
-                    type="email"
-                    value={recoveryEmail}
-                    onChange={(e) => setRecoveryEmail(e.target.value)}
-                    maxLength={255}
-                    placeholder="maria@exemplo.com"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="initial_password">Senha inicial</Label>
-                  <div className="relative">
-                    <Input
-                      id="initial_password"
-                      type={showPassword ? "text" : "password"}
-                      value={initialPassword}
-                      onChange={(e) => {
-                        setInitialPassword(e.target.value);
-                        if (passwordError) setPasswordError(null);
-                      }}
-                      onBlur={() => {
-                        if (initialPassword && !isValidInitialPassword(initialPassword)) {
-                          setPasswordError(
-                            "A senha deve ter no mínimo 8 caracteres, 1 número e 1 letra maiúscula",
-                          );
-                        }
-                      }}
-                      placeholder="Mínimo 8 caracteres"
-                      maxLength={72}
-                      autoComplete="new-password"
-                      className="pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((s) => !s)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
-                      aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  {passwordError ? (
-                    <p className="mt-1 text-xs text-destructive">{passwordError}</p>
-                  ) : (
-                    <p className="mt-1 text-xs text-text-muted">
-                      Se não preenchida, uma senha será gerada automaticamente
-                    </p>
-                  )}
-                </div>
-              </>
-            )}
+              {passwordError ? (
+                <p className="mt-1 text-xs text-destructive">{passwordError}</p>
+              ) : (
+                <p className="mt-1 text-xs text-text-muted">
+                  Se não preenchida, uma senha será gerada automaticamente
+                </p>
+              )}
+            </div>
 
             <div>
               <Label>Papel global</Label>
