@@ -73,9 +73,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       supabase.from("companies").select("*").eq("id", prof.company_id).maybeSingle(),
       supabase
         .from("sector_members")
-        .select("sector_id, role, sector:sectors(id, name, slug, icon)")
+        .select("sector_id, role, sector:sectors!inner(id, name, slug, icon)")
         .eq("profile_id", userId)
-        .eq("sectors.active", true),
+        .eq("sector.active", true),
     ]);
 
     setCompany((comp as Company) ?? null);
