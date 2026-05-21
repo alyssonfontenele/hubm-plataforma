@@ -17,6 +17,13 @@ import {
   type SectorMembership,
 } from "@/integrations/supabase/client";
 
+export type MfaState =
+  | "unknown"
+  | "not_required"
+  | "needs_enrollment"
+  | "needs_challenge"
+  | "verified";
+
 interface AuthContextValue {
   session: Session | null;
   profile: Profile | null;
@@ -26,6 +33,8 @@ interface AuthContextValue {
   providerToken: string | null;
   loading: boolean;
   isPasswordRecovery: boolean;
+  mfaState: MfaState;
+  refreshMfa: () => Promise<void>;
   clearPasswordRecovery: () => void;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -41,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [providerToken, setProviderToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+  const [mfaState, setMfaState] = useState<MfaState>("unknown");
   const navigate = useNavigate();
 
   const loadProfile = useCallback(async (userId: string) => {
@@ -121,12 +131,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session, loadProfile]);
 
   const signOut = useCallback(async () => {
+    setMfaState("unknown");
     await supabase.auth.signOut();
   }, []);
 
   const clearPasswordRecovery = useCallback(() => {
     setIsPasswordRecovery(false);
   }, []);
+
+  const refreshMfa = useCallback(async () => {
+    if (!session?.user) {
+      setMfaState("unknown");
+      return;
+    }
+    if ((profile?.global_role ?? null) !== "admin") {
+      setMfaState("not_required");
+      return;
+    }
+    try {
+      const { data: factors, error: factorsErr } = await supabase.auth.mfa.listFactors();
+      if (factorsErr) throw factorsErr;
+      const verifiedTotp = factors?.totp?.find((f) => f.status === "verified");
+      if (!verifiedTotp) {
+        setMfaState("needs_enrollment");
+        return;
+      }
+      const { data: aal, error: aalErr } =
+        await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aalErr) throw aalErr;
+      if (aal?.nextLevel === "aal2" && aal?.currentLevel !== "aal2") {
+        setMfaState("needs_challenge");
+      } else {
+        setMfaState("verified");
+      }
+    } catch {
+      setMfaState("needs_challenge");
+    }
+  }, [session, profile]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!session) {
+      setMfaState("unknown");
+      return;
+    }
+    if (!profile) return;
+    void refreshMfa();
+  }, [loading, session, profile, refreshMfa]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -138,6 +189,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       providerToken,
       loading,
       isPasswordRecovery,
+      mfaState,
+      refreshMfa,
       clearPasswordRecovery,
       refresh,
       signOut,
@@ -150,6 +203,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       providerToken,
       loading,
       isPasswordRecovery,
+      mfaState,
+      refreshMfa,
       clearPasswordRecovery,
       refresh,
       signOut,
