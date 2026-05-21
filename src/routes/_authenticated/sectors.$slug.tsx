@@ -88,6 +88,7 @@ function SectorPage() {
   const sectorName = sectorRecord?.name ?? membership?.sector.name ?? slug;
   const sectorIcon = sectorRecord?.icon ?? membership?.sector.icon ?? null;
   const layout: LayoutKind = sectorRecord?.config?.layout ?? "grid";
+  console.log('[SectorPage] sectorRecord:', sectorRecord, 'layout:', layout);
 
   const [folders, setFolders] = useState<Folder[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
@@ -115,7 +116,8 @@ function SectorPage() {
         .eq("active", true)
         .limit(1);
       if (company?.id) query = query.eq("company_id", company.id);
-      const { data } = await query.maybeSingle();
+      const { data, error } = await query.maybeSingle();
+      console.log('[SectorPage] slug:', slug, 'data:', data, 'error:', error);
       if (cancelled) return;
       setSectorRecord((data as SectorRecord | null) ?? null);
     })();
