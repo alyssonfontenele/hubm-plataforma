@@ -1155,6 +1155,7 @@ function UserFormModal({
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-surface border-border max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
