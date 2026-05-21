@@ -1182,6 +1182,17 @@ function UserFormModal({
           (error as { context?: { error?: string } }).context?.error ??
           error.message ??
           "";
+        if (isAlreadyRegisteredError(ctxMsg)) {
+          try {
+            const fallback = await findDeletedProfileFallback();
+            if (fallback) {
+              setExistingDeleted(fallback);
+              return;
+            }
+          } catch (fbErr) {
+            console.warn("[pre-check fallback] erro", fbErr);
+          }
+        }
         toast.error(friendlyCreateError(ctxMsg));
         return;
       }
