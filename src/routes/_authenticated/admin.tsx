@@ -295,6 +295,9 @@ function isValidInitialPassword(pw: string): boolean {
 
 // ---------- Users tab ----------
 
+const adminProfilesQueryKey = (companyId: string) =>
+  ["admin-profiles", companyId] as const;
+
 function UsersTab({
   companyId,
   currentUserId,
@@ -307,7 +310,8 @@ function UsersTab({
   const [rescueOpen, setRescueOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Profile | null>(null);
 
-  const profilesQueryKey = ["admin-profiles", companyId] as const;
+  const profilesQueryKey = adminProfilesQueryKey(companyId);
+
 
   const { data: profiles = [], isLoading: loadingProfiles } = useQuery({
     queryKey: profilesQueryKey,
@@ -421,9 +425,11 @@ function UsersTab({
                       profile={p}
                       isSelf={currentUserId === p.id}
                       adminId={currentUserId}
+                      companyId={companyId}
                       onChanged={load}
                       onEdit={() => setEditTarget(p)}
                     />
+
                   </TableCell>
                 </TableRow>
               ))
@@ -482,15 +488,18 @@ function UserActionsMenu({
   profile,
   isSelf,
   adminId,
+  companyId,
   onChanged,
   onEdit,
 }: {
   profile: Profile;
   isSelf: boolean;
   adminId: string | null;
+  companyId: string;
   onChanged: () => void | Promise<void>;
   onEdit: () => void;
 }) {
+
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -691,7 +700,7 @@ function UserActionsMenu({
                     targetName: profile.full_name,
                     details: { auth_type: profile.auth_type },
                   });
-                  await queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
+                  await queryClient.invalidateQueries({ queryKey: adminProfilesQueryKey(companyId) });
                   toast.success("Usuário excluído.");
                   setSimpleDeleteOpen(false);
                   await onChanged();
