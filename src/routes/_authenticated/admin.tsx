@@ -1228,12 +1228,7 @@ function UserFormModal({
         },
       });
       if (error) {
-        // supabase-js wraps function errors; inspect message + context
-        const ctxMsg =
-          (data as { error?: string } | null)?.error ??
-          (error as { context?: { error?: string } }).context?.error ??
-          error.message ??
-          "";
+        const ctxMsg = await getFunctionErrorText(data, error);
         if (isAlreadyRegisteredError(ctxMsg)) {
           setExistingDeleted(null);
           setShowReactivateDialog(true);
