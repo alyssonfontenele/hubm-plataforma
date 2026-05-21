@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { MoreHorizontal, Plus, UserCog, LifeBuoy, Eye, EyeOff, ShieldCheck, Trash2 } from "lucide-react";
+import {
+  MoreHorizontal,
+  Plus,
+  UserCog,
+  LifeBuoy,
+  Eye,
+  EyeOff,
+  ShieldCheck,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -295,8 +304,7 @@ function isValidInitialPassword(pw: string): boolean {
 
 // ---------- Users tab ----------
 
-const adminProfilesQueryKey = (companyId: string) =>
-  ["admin-profiles", companyId] as const;
+const adminProfilesQueryKey = (companyId: string) => ["admin-profiles", companyId] as const;
 
 function UsersTab({
   companyId,
@@ -311,7 +319,6 @@ function UsersTab({
   const [editTarget, setEditTarget] = useState<Profile | null>(null);
 
   const profilesQueryKey = adminProfilesQueryKey(companyId);
-
 
   const { data: profiles = [], isLoading: loadingProfiles } = useQuery({
     queryKey: profilesQueryKey,
@@ -429,7 +436,6 @@ function UsersTab({
                       onChanged={load}
                       onEdit={() => setEditTarget(p)}
                     />
-
                   </TableCell>
                 </TableRow>
               ))
@@ -499,7 +505,6 @@ function UserActionsMenu({
   onChanged: () => void | Promise<void>;
   onEdit: () => void;
 }) {
-
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -672,12 +677,16 @@ function UserActionsMenu({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <AlertDialog open={simpleDeleteOpen} onOpenChange={(o) => !simpleDeleting && setSimpleDeleteOpen(o)}>
+      <AlertDialog
+        open={simpleDeleteOpen}
+        onOpenChange={(o) => !simpleDeleting && setSimpleDeleteOpen(o)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir usuário?</AlertDialogTitle>
             <AlertDialogDescription>
-              {profile.full_name} será removido da plataforma. Os registros de auditoria serão preservados.
+              {profile.full_name} será removido da plataforma. Os registros de auditoria serão
+              preservados.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -700,13 +709,17 @@ function UserActionsMenu({
                     targetName: profile.full_name,
                     details: { auth_type: profile.auth_type },
                   });
-                  await queryClient.invalidateQueries({ queryKey: adminProfilesQueryKey(companyId) });
+                  await queryClient.invalidateQueries({
+                    queryKey: adminProfilesQueryKey(companyId),
+                  });
                   toast.success("Usuário excluído.");
                   setSimpleDeleteOpen(false);
                   await onChanged();
                 } catch (err) {
                   toast.error(
-                    err instanceof Error ? `Falha ao excluir: ${err.message}` : "Falha ao excluir usuário.",
+                    err instanceof Error
+                      ? `Falha ao excluir: ${err.message}`
+                      : "Falha ao excluir usuário.",
                   );
                   setSimpleDeleteOpen(false);
                 } finally {
@@ -719,7 +732,6 @@ function UserActionsMenu({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
 
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
         <AlertDialogContent>
@@ -864,6 +876,7 @@ function UserFormModal({
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [existingDeleted, setExistingDeleted] = useState<Profile | null>(null);
+  const [showReactivateDialog, setShowReactivateDialog] = useState(false);
   const [reactivating, setReactivating] = useState(false);
   const queryClient = useQueryClient();
 
@@ -882,6 +895,7 @@ function UserFormModal({
       setShowPassword(false);
       setPasswordError(null);
       setExistingDeleted(null);
+      setShowReactivateDialog(false);
       setReactivating(false);
     }
   }, [open]);
@@ -961,11 +975,55 @@ function UserFormModal({
     /already (been )?registered/i.test(msg) ||
     /already exists/i.test(msg);
 
+  const getFunctionErrorText = async (data: unknown, error: unknown) => {
+    const messages: string[] = [];
+    if (typeof data === "string") messages.push(data);
+    if (data && typeof data === "object") {
+      const body = data as Record<string, unknown>;
+      [body.error, body.message, body.details].forEach((value) => {
+        if (typeof value === "string") messages.push(value);
+      });
+    }
+    if (error instanceof Error) messages.push(error.message);
+
+    const context = (error as { context?: unknown } | null)?.context;
+    if (context instanceof Response) {
+      try {
+        messages.push(await context.clone().text());
+      } catch {
+        // ignore unreadable response body
+      }
+    } else if (context && typeof context === "object") {
+      const ctx = context as Record<string, unknown>;
+      [ctx.error, ctx.message, ctx.details, ctx.statusText].forEach((value) => {
+        if (typeof value === "string") messages.push(value);
+      });
+    }
+
+    return messages.filter(Boolean).join(" ");
+  };
 
   const handleReactivate = async () => {
-    if (!existingDeleted) return;
     setReactivating(true);
     try {
+      let profileToReactivate = existingDeleted;
+      if (!profileToReactivate) {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("company_id", companyId)
+          .not("deleted_at", "is", null)
+          .eq("full_name", "Usuário removido")
+          .order("deleted_at", { ascending: false })
+          .limit(1);
+        if (error) throw error;
+        profileToReactivate = ((data?.[0] as Profile | undefined) ?? null) as Profile | null;
+      }
+
+      if (!profileToReactivate) {
+        throw new Error("Não foi encontrado um cadastro removido para reativar.");
+      }
+
       const cleanFullName = sanitize(fullName.trim());
       const updates: Record<string, unknown> = {
         deleted_at: null,
@@ -989,18 +1047,18 @@ function UserFormModal({
       const { error: updErr } = await supabase
         .from("profiles")
         .update(updates)
-        .eq("id", existingDeleted.id);
+        .eq("id", profileToReactivate.id);
       if (updErr) throw updErr;
 
       if (authType === "cpf" && initialPassword) {
         const { error: pwErr } = await supabase.functions.invoke("admin-update-password", {
-          body: { user_id: existingDeleted.id, new_password: initialPassword },
+          body: { user_id: profileToReactivate.id, new_password: initialPassword },
         });
         if (pwErr) throw pwErr;
       }
 
       try {
-        await supabase.auth.admin.updateUserById(existingDeleted.id, {
+        await supabase.auth.admin.updateUserById(profileToReactivate.id, {
           ban_duration: "none",
         });
       } catch {
@@ -1010,7 +1068,7 @@ function UserFormModal({
       if (assignmentsPayload.length > 0) {
         await supabase.from("sector_members").insert(
           assignmentsPayload.map((a) => ({
-            profile_id: existingDeleted.id,
+            profile_id: profileToReactivate.id,
             sector_id: a.sector_id,
             role: a.role,
           })),
@@ -1020,7 +1078,7 @@ function UserFormModal({
       await logAdminAction({
         adminId,
         action: "reactivate_user",
-        targetId: existingDeleted.id,
+        targetId: profileToReactivate.id,
         targetName: cleanFullName,
         details: { reactivated: true, auth_type: authType, global_role: globalRole },
       });
@@ -1028,6 +1086,7 @@ function UserFormModal({
       await queryClient.invalidateQueries({ queryKey: adminProfilesQueryKey(companyId) });
       toast.success("Usuário reativado com sucesso.");
       setExistingDeleted(null);
+      setShowReactivateDialog(false);
       onCreated();
     } catch (err) {
       toast.error(
@@ -1181,22 +1240,11 @@ function UserFormModal({
         },
       });
       if (error) {
-        // supabase-js wraps function errors; inspect message + context
-        const ctxMsg =
-          (data as { error?: string } | null)?.error ??
-          (error as { context?: { error?: string } }).context?.error ??
-          error.message ??
-          "";
+        const ctxMsg = await getFunctionErrorText(data, error);
         if (isAlreadyRegisteredError(ctxMsg)) {
-          try {
-            const fallback = await findDeletedProfileFallback();
-            if (fallback) {
-              setExistingDeleted(fallback);
-              return;
-            }
-          } catch (fbErr) {
-            console.warn("[pre-check fallback] erro", fbErr);
-          }
+          setExistingDeleted(null);
+          setShowReactivateDialog(true);
+          return;
         }
         toast.error(friendlyCreateError(ctxMsg));
         return;
@@ -1221,6 +1269,12 @@ function UserFormModal({
       );
       onCreated();
     } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      if (isAlreadyRegisteredError(message)) {
+        setExistingDeleted(null);
+        setShowReactivateDialog(true);
+        return;
+      }
       toast.error(friendlyCreateError(err instanceof Error ? err.message : ""));
     } finally {
       setSubmitting(false);
@@ -1229,252 +1283,255 @@ function UserFormModal({
 
   return (
     <>
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-surface border-border max-w-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-text-primary">Novo usuário</DialogTitle>
-          <DialogDescription className="text-text-muted">
-            Cadastre um usuário e atribua os setores que ele poderá acessar.
-          </DialogDescription>
-        </DialogHeader>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="bg-surface border-border max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-text-primary">Novo usuário</DialogTitle>
+            <DialogDescription className="text-text-muted">
+              Cadastre um usuário e atribua os setores que ele poderá acessar.
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="full_name">Nome completo</Label>
-            <Input
-              id="full_name"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              maxLength={120}
-              placeholder="Ex: Maria Silva"
-            />
-          </div>
-
-          <div className="flex items-center justify-between rounded-md border border-border p-3">
+          <div className="space-y-4">
             <div>
-              <p className="text-sm font-medium text-text-primary">Tipo de autenticação</p>
-              <p className="text-xs text-text-muted">
-                {authType === "google"
-                  ? "Login via Google (@mowig.com.br)"
-                  : "Login via CPF + senha interna"}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <span className={authType === "cpf" ? "text-text-primary" : "text-text-muted"}>
-                CPF
-              </span>
-              <Switch
-                checked={authType === "google"}
-                onCheckedChange={(c) => setAuthType(c ? "google" : "cpf")}
-              />
-              <span className={authType === "google" ? "text-text-primary" : "text-text-muted"}>
-                Google
-              </span>
-            </div>
-          </div>
-
-          {authType === "google" ? (
-            <div>
-              <Label htmlFor="email">E-mail Google</Label>
+              <Label htmlFor="full_name">Nome completo</Label>
               <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                maxLength={255}
-                placeholder="maria@mowig.com.br"
+                id="full_name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                maxLength={120}
+                placeholder="Ex: Maria Silva"
               />
             </div>
-          ) : (
-            <>
+
+            <div className="flex items-center justify-between rounded-md border border-border p-3">
               <div>
-                <Label htmlFor="cpf">CPF</Label>
-                <Input
-                  id="cpf"
-                  value={cpf}
-                  onChange={(e) => setCpf(maskCpf(e.target.value))}
-                  placeholder="000.000.000-00"
-                  maxLength={14}
-                />
+                <p className="text-sm font-medium text-text-primary">Tipo de autenticação</p>
+                <p className="text-xs text-text-muted">
+                  {authType === "google"
+                    ? "Login via Google (@mowig.com.br)"
+                    : "Login via CPF + senha interna"}
+                </p>
               </div>
-              <div>
-                <Label htmlFor="cellphone">Celular</Label>
-                <Input
-                  id="cellphone"
-                  value={cellphone}
-                  onChange={(e) => {
-                    setCellphone(maskCellphone(e.target.value));
-                    if (cellphoneError) setCellphoneError(null);
-                  }}
-                  onBlur={() => {
-                    if (cellphone && !isValidCellphone(cellphone)) {
-                      setCellphoneError("Celular inválido");
-                    }
-                  }}
-                  placeholder="(00) 00000-0000"
-                  maxLength={16}
-                  inputMode="numeric"
+              <div className="flex items-center gap-2 text-sm">
+                <span className={authType === "cpf" ? "text-text-primary" : "text-text-muted"}>
+                  CPF
+                </span>
+                <Switch
+                  checked={authType === "google"}
+                  onCheckedChange={(c) => setAuthType(c ? "google" : "cpf")}
                 />
-                {cellphoneError && (
-                  <p className="mt-1 text-xs text-destructive">{cellphoneError}</p>
-                )}
+                <span className={authType === "google" ? "text-text-primary" : "text-text-muted"}>
+                  Google
+                </span>
               </div>
+            </div>
+
+            {authType === "google" ? (
               <div>
-                <Label htmlFor="recovery">E-mail de recuperação</Label>
+                <Label htmlFor="email">E-mail Google</Label>
                 <Input
-                  id="recovery"
+                  id="email"
                   type="email"
-                  value={recoveryEmail}
-                  onChange={(e) => setRecoveryEmail(e.target.value)}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   maxLength={255}
-                  placeholder="maria@exemplo.com"
+                  placeholder="maria@mowig.com.br"
                 />
               </div>
-              <div>
-                <Label htmlFor="initial_password">Senha inicial</Label>
-                <div className="relative">
+            ) : (
+              <>
+                <div>
+                  <Label htmlFor="cpf">CPF</Label>
                   <Input
-                    id="initial_password"
-                    type={showPassword ? "text" : "password"}
-                    value={initialPassword}
+                    id="cpf"
+                    value={cpf}
+                    onChange={(e) => setCpf(maskCpf(e.target.value))}
+                    placeholder="000.000.000-00"
+                    maxLength={14}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="cellphone">Celular</Label>
+                  <Input
+                    id="cellphone"
+                    value={cellphone}
                     onChange={(e) => {
-                      setInitialPassword(e.target.value);
-                      if (passwordError) setPasswordError(null);
+                      setCellphone(maskCellphone(e.target.value));
+                      if (cellphoneError) setCellphoneError(null);
                     }}
                     onBlur={() => {
-                      if (initialPassword && !isValidInitialPassword(initialPassword)) {
-                        setPasswordError(
-                          "A senha deve ter no mínimo 8 caracteres, 1 número e 1 letra maiúscula",
-                        );
+                      if (cellphone && !isValidCellphone(cellphone)) {
+                        setCellphoneError("Celular inválido");
                       }
                     }}
-                    placeholder="Mínimo 8 caracteres"
-                    maxLength={72}
-                    autoComplete="new-password"
-                    className="pr-10"
+                    placeholder="(00) 00000-0000"
+                    maxLength={16}
+                    inputMode="numeric"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((s) => !s)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
-                    aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+                  {cellphoneError && (
+                    <p className="mt-1 text-xs text-destructive">{cellphoneError}</p>
+                  )}
                 </div>
-                {passwordError ? (
-                  <p className="mt-1 text-xs text-destructive">{passwordError}</p>
-                ) : (
-                  <p className="mt-1 text-xs text-text-muted">
-                    Se não preenchida, uma senha será gerada automaticamente
-                  </p>
-                )}
-              </div>
-            </>
-          )}
-
-          <div>
-            <Label>Papel global</Label>
-            <Select value={globalRole} onValueChange={(v) => setGlobalRole(v as GlobalRole)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {GLOBAL_ROLES.map((r) => (
-                  <SelectItem key={r} value={r} className="capitalize">
-                    {r}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label>Setores</Label>
-            <div className="mt-2 space-y-2 border border-border rounded-md p-3">
-              {sectors.length === 0 && (
-                <p className="text-sm text-text-muted">Nenhum setor disponível.</p>
-              )}
-              {sectors.map((s) => {
-                const assigned = assignments.find((a) => a.sector_id === s.id);
-                return (
-                  <div key={s.id} className="flex items-center justify-between gap-3">
-                    <label className="flex items-center gap-2 text-sm text-text-primary">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(assigned)}
-                        onChange={() => toggleSector(s.id)}
-                        className="accent-text-primary"
-                      />
-                      {s.name}
-                    </label>
-                    {assigned && (
-                      <Select
-                        value={assigned.role}
-                        onValueChange={(v) => setAssignmentRole(s.id, v as SectorRole)}
-                      >
-                        <SelectTrigger className="w-32 h-8">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {SECTOR_ROLES.map((r) => (
-                            <SelectItem key={r} value={r} className="capitalize">
-                              {r}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
+                <div>
+                  <Label htmlFor="recovery">E-mail de recuperação</Label>
+                  <Input
+                    id="recovery"
+                    type="email"
+                    value={recoveryEmail}
+                    onChange={(e) => setRecoveryEmail(e.target.value)}
+                    maxLength={255}
+                    placeholder="maria@exemplo.com"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="initial_password">Senha inicial</Label>
+                  <div className="relative">
+                    <Input
+                      id="initial_password"
+                      type={showPassword ? "text" : "password"}
+                      value={initialPassword}
+                      onChange={(e) => {
+                        setInitialPassword(e.target.value);
+                        if (passwordError) setPasswordError(null);
+                      }}
+                      onBlur={() => {
+                        if (initialPassword && !isValidInitialPassword(initialPassword)) {
+                          setPasswordError(
+                            "A senha deve ter no mínimo 8 caracteres, 1 número e 1 letra maiúscula",
+                          );
+                        }
+                      }}
+                      placeholder="Mínimo 8 caracteres"
+                      maxLength={72}
+                      autoComplete="new-password"
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((s) => !s)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
+                      aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
-                );
-              })}
+                  {passwordError ? (
+                    <p className="mt-1 text-xs text-destructive">{passwordError}</p>
+                  ) : (
+                    <p className="mt-1 text-xs text-text-muted">
+                      Se não preenchida, uma senha será gerada automaticamente
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+
+            <div>
+              <Label>Papel global</Label>
+              <Select value={globalRole} onValueChange={(v) => setGlobalRole(v as GlobalRole)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {GLOBAL_ROLES.map((r) => (
+                    <SelectItem key={r} value={r} className="capitalize">
+                      {r}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Setores</Label>
+              <div className="mt-2 space-y-2 border border-border rounded-md p-3">
+                {sectors.length === 0 && (
+                  <p className="text-sm text-text-muted">Nenhum setor disponível.</p>
+                )}
+                {sectors.map((s) => {
+                  const assigned = assignments.find((a) => a.sector_id === s.id);
+                  return (
+                    <div key={s.id} className="flex items-center justify-between gap-3">
+                      <label className="flex items-center gap-2 text-sm text-text-primary">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(assigned)}
+                          onChange={() => toggleSector(s.id)}
+                          className="accent-text-primary"
+                        />
+                        {s.name}
+                      </label>
+                      {assigned && (
+                        <Select
+                          value={assigned.role}
+                          onValueChange={(v) => setAssignmentRole(s.id, v as SectorRole)}
+                        >
+                          <SelectTrigger className="w-32 h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SECTOR_ROLES.map((r) => (
+                              <SelectItem key={r} value={r} className="capitalize">
+                                {r}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="bg-text-primary text-background hover:bg-text-primary/90"
-          >
-            {submitting ? "Salvando…" : "Criar usuário"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="bg-text-primary text-background hover:bg-text-primary/90"
+            >
+              {submitting ? "Salvando…" : "Criar usuário"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-    <AlertDialog
-      open={existingDeleted !== null}
-      onOpenChange={(o) => {
-        if (!o && !reactivating) setExistingDeleted(null);
-      }}
-    >
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Usuário já cadastrado</AlertDialogTitle>
-          <AlertDialogDescription>
-            Este usuário foi removido anteriormente. Deseja reativar o cadastro existente?
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={reactivating}>Cancelar</AlertDialogCancel>
-          <AlertDialogAction
-            disabled={reactivating}
-            onClick={(e) => {
-              e.preventDefault();
-              void handleReactivate();
-            }}
-            className="bg-text-primary text-background hover:bg-text-primary/90"
-          >
-            {reactivating ? "Reativando…" : "Reativar"}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      <AlertDialog
+        open={showReactivateDialog || existingDeleted !== null}
+        onOpenChange={(o) => {
+          if (!o && !reactivating) {
+            setExistingDeleted(null);
+            setShowReactivateDialog(false);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Usuário já cadastrado</AlertDialogTitle>
+            <AlertDialogDescription>
+              Este e-mail já possui um cadastro no sistema. Deseja reativar o acesso?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={reactivating}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={reactivating}
+              onClick={(e) => {
+                e.preventDefault();
+                void handleReactivate();
+              }}
+              className="bg-text-primary text-background hover:bg-text-primary/90"
+            >
+              {reactivating ? "Reativando…" : "Reativar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
