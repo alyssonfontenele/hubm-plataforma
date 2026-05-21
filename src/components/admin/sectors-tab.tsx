@@ -394,6 +394,20 @@ function SectorFormSheet({
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="sector-group">Grupo</Label>
+            <Input
+              id="sector-group"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              placeholder="Ex.: Operações"
+              maxLength={60}
+            />
+            <p className="text-xs text-text-muted">
+              Opcional. Setores com o mesmo grupo aparecem juntos na barra lateral.
+            </p>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="sector-slug">Slug</Label>
             <Input
               id="sector-slug"
