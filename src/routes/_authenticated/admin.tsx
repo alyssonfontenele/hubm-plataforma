@@ -794,16 +794,6 @@ function UserFormModal({
     );
   };
 
-
-
-  const toggleSector = (sectorId: string) => {
-    setAssignments((prev) =>
-      prev.some((a) => a.sector_id === sectorId)
-        ? prev.filter((a) => a.sector_id !== sectorId)
-        : [...prev, { sector_id: sectorId, role: "member" }],
-    );
-  };
-
   const setAssignmentRole = (sectorId: string, role: SectorRole) => {
     setAssignments((prev) => prev.map((a) => (a.sector_id === sectorId ? { ...a, role } : a)));
   };
@@ -812,6 +802,9 @@ function UserFormModal({
     () => assignments.map((a) => ({ sector_id: a.sector_id, role: a.role })),
     [assignments],
   );
+
+  const GENERIC_CREATE_ERROR =
+    "Erro ao criar usuário. Verifique os dados e tente novamente.";
 
   const handleSubmit = async () => {
     if (!fullName.trim()) {
@@ -824,18 +817,7 @@ function UserFormModal({
         toast.error("Informe o e-mail do Google");
         return;
       }
-      // Google flow keeps the previous direct insert behaviour.
       setSubmitting(true);
-      try {
-        const deleted = await findDeletedProfile();
-        if (deleted) {
-          setExistingDeleted(deleted);
-          setSubmitting(false);
-          return;
-        }
-      } catch (preErr) {
-        console.warn("[pre-check] erro ao consultar perfis removidos", preErr);
-      }
       try {
         const newId = crypto.randomUUID();
         const cleanFullName = sanitize(fullName.trim());
@@ -851,20 +833,8 @@ function UserFormModal({
           recovery_email: email.trim().toLowerCase(),
         });
         if (error) {
-          if (isAlreadyRegisteredError(error.message)) {
-            try {
-              const fallback = await findDeletedProfileFallback();
-              if (fallback) {
-                setExistingDeleted(fallback);
-                return;
-              }
-            } catch (fbErr) {
-              console.warn("[pre-check fallback] erro", fbErr);
-            }
-            toast.error("Erro ao criar usuário. Tente novamente.");
-            return;
-          }
-          throw error;
+          toast.error(GENERIC_CREATE_ERROR);
+          return;
         }
 
         if (assignmentsPayload.length > 0) {
@@ -889,8 +859,8 @@ function UserFormModal({
         });
         toast.success("Usuário criado com sucesso.");
         onCreated();
-      } catch (err) {
-        toast.error(friendlyCreateError(err instanceof Error ? err.message : ""));
+      } catch {
+        toast.error(GENERIC_CREATE_ERROR);
       } finally {
         setSubmitting(false);
       }
@@ -919,16 +889,6 @@ function UserFormModal({
 
     setSubmitting(true);
     try {
-      const deleted = await findDeletedProfile();
-      if (deleted) {
-        setExistingDeleted(deleted);
-        setSubmitting(false);
-        return;
-      }
-    } catch (preErr) {
-      console.warn("[pre-check] erro ao consultar perfis removidos", preErr);
-    }
-    try {
       const { data, error } = await supabase.functions.invoke("create-cpf-user", {
         body: {
           full_name: sanitize(fullName.trim()),
@@ -942,21 +902,7 @@ function UserFormModal({
         },
       });
       if (error) {
-        const ctxMsg = await getFunctionErrorText(data, error);
-        if (isAlreadyRegisteredError(ctxMsg)) {
-          try {
-            const fallback = await findDeletedProfileFallback();
-            if (fallback) {
-              setExistingDeleted(fallback);
-              return;
-            }
-          } catch (fbErr) {
-            console.warn("[pre-check fallback] erro", fbErr);
-          }
-          toast.error("Erro ao criar usuário. Tente novamente.");
-          return;
-        }
-        toast.error(friendlyCreateError(ctxMsg));
+        toast.error(GENERIC_CREATE_ERROR);
         return;
       }
 
@@ -979,27 +925,13 @@ function UserFormModal({
         `Usuário criado com sucesso. E-mail de acesso enviado para ${recoveryEmail.trim().toLowerCase()}.`,
       );
       onCreated();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "";
-      if (isAlreadyRegisteredError(message)) {
-        try {
-          const fallback = await findDeletedProfileFallback();
-          if (fallback) {
-            setExistingDeleted(fallback);
-            return;
-          }
-        } catch (fbErr) {
-          console.warn("[pre-check fallback] erro", fbErr);
-        }
-        toast.error("Erro ao criar usuário. Tente novamente.");
-        return;
-      }
-      toast.error(friendlyCreateError(err instanceof Error ? err.message : ""));
+    } catch {
+      toast.error(GENERIC_CREATE_ERROR);
     } finally {
-
       setSubmitting(false);
     }
   };
+
 
   return (
     <>
