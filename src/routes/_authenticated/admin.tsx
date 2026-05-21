@@ -1385,37 +1385,17 @@ function UserFormModal({
         </DialogContent>
       </Dialog>
 
-      <AlertDialog
+      <ReactivateUserDialog
         open={showReactivateDialog || existingDeleted !== null}
+        loading={reactivating}
         onOpenChange={(o) => {
-          if (!o && !reactivating) {
+          if (!o) {
             setExistingDeleted(null);
             setShowReactivateDialog(false);
           }
         }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Usuário já cadastrado</AlertDialogTitle>
-            <AlertDialogDescription>
-              Este e-mail já possui um cadastro no sistema. Deseja reativar o acesso?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={reactivating}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={reactivating}
-              onClick={(e) => {
-                e.preventDefault();
-                void handleReactivate();
-              }}
-              className="bg-text-primary text-background hover:bg-text-primary/90"
-            >
-              {reactivating ? "Reativando…" : "Reativar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        onConfirm={() => void handleReactivate()}
+      />
     </>
   );
 }
