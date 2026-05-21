@@ -774,62 +774,7 @@ function UserFormModal({
       return;
     }
 
-    if (authType === "google") {
-      if (!email.trim()) {
-        toast.error("Informe o e-mail do Google");
-        return;
-      }
-      setSubmitting(true);
-      try {
-        const newId = crypto.randomUUID();
-        const cleanFullName = sanitize(fullName.trim());
-        const { error } = await supabase.from("profiles").insert({
-          id: newId,
-          company_id: companyId,
-          full_name: cleanFullName,
-          display_name: sanitize(cleanFullName.split(" ")[0]),
-          auth_type: "google",
-          global_role: globalRole,
-          active: true,
-          must_change_password: false,
-          recovery_email: email.trim().toLowerCase(),
-        });
-        if (error) {
-          toast.error(GENERIC_CREATE_ERROR);
-          return;
-        }
-
-        if (assignmentsPayload.length > 0) {
-          await supabase.from("sector_members").insert(
-            assignmentsPayload.map((a) => ({
-              profile_id: newId,
-              sector_id: a.sector_id,
-              role: a.role,
-            })),
-          );
-        }
-        await logAdminAction({
-          adminId,
-          action: "create_user",
-          targetId: newId,
-          targetName: fullName.trim(),
-          details: {
-            auth_type: "google",
-            global_role: globalRole,
-            email: email.trim().toLowerCase(),
-          },
-        });
-        toast.success("Usuário criado com sucesso.");
-        onCreated();
-      } catch {
-        toast.error(GENERIC_CREATE_ERROR);
-      } finally {
-        setSubmitting(false);
-      }
-      return;
-    }
-
-    // CPF flow → Edge Function
+    // CPF flow only — Google users are auto-provisioned on first login.
     if (!isValidCpf(cpf)) {
       toast.error("CPF inválido");
       return;
