@@ -1569,22 +1569,19 @@ function RescueUserModal({
     setNotFound(false);
     setFound(null);
     try {
-      const cpfDigits = cpfToDigits(cpf);
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("company_id", companyId)
-        .eq("cpf_hash", cpfDigits)
-        .is("deleted_at", null)
-        .limit(1);
-      if (error) throw error;
-      console.log("[rescue] cpf lookup", { cpfDigits, count: data?.length ?? 0 });
-      const profile = (data?.[0] as Profile | undefined) ?? null;
-      if (!profile) {
+      const cpfClean = cpfToDigits(cpf);
+      const { data: profile, error } = await supabase
+        .rpc("find_profile_by_cpf", { cpf_input: cpfClean })
+        .single();
+      console.log("[rescue] cpf rpc", { cpfClean, profile, error });
+      if (error && error.code !== "PGRST116") throw error;
+      const p = (profile as Profile | null) ?? null;
+      if (!p || p.deleted_at !== null) {
         setNotFound(true);
       } else {
-        setFound(profile);
+        setFound(p);
       }
+
 
 
     } catch (err) {
@@ -1640,7 +1637,7 @@ function RescueUserModal({
         <DialogHeader>
           <DialogTitle className="text-text-primary">Resgatar usuário</DialogTitle>
           <DialogDescription className="text-text-muted">
-            Informe o CPF do usuário inativado para reativar o acesso.
+            Informe o CPF do usuário para reativar o acesso.
           </DialogDescription>
         </DialogHeader>
 
