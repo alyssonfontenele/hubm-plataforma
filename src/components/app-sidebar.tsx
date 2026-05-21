@@ -327,7 +327,10 @@ function CollapsibleSectorGroup({
 interface FolderRow {
   id: string;
   name: string;
+  icon: string | null;
   sort_order: number | null;
+  parent_id: string | null;
+  is_page: boolean;
 }
 
 function SectorItem({
@@ -359,14 +362,34 @@ function SectorItem({
     queryFn: async (): Promise<FolderRow[]> => {
       const { data, error } = await supabase
         .from("folders")
-        .select("id,name,sort_order")
+        .select("id,name,icon,sort_order,parent_id,is_page")
         .eq("sector_id", sector.id)
+        .is("deleted_at", null)
         .order("sort_order", { ascending: true, nullsFirst: false })
         .order("name", { ascending: true });
       if (error) throw error;
-      return (data as FolderRow[] | null) ?? [];
+      return ((data as FolderRow[] | null) ?? []).map((f) => ({
+        ...f,
+        is_page: Boolean(f.is_page),
+      }));
     },
   });
+
+  const tree = useMemo(() => {
+    const all = folders ?? [];
+    const childrenOf = (pid: string) => all.filter((f) => f.parent_id === pid);
+    return all
+      .filter((f) => !f.parent_id)
+      .map((f) => ({
+        folder: f,
+        children: f.is_page ? childrenOf(f.id) : [],
+      }));
+  }, [folders]);
+
+  const activeFolderId =
+    typeof window !== "undefined" && pathname === path
+      ? new URLSearchParams(window.location.search).get("folder")
+      : null;
 
   return (
     <>
@@ -412,36 +435,145 @@ function SectorItem({
             <p className="text-xs text-sidebar-foreground/50 px-2 py-1">
               Carregando…
             </p>
-          ) : folders.length === 0 ? (
+          ) : tree.length === 0 ? (
             <p className="text-xs text-sidebar-foreground/50 px-2 py-1">
               Sem pastas
             </p>
           ) : (
-            folders.map((f) => {
-              const folderActive =
-                pathname === path &&
-                typeof window !== "undefined" &&
-                new URLSearchParams(window.location.search).get("folder") ===
-                  f.id;
-              return (
-                <Link
-                  key={f.id}
-                  to="/sectors/$slug"
-                  params={{ slug: sector.slug }}
-                  search={{ folder: f.id }}
-                  className={`block truncate text-xs px-2 py-1 rounded hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
-                    folderActive
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground/80"
-                  }`}
-                >
-                  {f.name}
-                </Link>
-              );
-            })
+            tree.map(({ folder, children }) =>
+              folder.is_page ? (
+                <PageEntry
+                  key={folder.id}
+                  page={folder}
+                  pageChildren={children}
+                  sectorSlug={sector.slug}
+                  sectorPath={path}
+                  activeFolderId={activeFolderId}
+                  pathname={pathname}
+                />
+              ) : (
+                <FolderLink
+                  key={folder.id}
+                  folder={folder}
+                  sectorSlug={sector.slug}
+                  sectorPath={path}
+                  activeFolderId={activeFolderId}
+                  pathname={pathname}
+                />
+              ),
+            )
           )}
         </div>
       )}
     </>
   );
 }
+
+function FolderLink({
+  folder,
+  sectorSlug,
+  sectorPath,
+  activeFolderId,
+  pathname,
+}: {
+  folder: FolderRow;
+  sectorSlug: string;
+  sectorPath: string;
+  activeFolderId: string | null;
+  pathname: string;
+}) {
+  const active = pathname === sectorPath && activeFolderId === folder.id;
+  return (
+    <Link
+      to="/sectors/$slug"
+      params={{ slug: sectorSlug }}
+      search={{ folder: folder.id }}
+      className={`flex items-center gap-1.5 truncate text-xs px-2 py-1 rounded hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
+        active
+          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+          : "text-sidebar-foreground/80"
+      }`}
+    >
+      {folder.icon && (
+        <span className="text-sm leading-none" aria-hidden>
+          {folder.icon}
+        </span>
+      )}
+      <span className="truncate">{folder.name}</span>
+    </Link>
+  );
+}
+
+function PageEntry({
+  page,
+  pageChildren,
+  sectorSlug,
+  sectorPath,
+  activeFolderId,
+  pathname,
+}: {
+  page: FolderRow;
+  pageChildren: FolderRow[];
+  sectorSlug: string;
+  sectorPath: string;
+  activeFolderId: string | null;
+  pathname: string;
+}) {
+  const storageKey = `hubm.sidebar.page.${page.id}`;
+  const hasActiveChild =
+    activeFolderId === page.id ||
+    pageChildren.some((c) => c.id === activeFolderId);
+  const [open, setOpen] = usePersistentBool(storageKey, true);
+  const effectiveOpen = hasActiveChild ? true : open;
+  const pageActive = pathname === sectorPath && activeFolderId === page.id;
+
+  return (
+    <div>
+      <div className="flex items-center gap-1">
+        <Link
+          to="/sectors/$slug"
+          params={{ slug: sectorSlug }}
+          search={{ folder: page.id }}
+          className={`flex-1 flex items-center gap-1.5 truncate text-xs px-2 py-1 rounded hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
+            pageActive
+              ? "bg-sidebar-accent text-sidebar-accent-foreground"
+              : "text-sidebar-foreground/80 font-medium"
+          }`}
+        >
+          <span className="text-sm leading-none" aria-hidden>
+            {page.icon || "📄"}
+          </span>
+          <span className="truncate">{page.name}</span>
+        </Link>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-label={effectiveOpen ? "Recolher página" : "Expandir página"}
+          aria-expanded={effectiveOpen}
+          className="p-0.5 rounded text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+        >
+          <ChevronRight
+            className={`h-3 w-3 transition-transform ${
+              effectiveOpen ? "rotate-90" : ""
+            }`}
+          />
+        </button>
+      </div>
+      {effectiveOpen && pageChildren.length > 0 && (
+        <div className="ml-3 mt-0.5 mb-1 border-l border-sidebar-border pl-2 space-y-0.5">
+          {pageChildren.map((c) => (
+            <FolderLink
+              key={c.id}
+              folder={c}
+              sectorSlug={sectorSlug}
+              sectorPath={sectorPath}
+              activeFolderId={activeFolderId}
+              pathname={pathname}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
