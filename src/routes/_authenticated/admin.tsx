@@ -72,6 +72,7 @@ import {
   type AdminLogRow,
 } from "@/lib/admin-log";
 import { sanitize } from "@/lib/sanitize";
+import { SectorsTab } from "@/components/admin/sectors-tab";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Admin — HubM" }] }),
