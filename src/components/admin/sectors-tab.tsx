@@ -44,7 +44,9 @@ interface SectorRow {
   description: string | null;
   active: boolean;
   sort_order: number | null;
+  group_name: string | null;
 }
+
 
 function slugify(input: string): string {
   return input
