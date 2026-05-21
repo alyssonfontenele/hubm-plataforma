@@ -29,6 +29,7 @@ interface Folder {
   sector_id: string;
   parent_id: string | null;
   sort_order: number | null;
+  is_page: boolean;
 }
 
 interface Resource {
