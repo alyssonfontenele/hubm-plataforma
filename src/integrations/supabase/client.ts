@@ -62,5 +62,7 @@ export interface SectorMembership {
     name: string;
     slug: string;
     icon: string | null;
+    group_name: string | null;
   };
 }
+
