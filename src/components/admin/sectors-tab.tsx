@@ -293,6 +293,7 @@ function SectorFormSheet({
   const [description, setDescription] = useState("");
   const [slug, setSlug] = useState("");
   const [groupName, setGroupName] = useState("");
+  const [layout, setLayout] = useState<LayoutKind>("grid");
   const [slugTouched, setSlugTouched] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -303,6 +304,7 @@ function SectorFormSheet({
     setDescription(sector?.description ?? "");
     setSlug(sector?.slug ?? "");
     setGroupName(sector?.group_name ?? "");
+    setLayout((sector?.config?.layout as LayoutKind) ?? "grid");
     setSlugTouched(!!sector);
   }, [open, sector]);
 
