@@ -4,7 +4,6 @@ import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopbar } from "@/components/app-topbar";
-import { InactivityGuard } from "@/components/inactivity-guard";
 import { useAuth } from "@/contexts/AuthContext";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -72,7 +71,6 @@ function AuthenticatedLayout() {
           </main>
         </SidebarInset>
       </div>
-      <InactivityGuard />
     </SidebarProvider>
   );
 }
