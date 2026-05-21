@@ -112,20 +112,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!active) return;
       const s = data.session;
-      if (s) {
-        const issuedAt =
-          typeof s.expires_at === "number" && typeof s.expires_in === "number"
-            ? (s.expires_at - s.expires_in) * 1000
-            : null;
-        const MAX_SESSION_MS = 16 * 60 * 60 * 1000;
-        if (issuedAt !== null && Date.now() - issuedAt > MAX_SESSION_MS) {
-          await supabase.auth.signOut();
-          toast.error("Sua sessão expirou. Faça login novamente.");
-          void navigate({ to: "/login" });
-          setLoading(false);
-          return;
-        }
-      }
       setSession(s);
       if (s?.provider_token) {
         setProviderToken(s.provider_token);
