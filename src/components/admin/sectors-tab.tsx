@@ -35,6 +35,8 @@ import {
 } from "@/components/ui/sheet";
 import { sanitize } from "@/lib/sanitize";
 
+type LayoutKind = "grid" | "list" | "kanban" | "dashboard";
+
 interface SectorRow {
   id: string;
   company_id: string;
@@ -45,7 +47,15 @@ interface SectorRow {
   active: boolean;
   sort_order: number | null;
   group_name: string | null;
+  config: { layout?: LayoutKind } | null;
 }
+
+const LAYOUT_OPTIONS: { value: LayoutKind; label: string }[] = [
+  { value: "grid", label: "Grid de cards" },
+  { value: "list", label: "Lista" },
+  { value: "kanban", label: "Kanban" },
+  { value: "dashboard", label: "Dashboard" },
+];
 
 
 function slugify(input: string): string {
@@ -67,7 +77,7 @@ export function SectorsTab({ companyId }: { companyId: string }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sectors")
-        .select("id,company_id,name,slug,icon,description,active,sort_order,group_name")
+        .select("id,company_id,name,slug,icon,description,active,sort_order,group_name,config")
         .eq("company_id", companyId)
         .order("sort_order", { ascending: true, nullsFirst: false })
         .order("name", { ascending: true });
@@ -283,6 +293,7 @@ function SectorFormSheet({
   const [description, setDescription] = useState("");
   const [slug, setSlug] = useState("");
   const [groupName, setGroupName] = useState("");
+  const [layout, setLayout] = useState<LayoutKind>("grid");
   const [slugTouched, setSlugTouched] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -293,6 +304,7 @@ function SectorFormSheet({
     setDescription(sector?.description ?? "");
     setSlug(sector?.slug ?? "");
     setGroupName(sector?.group_name ?? "");
+    setLayout((sector?.config?.layout as LayoutKind) ?? "grid");
     setSlugTouched(!!sector);
   }, [open, sector]);
 
@@ -320,12 +332,15 @@ function SectorFormSheet({
     }
 
     setSaving(true);
+    const existingConfig =
+      sector?.config && typeof sector.config === "object" ? sector.config : {};
     const payload = {
       name: cleanName,
       slug: cleanSlug,
       icon: icon.trim() || null,
       description: sanitize(description).trim() || null,
       group_name: sanitize(groupName).trim() || null,
+      config: { ...existingConfig, layout },
     };
 
 
@@ -423,6 +438,26 @@ function SectorFormSheet({
               Opcional. Setores com o mesmo grupo aparecem juntos na barra lateral.
             </p>
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="sector-layout">Layout</Label>
+            <select
+              id="sector-layout"
+              value={layout}
+              onChange={(e) => setLayout(e.target.value as LayoutKind)}
+              className="flex h-9 w-full rounded-md border border-border bg-background px-3 py-1 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              {LAYOUT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-text-muted">
+              Define como a página do setor exibe os recursos.
+            </p>
+          </div>
+
 
           <div className="space-y-2">
             <Label htmlFor="sector-slug">Slug</Label>
