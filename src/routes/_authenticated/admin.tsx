@@ -1006,40 +1006,40 @@ function UserFormModal({
   const handleReactivate = async () => {
     setReactivating(true);
     try {
-      let profileToReactivate = existingDeleted;
-      if (!profileToReactivate) {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("company_id", companyId)
-          .not("deleted_at", "is", null)
-          .eq("full_name", "Usuário removido")
-          .order("deleted_at", { ascending: false })
-          .limit(1);
-        if (error) throw error;
-        profileToReactivate = ((data?.[0] as Profile | undefined) ?? null) as Profile | null;
-      }
+      const cleanFullName = sanitize(fullName.trim());
+      const recoveryEmailForLookup =
+        authType === "cpf"
+          ? recoveryEmail.trim().toLowerCase()
+          : email.trim().toLowerCase();
 
-      if (!profileToReactivate) {
+      const { data: rpcData, error: rpcErr } = await supabase.functions.invoke(
+        "admin-reactivate-user",
+        {
+          body: {
+            recovery_email: recoveryEmailForLookup,
+            full_name: cleanFullName,
+            global_role: globalRole,
+          },
+        },
+      );
+      if (rpcErr) throw rpcErr;
+      const reactivatedId = (rpcData as { user_id?: string } | null)?.user_id;
+      if (!reactivatedId) {
         throw new Error("Não foi encontrado um cadastro removido para reativar.");
       }
 
-      const cleanFullName = sanitize(fullName.trim());
+      // Apply remaining fields (auth_type, contact info, etc.) now that RLS allows it
       const updates: Record<string, unknown> = {
-        deleted_at: null,
-        active: true,
-        full_name: cleanFullName,
         display_name: sanitize(cleanFullName.split(" ")[0]),
-        global_role: globalRole,
         auth_type: authType,
       };
       if (authType === "cpf") {
         updates.cpf_hash = cpfToDigits(cpf);
-        updates.recovery_email = recoveryEmail.trim().toLowerCase();
+        updates.recovery_email = recoveryEmailForLookup;
         updates.cellphone = cellphoneToDigits(cellphone);
         updates.must_change_password = !initialPassword;
       } else {
-        updates.recovery_email = email.trim().toLowerCase();
+        updates.recovery_email = recoveryEmailForLookup;
         updates.cpf_hash = null;
         updates.must_change_password = false;
       }
@@ -1047,28 +1047,20 @@ function UserFormModal({
       const { error: updErr } = await supabase
         .from("profiles")
         .update(updates)
-        .eq("id", profileToReactivate.id);
+        .eq("id", reactivatedId);
       if (updErr) throw updErr;
 
       if (authType === "cpf" && initialPassword) {
         const { error: pwErr } = await supabase.functions.invoke("admin-update-password", {
-          body: { user_id: profileToReactivate.id, new_password: initialPassword },
+          body: { user_id: reactivatedId, new_password: initialPassword },
         });
         if (pwErr) throw pwErr;
-      }
-
-      try {
-        await supabase.auth.admin.updateUserById(profileToReactivate.id, {
-          ban_duration: "none",
-        });
-      } catch {
-        // admin client may not be available from the browser; ignore silently
       }
 
       if (assignmentsPayload.length > 0) {
         await supabase.from("sector_members").insert(
           assignmentsPayload.map((a) => ({
-            profile_id: profileToReactivate.id,
+            profile_id: reactivatedId,
             sector_id: a.sector_id,
             role: a.role,
           })),
@@ -1078,7 +1070,7 @@ function UserFormModal({
       await logAdminAction({
         adminId,
         action: "reactivate_user",
-        targetId: profileToReactivate.id,
+        targetId: reactivatedId,
         targetName: cleanFullName,
         details: { reactivated: true, auth_type: authType, global_role: globalRole },
       });
@@ -1096,6 +1088,7 @@ function UserFormModal({
       setReactivating(false);
     }
   };
+
 
   const toggleSector = (sectorId: string) => {
     setAssignments((prev) =>
