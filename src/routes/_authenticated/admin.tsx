@@ -647,8 +647,65 @@ function UserActionsMenu({
               </DropdownMenuItem>
             </>
           )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            disabled={isSelf}
+            onSelect={() => setSimpleDeleteOpen(true)}
+            className="text-destructive focus:text-destructive focus:bg-destructive/10"
+          >
+            <Trash2 className="w-4 h-4 mr-2" /> Delete
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <AlertDialog open={simpleDeleteOpen} onOpenChange={(o) => !simpleDeleting && setSimpleDeleteOpen(o)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete user?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {profile.full_name} will be removed from the platform. Audit records will be preserved.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={simpleDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={simpleDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async (e) => {
+                e.preventDefault();
+                setSimpleDeleting(true);
+                try {
+                  const { error: fnErr } = await supabase.functions.invoke("admin-delete-user", {
+                    body: { user_id: profile.id },
+                  });
+                  if (fnErr) throw fnErr;
+                  await logAdminAction({
+                    adminId,
+                    action: "delete_user",
+                    targetId: profile.id,
+                    targetName: profile.full_name,
+                    details: { auth_type: profile.auth_type },
+                  });
+                  await queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
+                  toast.success("User deleted.");
+                  setSimpleDeleteOpen(false);
+                  await onChanged();
+                } catch (err) {
+                  toast.error(
+                    err instanceof Error ? `Failed to delete: ${err.message}` : "Failed to delete user.",
+                  );
+                  setSimpleDeleteOpen(false);
+                } finally {
+                  setSimpleDeleting(false);
+                }
+              }}
+            >
+              {simpleDeleting ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
 
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
         <AlertDialogContent>
