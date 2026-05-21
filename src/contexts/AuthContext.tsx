@@ -114,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       active = false;
       sub.subscription.unsubscribe();
     };
-  }, [loadProfile]);
+  }, [loadProfile, navigate]);
 
   const refresh = useCallback(async () => {
     if (session?.user) await loadProfile(session.user.id);
@@ -142,7 +142,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refresh,
       signOut,
     }),
-    [session, profile, company, sectorMemberships, providerToken, loading, isPasswordRecovery, clearPasswordRecovery, refresh, signOut],
+    [
+      session,
+      profile,
+      company,
+      sectorMemberships,
+      providerToken,
+      loading,
+      isPasswordRecovery,
+      clearPasswordRecovery,
+      refresh,
+      signOut,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

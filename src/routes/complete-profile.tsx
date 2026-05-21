@@ -3,11 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  cellphoneToDigits,
-  isValidCellphone,
-  maskCellphone,
-} from "@/lib/auth";
+import { cellphoneToDigits, isValidCellphone, maskCellphone } from "@/lib/auth";
 
 export const Route = createFileRoute("/complete-profile")({
   head: () => ({ meta: [{ title: "Complete seu perfil — HubM" }] }),

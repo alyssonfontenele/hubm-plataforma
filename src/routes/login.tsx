@@ -3,13 +3,7 @@ import { createFileRoute, useNavigate, useRouterState } from "@tanstack/react-ro
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  cpfToDigits,
-  isValidCpf,
-  maskCpf,
-  signInWithCpf,
-  signInWithGoogle,
-} from "@/lib/auth";
+import { cpfToDigits, isValidCpf, maskCpf, signInWithCpf, signInWithGoogle } from "@/lib/auth";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -100,9 +94,7 @@ function Divider() {
         <div className="w-full border-t border-border" />
       </div>
       <div className="relative flex justify-center">
-        <span className="bg-surface px-3 text-xs uppercase tracking-wider text-text-muted">
-          ou
-        </span>
+        <span className="bg-surface px-3 text-xs uppercase tracking-wider text-text-muted">ou</span>
       </div>
     </div>
   );
@@ -238,10 +230,7 @@ function CpfSection() {
           />
         </div>
         <div>
-          <label
-            htmlFor="password"
-            className="block text-xs font-medium text-text-secondary mb-1"
-          >
+          <label htmlFor="password" className="block text-xs font-medium text-text-secondary mb-1">
             Senha
           </label>
           <input
@@ -340,9 +329,7 @@ function RecoveryModal({ onClose }: { onClose: () => void }) {
         ) : (
           <form onSubmit={submit} className="space-y-3">
             <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">
-                CPF
-              </label>
+              <label className="block text-xs font-medium text-text-secondary mb-1">CPF</label>
               <input
                 inputMode="numeric"
                 placeholder="000.000.000-00"
@@ -378,13 +365,7 @@ function RecoveryModal({ onClose }: { onClose: () => void }) {
 
 function GoogleGlyph() {
   return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 48 48"
-      aria-hidden="true"
-      focusable="false"
-    >
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
       <path
         fill="#FFC107"
         d="M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35.5 24 35.5c-6.4 0-11.5-5.1-11.5-11.5S17.6 12.5 24 12.5c2.9 0 5.6 1.1 7.6 2.9l5.7-5.7C33.6 6.4 29 4.5 24 4.5 13.2 4.5 4.5 13.2 4.5 24S13.2 43.5 24 43.5c10.7 0 19.5-7.7 19.5-19.5 0-1.2-.1-2.3-.4-3.5z"
