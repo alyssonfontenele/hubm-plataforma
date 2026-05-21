@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 
-const INACTIVITY_MS = 30 * 60 * 1000; // 30 minutes
+const INACTIVITY_MS = 16 * 60 * 60 * 1000; // 16 hours
 const WARNING_MS = 60 * 1000; // 60 seconds
 
 export function InactivityGuard() {

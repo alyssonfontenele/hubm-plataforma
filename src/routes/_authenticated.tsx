@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthenticatedLayout() {
-  const { session, loading, profile, signOut, mfaState } = useAuth();
+  const { session, loading, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const href = useRouterState({ select: (r) => r.location.href });
 
@@ -30,25 +30,10 @@ function AuthenticatedLayout() {
     }
     if (!profile.cellphone || profile.cellphone.trim() === "") {
       void navigate({ to: "/complete-profile" });
-      return;
     }
-    if (mfaState === "needs_enrollment") {
-      void navigate({ to: "/setup-mfa" });
-      return;
-    }
-    if (mfaState === "needs_challenge") {
-      void navigate({ to: "/mfa-challenge" });
-    }
-  }, [loading, session, profile, mfaState, navigate]);
+  }, [loading, session, profile, navigate]);
 
-  if (
-    loading ||
-    !session ||
-    (profile?.global_role === "admin" &&
-      (mfaState === "unknown" ||
-        mfaState === "needs_enrollment" ||
-        mfaState === "needs_challenge"))
-  ) {
+  if (loading || !session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="h-3 w-24 bg-accent-light rounded animate-pulse" />
