@@ -121,33 +121,53 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {sectorMemberships.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Setores</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {sectorMemberships.map((m) => {
-                  const Icon = resolveIcon(m.sector.icon);
-                  const path = `/sectors/${m.sector.slug}`;
-                  return (
-                    <SidebarMenuItem key={m.sector_id}>
-                      <SidebarMenuButton asChild isActive={isActive(path)}>
-                        <Link
-                          to="/sectors/$slug"
-                          params={{ slug: m.sector.slug }}
-                          className="flex items-center gap-2"
-                        >
-                          <Icon className="h-4 w-4" />
-                          {!collapsed && <span>{m.sector.name}</span>}
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+        {groupedSectors.map(([groupKey, members]) => {
+          const isUngrouped = groupKey === UNGROUPED;
+          const label = isUngrouped ? "Setores" : groupKey;
+          const renderItems = () => (
+            <SidebarMenu>
+              {members.map((m) => {
+                const Icon = resolveIcon(m.sector.icon);
+                const path = `/sectors/${m.sector.slug}`;
+                return (
+                  <SidebarMenuItem key={m.sector_id}>
+                    <SidebarMenuButton asChild isActive={isActive(path)}>
+                      <Link
+                        to="/sectors/$slug"
+                        params={{ slug: m.sector.slug }}
+                        className="flex items-center gap-2"
+                      >
+                        <Icon className="h-4 w-4" />
+                        {!collapsed && <span>{m.sector.name}</span>}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          );
+
+          if (isUngrouped || collapsed) {
+            return (
+              <SidebarGroup key={groupKey}>
+                {!collapsed && <SidebarGroupLabel>{label}</SidebarGroupLabel>}
+                <SidebarGroupContent>{renderItems()}</SidebarGroupContent>
+              </SidebarGroup>
+            );
+          }
+
+          return (
+            <CollapsibleSectorGroup
+              key={groupKey}
+              label={label}
+              hasActive={members.some((m) => isActive(`/sectors/${m.sector.slug}`))}
+              defaultCollapsedOnMobile={isMobile}
+            >
+              {renderItems()}
+            </CollapsibleSectorGroup>
+          );
+        })}
+
 
         {globalRole === "admin" && (
           <SidebarGroup>
