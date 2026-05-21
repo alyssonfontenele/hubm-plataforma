@@ -79,7 +79,5 @@ function AuthenticatedLayout() {
       </div>
       <InactivityGuard />
     </SidebarProvider>
-      </div>
-    </SidebarProvider>
   );
 }
