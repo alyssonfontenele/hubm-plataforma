@@ -1030,9 +1030,12 @@ function UserFormModal({
             } catch (fbErr) {
               console.warn("[pre-check fallback] erro", fbErr);
             }
+            toast.error("Erro ao criar usuário. Tente novamente.");
+            return;
           }
           throw error;
         }
+
         if (assignmentsPayload.length > 0) {
           await supabase.from("sector_members").insert(
             assignmentsPayload.map((a) => ({
