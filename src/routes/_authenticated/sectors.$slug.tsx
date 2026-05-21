@@ -66,15 +66,28 @@ const TYPE_LABEL: Record<ResourceType, string> = {
   file: "Arquivo",
 };
 
+type LayoutKind = "grid" | "list" | "kanban" | "dashboard";
+
+interface SectorRecord {
+  id: string;
+  name: string;
+  icon: string | null;
+  config: { layout?: LayoutKind } | null;
+}
+
 function SectorPage() {
   const { slug } = Route.useParams();
   const search = Route.useSearch();
   const navigate = useNavigate();
-  const { sectorMemberships, globalRole } = useAuth();
+  const { sectorMemberships, globalRole, company } = useAuth();
   const membership = sectorMemberships.find((m) => m.sector.slug === slug);
-  const sectorId = membership?.sector.id;
-  const sectorName = membership?.sector.name ?? slug;
   const isAdmin = globalRole === "admin";
+
+  const [sectorRecord, setSectorRecord] = useState<SectorRecord | null>(null);
+  const sectorId = sectorRecord?.id ?? membership?.sector.id;
+  const sectorName = sectorRecord?.name ?? membership?.sector.name ?? slug;
+  const sectorIcon = sectorRecord?.icon ?? membership?.sector.icon ?? null;
+  const layout: LayoutKind = sectorRecord?.config?.layout ?? "grid";
 
   const [folders, setFolders] = useState<Folder[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
@@ -90,6 +103,28 @@ function SectorPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<ResourceModalData | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+
+  // Resolve sector by slug (admin may not be a member).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      let query = supabase
+        .from("sectors")
+        .select("id,name,icon,config")
+        .eq("slug", slug)
+        .eq("active", true)
+        .is("deleted_at", null)
+        .limit(1);
+      if (company?.id) query = query.eq("company_id", company.id);
+      const { data } = await query.maybeSingle();
+      if (cancelled) return;
+      setSectorRecord((data as SectorRecord | null) ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, company?.id]);
+
 
   useEffect(() => {
     if (!sectorId) return;
