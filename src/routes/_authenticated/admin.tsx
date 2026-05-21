@@ -863,6 +863,9 @@ function UserFormModal({
   const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [existingDeleted, setExistingDeleted] = useState<Profile | null>(null);
+  const [reactivating, setReactivating] = useState(false);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!open) {
@@ -878,8 +881,113 @@ function UserFormModal({
       setInitialPassword("");
       setShowPassword(false);
       setPasswordError(null);
+      setExistingDeleted(null);
+      setReactivating(false);
     }
   }, [open]);
+
+  const findDeletedProfile = async (): Promise<Profile | null> => {
+    if (authType === "google") {
+      const normalized = email.trim().toLowerCase();
+      if (!normalized) return null;
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("company_id", companyId)
+        .eq("recovery_email", normalized)
+        .not("deleted_at", "is", null)
+        .maybeSingle();
+      return (data as Profile | null) ?? null;
+    }
+    const cpfDigits = cpfToDigits(cpf);
+    const normalizedRecovery = recoveryEmail.trim().toLowerCase();
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("company_id", companyId)
+      .or(
+        `cpf_hash.eq.${cpfDigits},recovery_email.eq.${normalizedRecovery}`,
+      )
+      .not("deleted_at", "is", null)
+      .maybeSingle();
+    return (data as Profile | null) ?? null;
+  };
+
+  const handleReactivate = async () => {
+    if (!existingDeleted) return;
+    setReactivating(true);
+    try {
+      const cleanFullName = sanitize(fullName.trim());
+      const updates: Record<string, unknown> = {
+        deleted_at: null,
+        active: true,
+        full_name: cleanFullName,
+        display_name: sanitize(cleanFullName.split(" ")[0]),
+        global_role: globalRole,
+        auth_type: authType,
+      };
+      if (authType === "cpf") {
+        updates.cpf_hash = cpfToDigits(cpf);
+        updates.recovery_email = recoveryEmail.trim().toLowerCase();
+        updates.cellphone = cellphoneToDigits(cellphone);
+        updates.must_change_password = !initialPassword;
+      } else {
+        updates.recovery_email = email.trim().toLowerCase();
+        updates.cpf_hash = null;
+        updates.must_change_password = false;
+      }
+
+      const { error: updErr } = await supabase
+        .from("profiles")
+        .update(updates)
+        .eq("id", existingDeleted.id);
+      if (updErr) throw updErr;
+
+      if (authType === "cpf" && initialPassword) {
+        const { error: pwErr } = await supabase.functions.invoke("admin-update-password", {
+          body: { user_id: existingDeleted.id, new_password: initialPassword },
+        });
+        if (pwErr) throw pwErr;
+      }
+
+      try {
+        await supabase.auth.admin.updateUserById(existingDeleted.id, {
+          ban_duration: "none",
+        });
+      } catch {
+        // admin client may not be available from the browser; ignore silently
+      }
+
+      if (assignmentsPayload.length > 0) {
+        await supabase.from("sector_members").insert(
+          assignmentsPayload.map((a) => ({
+            profile_id: existingDeleted.id,
+            sector_id: a.sector_id,
+            role: a.role,
+          })),
+        );
+      }
+
+      await logAdminAction({
+        adminId,
+        action: "update_user",
+        targetId: existingDeleted.id,
+        targetName: cleanFullName,
+        details: { reactivated: true, auth_type: authType, global_role: globalRole },
+      });
+
+      await queryClient.invalidateQueries({ queryKey: adminProfilesQueryKey(companyId) });
+      toast.success("Usuário reativado com sucesso.");
+      setExistingDeleted(null);
+      onCreated();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? `Falha ao reativar: ${err.message}` : "Falha ao reativar usuário.",
+      );
+    } finally {
+      setReactivating(false);
+    }
+  };
 
   const toggleSector = (sectorId: string) => {
     setAssignments((prev) =>
