@@ -44,7 +44,9 @@ interface SectorRow {
   description: string | null;
   active: boolean;
   sort_order: number | null;
+  group_name: string | null;
 }
+
 
 function slugify(input: string): string {
   return input
@@ -65,7 +67,7 @@ export function SectorsTab({ companyId }: { companyId: string }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sectors")
-        .select("id,company_id,name,slug,icon,description,active,sort_order")
+        .select("id,company_id,name,slug,icon,description,active,sort_order,group_name")
         .eq("company_id", companyId)
         .order("sort_order", { ascending: true, nullsFirst: false })
         .order("name", { ascending: true });
@@ -277,6 +279,7 @@ function SectorFormSheet({
   const [icon, setIcon] = useState("");
   const [description, setDescription] = useState("");
   const [slug, setSlug] = useState("");
+  const [groupName, setGroupName] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -286,6 +289,7 @@ function SectorFormSheet({
     setIcon(sector?.icon ?? "");
     setDescription(sector?.description ?? "");
     setSlug(sector?.slug ?? "");
+    setGroupName(sector?.group_name ?? "");
     setSlugTouched(!!sector);
   }, [open, sector]);
 
@@ -318,7 +322,9 @@ function SectorFormSheet({
       slug: cleanSlug,
       icon: icon.trim() || null,
       description: sanitize(description).trim() || null,
+      group_name: sanitize(groupName).trim() || null,
     };
+
 
     if (editing && sector) {
       const { error } = await supabase.from("sectors").update(payload).eq("id", sector.id);
@@ -385,6 +391,20 @@ function SectorFormSheet({
               rows={3}
               maxLength={500}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="sector-group">Grupo</Label>
+            <Input
+              id="sector-group"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              placeholder="Ex.: Operações"
+              maxLength={60}
+            />
+            <p className="text-xs text-text-muted">
+              Opcional. Setores com o mesmo grupo aparecem juntos na barra lateral.
+            </p>
           </div>
 
           <div className="space-y-2">
