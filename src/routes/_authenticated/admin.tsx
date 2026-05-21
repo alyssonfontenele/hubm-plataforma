@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { MoreHorizontal, Plus, UserCog, LifeBuoy, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { MoreHorizontal, Plus, UserCog, LifeBuoy, Eye, EyeOff, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -296,37 +297,47 @@ function UsersTab({
   companyId: string;
   currentUserId: string | null;
 }) {
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [sectors, setSectors] = useState<Sector[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [rescueOpen, setRescueOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Profile | null>(null);
 
-  const load = async () => {
-    setLoading(true);
-    const [pRes, sRes] = await Promise.all([
-      supabase
+  const profilesQueryKey = ["admin-profiles", companyId] as const;
+
+  const { data: profiles = [], isLoading: loadingProfiles } = useQuery({
+    queryKey: profilesQueryKey,
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("company_id", companyId)
         .is("deleted_at", null)
-        .order("full_name", { ascending: true }),
-      supabase
+        .order("full_name", { ascending: true });
+      if (error) throw error;
+      return (data as Profile[] | null) ?? [];
+    },
+  });
+
+  const { data: sectors = [], isLoading: loadingSectors } = useQuery({
+    queryKey: ["admin-sectors", companyId] as const,
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from("sectors")
         .select("id,name,slug")
         .eq("company_id", companyId)
-        .order("name", { ascending: true }),
-    ]);
-    setProfiles((pRes.data as Profile[] | null) ?? []);
-    setSectors((sRes.data as Sector[] | null) ?? []);
-    setLoading(false);
-  };
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return (data as Sector[] | null) ?? [];
+    },
+  });
 
-  useEffect(() => {
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companyId]);
+  const loading = loadingProfiles || loadingSectors;
+  const load = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: profilesQueryKey }),
+      queryClient.invalidateQueries({ queryKey: ["admin-sectors", companyId] }),
+    ]);
+  };
 
   return (
     <div className="space-y-6">
@@ -479,6 +490,9 @@ function UserActionsMenu({
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmDef | null>(null);
+  const [simpleDeleteOpen, setSimpleDeleteOpen] = useState(false);
+  const [simpleDeleting, setSimpleDeleting] = useState(false);
+  const queryClient = useQueryClient();
 
   const updateProfile = async (
     patch: Record<string, unknown>,
@@ -633,8 +647,65 @@ function UserActionsMenu({
               </DropdownMenuItem>
             </>
           )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            disabled={isSelf}
+            onSelect={() => setSimpleDeleteOpen(true)}
+            className="text-destructive focus:text-destructive focus:bg-destructive/10"
+          >
+            <Trash2 className="w-4 h-4 mr-2" /> Delete
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <AlertDialog open={simpleDeleteOpen} onOpenChange={(o) => !simpleDeleting && setSimpleDeleteOpen(o)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete user?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {profile.full_name} will be removed from the platform. Audit records will be preserved.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={simpleDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={simpleDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async (e) => {
+                e.preventDefault();
+                setSimpleDeleting(true);
+                try {
+                  const { error: fnErr } = await supabase.functions.invoke("admin-delete-user", {
+                    body: { user_id: profile.id },
+                  });
+                  if (fnErr) throw fnErr;
+                  await logAdminAction({
+                    adminId,
+                    action: "delete_user",
+                    targetId: profile.id,
+                    targetName: profile.full_name,
+                    details: { auth_type: profile.auth_type },
+                  });
+                  await queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
+                  toast.success("User deleted.");
+                  setSimpleDeleteOpen(false);
+                  await onChanged();
+                } catch (err) {
+                  toast.error(
+                    err instanceof Error ? `Failed to delete: ${err.message}` : "Failed to delete user.",
+                  );
+                  setSimpleDeleteOpen(false);
+                } finally {
+                  setSimpleDeleting(false);
+                }
+              }}
+            >
+              {simpleDeleting ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
 
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
         <AlertDialogContent>
