@@ -3,7 +3,14 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { cellphoneToDigits, isValidCellphone, maskCellphone } from "@/lib/auth";
+import {
+  cellphoneToDigits,
+  cpfToDigits,
+  isValidCellphone,
+  isValidCpf,
+  maskCellphone,
+  maskCpf,
+} from "@/lib/auth";
 import { sanitize } from "@/lib/sanitize";
 
 export const Route = createFileRoute("/complete-profile")({
@@ -16,37 +23,84 @@ function CompleteProfilePage() {
   const navigate = useNavigate();
   const [cellphone, setCellphone] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [cpf, setCpf] = useState("");
+  const [cellError, setCellError] = useState<string | null>(null);
+  const [cpfError, setCpfError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const needsCpf = !profile?.cpf_hash;
 
   useEffect(() => {
     if (!loading && !session) void navigate({ to: "/login" });
   }, [loading, session, navigate]);
 
   useEffect(() => {
-    if (profile?.cellphone) {
+    if (profile?.cellphone && profile?.cpf_hash) {
       void navigate({ to: "/app" });
     }
   }, [profile, navigate]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!session?.user) return;
+
     if (!isValidCellphone(cellphone)) {
-      setError("Celular inválido. Use o formato (00) 00000-0000.");
+      setCellError("Celular inválido. Use o formato (00) 00000-0000.");
       return;
     }
-    if (!session?.user) return;
+
+    const cpfClean = cpfToDigits(cpf);
+    if (needsCpf && !isValidCpf(cpfClean)) {
+      setCpfError("CPF inválido. Verifique os números digitados.");
+      return;
+    }
+
     setSaving(true);
     try {
+      let cpfHash: string | null = null;
+
+      if (needsCpf) {
+        // Generate hash server-side
+        const { data: hashed, error: hashErr } = await supabase.rpc("hash_cpf", {
+          cpf_input: cpfClean,
+        });
+        if (hashErr) throw hashErr;
+        cpfHash = hashed as string;
+
+        // Uniqueness check: verify against all other profiles' cpf_hash
+        const { data: others, error: othersErr } = await supabase
+          .from("profiles")
+          .select("id, cpf_hash")
+          .neq("id", session.user.id)
+          .not("cpf_hash", "is", null);
+        if (othersErr) throw othersErr;
+
+        for (const row of others ?? []) {
+          if (!row.cpf_hash) continue;
+          const { data: match, error: vErr } = await supabase.rpc("verify_cpf", {
+            cpf_input: cpfClean,
+            cpf_hash: row.cpf_hash,
+          });
+          if (vErr) throw vErr;
+          if (match === true) {
+            toast.error("Este CPF já está cadastrado no sistema.");
+            setSaving(false);
+            return;
+          }
+        }
+      }
+
       const cleanDisplay = sanitize(displayName.trim());
       const { error: updErr } = await supabase
         .from("profiles")
         .update({
           cellphone: cellphoneToDigits(cellphone),
           ...(cleanDisplay ? { display_name: cleanDisplay } : {}),
+          ...(needsCpf && cpfHash ? { cpf_hash: cpfHash } : {}),
         })
         .eq("id", session.user.id);
       if (updErr) throw updErr;
+
       await refresh();
       toast.success("Perfil completado com sucesso. Bem-vindo ao HubM!");
       void navigate({ to: "/app" });
@@ -83,14 +137,35 @@ function CompleteProfilePage() {
               value={cellphone}
               onChange={(e) => {
                 setCellphone(maskCellphone(e.target.value));
-                if (error) setError(null);
+                if (cellError) setCellError(null);
               }}
               placeholder="(00) 00000-0000"
               maxLength={16}
               className="w-full h-11 rounded-md border border-border bg-background px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-text-primary"
             />
-            {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
+            {cellError && <p className="mt-1 text-xs text-destructive">{cellError}</p>}
           </div>
+
+          {needsCpf && (
+            <div>
+              <label htmlFor="cpf" className="block text-xs font-medium text-text-secondary mb-1">
+                CPF
+              </label>
+              <input
+                id="cpf"
+                inputMode="numeric"
+                value={cpf}
+                onChange={(e) => {
+                  setCpf(maskCpf(e.target.value));
+                  if (cpfError) setCpfError(null);
+                }}
+                placeholder="000.000.000-00"
+                maxLength={14}
+                className="w-full h-11 rounded-md border border-border bg-background px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-text-primary"
+              />
+              {cpfError && <p className="mt-1 text-xs text-destructive">{cpfError}</p>}
+            </div>
+          )}
 
           <div>
             <label htmlFor="disp" className="block text-xs font-medium text-text-secondary mb-1">
