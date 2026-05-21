@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import * as LucideIcons from "lucide-react";
-import { FileText, FileSpreadsheet, Link2, Presentation, FolderOpen, File, Cog } from "lucide-react";
+import {
+  FileText,
+  FileSpreadsheet,
+  Link2,
+  Presentation,
+  FolderOpen,
+  File,
+  Cog,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, type ResourceType } from "@/integrations/supabase/client";
 import { ResourceModal, type ResourceModalData } from "@/components/resource-modal";
@@ -81,7 +89,9 @@ function SectorPage() {
           .order("name", { ascending: true }),
         supabase
           .from("resources")
-          .select("id,name,description,url,type,folder_id,thumbnail_url,sort_order,mime_type,created_by,created_at")
+          .select(
+            "id,name,description,url,type,folder_id,thumbnail_url,sort_order,mime_type,created_by,created_at",
+          )
           .order("sort_order", { ascending: true, nullsFirst: false })
           .order("name", { ascending: true }),
       ]);
@@ -130,7 +140,7 @@ function SectorPage() {
       mime_type: r.mime_type,
       created_by: r.created_by,
       created_at: r.created_at,
-      folder_name: r.folder_id ? folderMap.get(r.folder_id)?.name ?? null : null,
+      folder_name: r.folder_id ? (folderMap.get(r.folder_id)?.name ?? null) : null,
       sector_name: sectorName,
     });
     setModalOpen(true);
@@ -174,7 +184,10 @@ function SectorPage() {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-32 rounded-lg border border-border bg-surface animate-pulse" />
+            <div
+              key={i}
+              className="h-32 rounded-lg border border-border bg-surface animate-pulse"
+            />
           ))}
         </div>
       ) : visibleResources.length === 0 ? (
@@ -194,11 +207,7 @@ function SectorPage() {
         </div>
       )}
 
-      <ResourceModal
-        resource={selected}
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-      />
+      <ResourceModal resource={selected} open={modalOpen} onOpenChange={setModalOpen} />
     </div>
   );
 }
@@ -225,20 +234,12 @@ function FolderPill({
       }`}
     >
       {label}
-      <span className={`ml-2 text-xs ${active ? "opacity-70" : "text-text-muted"}`}>
-        {count}
-      </span>
+      <span className={`ml-2 text-xs ${active ? "opacity-70" : "text-text-muted"}`}>{count}</span>
     </button>
   );
 }
 
-function ResourceCard({
-  resource,
-  onClick,
-}: {
-  resource: Resource;
-  onClick: () => void;
-}) {
+function ResourceCard({ resource, onClick }: { resource: Resource; onClick: () => void }) {
   const Icon = TYPE_ICON[resource.type] ?? File;
   return (
     <button
@@ -253,9 +254,7 @@ function ResourceCard({
         <p className="text-xs uppercase tracking-wider text-text-muted">
           {TYPE_LABEL[resource.type] ?? "Recurso"}
         </p>
-        <h3 className="text-sm font-semibold text-text-primary line-clamp-2">
-          {resource.name}
-        </h3>
+        <h3 className="text-sm font-semibold text-text-primary line-clamp-2">{resource.name}</h3>
         {resource.description && (
           <p className="text-xs text-text-muted line-clamp-2">{resource.description}</p>
         )}

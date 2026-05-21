@@ -75,17 +75,37 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Lovable App" },
-      { name: "description", content: "HubM is a full-stack internal company portal for resource and document management." },
+      {
+        name: "description",
+        content:
+          "HubM is a full-stack internal company portal for resource and document management.",
+      },
       { name: "author", content: "Lovable" },
       { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "HubM is a full-stack internal company portal for resource and document management." },
+      {
+        property: "og:description",
+        content:
+          "HubM is a full-stack internal company portal for resource and document management.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "Lovable App" },
-      { name: "twitter:description", content: "HubM is a full-stack internal company portal for resource and document management." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/272e0beb-2656-499d-b428-1f02d495ad22/id-preview-e9840106--0b4d1d38-4694-42e7-a64f-93f49bb14bbe.lovable.app-1779214776886.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/272e0beb-2656-499d-b428-1f02d495ad22/id-preview-e9840106--0b4d1d38-4694-42e7-a64f-93f49bb14bbe.lovable.app-1779214776886.png" },
+      {
+        name: "twitter:description",
+        content:
+          "HubM is a full-stack internal company portal for resource and document management.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/272e0beb-2656-499d-b428-1f02d495ad22/id-preview-e9840106--0b4d1d38-4694-42e7-a64f-93f49bb14bbe.lovable.app-1779214776886.png",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/272e0beb-2656-499d-b428-1f02d495ad22/id-preview-e9840106--0b4d1d38-4694-42e7-a64f-93f49bb14bbe.lovable.app-1779214776886.png",
+      },
     ],
     links: [
       {

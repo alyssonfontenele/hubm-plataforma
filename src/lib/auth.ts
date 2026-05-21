@@ -2,8 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 const ALLOWED_GOOGLE_DOMAIN = "mowig.com.br";
 
-export const GOOGLE_CALENDAR_SCOPE =
-  "https://www.googleapis.com/auth/calendar.events";
+export const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
 
 export async function signInWithGoogle(redirectTo: string) {
   const { error } = await supabase.auth.signInWithOAuth({
@@ -120,10 +119,9 @@ export async function recoverPasswordByCpf(cpf: string, redirectTo: string) {
     throw new Error("Nenhum e-mail de recuperação cadastrado para este CPF.");
   }
 
-  const { error: resetErr } = await supabase.auth.resetPasswordForEmail(
-    data.recovery_email,
-    { redirectTo },
-  );
+  const { error: resetErr } = await supabase.auth.resetPasswordForEmail(data.recovery_email, {
+    redirectTo,
+  });
   if (resetErr) throw resetErr;
   return data.recovery_email;
 }

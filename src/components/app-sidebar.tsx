@@ -57,8 +57,7 @@ export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { company, sectorMemberships, globalRole, profile, signOut } = useAuth();
 
-  const isActive = (path: string) =>
-    pathname === path || pathname.startsWith(path + "/");
+  const isActive = (path: string) => pathname === path || pathname.startsWith(path + "/");
 
   return (
     <Sidebar collapsible="icon">
@@ -69,12 +68,8 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-sidebar-foreground truncate">
-                HubM
-              </p>
-              <p className="text-xs text-sidebar-foreground/60 truncate">
-                {company?.name ?? "—"}
-              </p>
+              <p className="text-sm font-semibold text-sidebar-foreground truncate">HubM</p>
+              <p className="text-xs text-sidebar-foreground/60 truncate">{company?.name ?? "—"}</p>
             </div>
           )}
         </div>

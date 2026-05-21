@@ -7,8 +7,7 @@
 
 const HTTP_RE = /^https?:\/\//i;
 
-export const URL_INVALID_MESSAGE =
-  "URL inválida. Use apenas endereços que comecem com https://";
+export const URL_INVALID_MESSAGE = "URL inválida. Use apenas endereços que comecem com https://";
 
 /** Returns true if the value is a non-empty http(s) URL. */
 export function isSafeUrl(url: string | null | undefined): url is string {

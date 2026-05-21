@@ -63,12 +63,7 @@ import {
   maskCellphone,
   maskCpf,
 } from "@/lib/auth";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ADMIN_ACTION_LABEL,
   logAdminAction,
@@ -137,14 +132,16 @@ function friendlyCreateError(message: string): string {
   const raw = message?.trim() ?? "";
   const m = raw.toLowerCase();
   if (!raw) return "Erro ao criar usuário. Tente novamente.";
-  if (m.includes("user inactive") || m.includes("usuário inativado") || m.includes("usuario inativado"))
+  if (
+    m.includes("user inactive") ||
+    m.includes("usuário inativado") ||
+    m.includes("usuario inativado")
+  )
     return "Este CPF pertence a um usuário inativado. Use a opção de resgate para reativá-lo.";
-  if (m.includes("invalid cpf"))
-    return "CPF inválido. Verifique os dígitos informados.";
+  if (m.includes("invalid cpf")) return "CPF inválido. Verifique os dígitos informados.";
   if (m.includes("not null violation") || m.includes("not-null"))
     return "Preencha todos os campos obrigatórios.";
-  if (m.includes("foreign key"))
-    return "Empresa não encontrada. Tente novamente.";
+  if (m.includes("foreign key")) return "Empresa não encontrada. Tente novamente.";
   if (
     (m.includes("already registered") || m.includes("duplicate")) &&
     (m.includes("hubm.internal") || m.includes("cpf"))
@@ -212,11 +209,7 @@ function UsersTab({
           <p className="text-xs text-text-muted">Gerencie os acessos da sua organização.</p>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setRescueOpen(true)}
-            className="border-border"
-          >
+          <Button variant="outline" onClick={() => setRescueOpen(true)} className="border-border">
             <LifeBuoy className="w-4 h-4 mr-2" /> Resgatar usuário
           </Button>
           <Button
@@ -415,14 +408,10 @@ function UserActionsMenu({
       description: `Deseja reativar o acesso de ${profile.full_name}?`,
       actionLabel: "Reativar",
       run: () =>
-        updateProfile(
-          { active: true, deleted_at: null },
-          `${profile.full_name} reativado.`,
-          {
-            action: "reactivate_user",
-            details: { new_status: "active" },
-          },
-        ),
+        updateProfile({ active: true, deleted_at: null }, `${profile.full_name} reativado.`, {
+          action: "reactivate_user",
+          details: { new_status: "active" },
+        }),
     });
 
   const forcePw = () =>
@@ -431,11 +420,9 @@ function UserActionsMenu({
       description: `${profile.full_name} será solicitado a redefinir a senha no próximo acesso.`,
       actionLabel: "Confirmar",
       run: () =>
-        updateProfile(
-          { must_change_password: true },
-          "Troca de senha exigida no próximo acesso.",
-          { action: "force_password_reset" },
-        ),
+        updateProfile({ must_change_password: true }, "Troca de senha exigida no próximo acesso.", {
+          action: "force_password_reset",
+        }),
     });
 
   const resendAccess = async () => {
@@ -465,18 +452,13 @@ function UserActionsMenu({
 
   const isInactive = !!profile.deleted_at;
   const canForcePw = profile.auth_type === "cpf" && !isInactive;
-  const canResend =
-    profile.auth_type === "cpf" && profile.must_change_password && !isInactive;
+  const canResend = profile.auth_type === "cpf" && profile.must_change_password && !isInactive;
 
   return (
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={`Ações para ${profile.full_name}`}
-          >
+          <Button variant="ghost" size="icon" aria-label={`Ações para ${profile.full_name}`}>
             <MoreHorizontal className="w-4 h-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -499,9 +481,7 @@ function UserActionsMenu({
           {canForcePw && (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={forcePw}>
-                Forçar troca de senha
-              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={forcePw}>Forçar troca de senha</DropdownMenuItem>
             </>
           )}
           {canResend && (
@@ -553,7 +533,8 @@ function UserActionsMenu({
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir definitivamente</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza? Esta ação é irreversível e removerá o acesso de {profile.full_name} permanentemente.
+              Tem certeza? Esta ação é irreversível e removerá o acesso de {profile.full_name}{" "}
+              permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -575,7 +556,8 @@ function UserActionsMenu({
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmação final</AlertDialogTitle>
             <AlertDialogDescription>
-              Digite <strong>EXCLUIR</strong> para confirmar a exclusão permanente de {profile.full_name}.
+              Digite <strong>EXCLUIR</strong> para confirmar a exclusão permanente de{" "}
+              {profile.full_name}.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Input
@@ -593,10 +575,9 @@ function UserActionsMenu({
                 if (deleteConfirmText !== "EXCLUIR") return;
                 setDeleting(true);
                 try {
-                  const { error: fnErr } = await supabase.functions.invoke(
-                    "admin-delete-user",
-                    { body: { user_id: profile.id } },
-                  );
+                  const { error: fnErr } = await supabase.functions.invoke("admin-delete-user", {
+                    body: { user_id: profile.id },
+                  });
                   if (fnErr) throw fnErr;
                   const { error: profErr } = await supabase
                     .from("profiles")
@@ -695,9 +676,7 @@ function UserFormModal({
   };
 
   const setAssignmentRole = (sectorId: string, role: SectorRole) => {
-    setAssignments((prev) =>
-      prev.map((a) => (a.sector_id === sectorId ? { ...a, role } : a)),
-    );
+    setAssignments((prev) => prev.map((a) => (a.sector_id === sectorId ? { ...a, role } : a)));
   };
 
   const assignmentsPayload = useMemo(
@@ -733,15 +712,13 @@ function UserFormModal({
         });
         if (error) throw error;
         if (assignmentsPayload.length > 0) {
-          await supabase
-            .from("sector_members")
-            .insert(
-              assignmentsPayload.map((a) => ({
-                profile_id: newId,
-                sector_id: a.sector_id,
-                role: a.role,
-              })),
-            );
+          await supabase.from("sector_members").insert(
+            assignmentsPayload.map((a) => ({
+              profile_id: newId,
+              sector_id: a.sector_id,
+              role: a.role,
+            })),
+          );
         }
         await logAdminAction({
           adminId,
@@ -757,9 +734,7 @@ function UserFormModal({
         toast.success("Usuário criado com sucesso.");
         onCreated();
       } catch (err) {
-        toast.error(
-          friendlyCreateError(err instanceof Error ? err.message : ""),
-        );
+        toast.error(friendlyCreateError(err instanceof Error ? err.message : ""));
       } finally {
         setSubmitting(false);
       }
@@ -781,9 +756,7 @@ function UserFormModal({
       return;
     }
     if (initialPassword && !isValidInitialPassword(initialPassword)) {
-      setPasswordError(
-        "A senha deve ter no mínimo 8 caracteres, 1 número e 1 letra maiúscula",
-      );
+      setPasswordError("A senha deve ter no mínimo 8 caracteres, 1 número e 1 letra maiúscula");
       toast.error("Senha inicial inválida");
       return;
     }
@@ -862,9 +835,7 @@ function UserFormModal({
 
           <div className="flex items-center justify-between rounded-md border border-border p-3">
             <div>
-              <p className="text-sm font-medium text-text-primary">
-                Tipo de autenticação
-              </p>
+              <p className="text-sm font-medium text-text-primary">Tipo de autenticação</p>
               <p className="text-xs text-text-muted">
                 {authType === "google"
                   ? "Login via Google (@mowig.com.br)"
@@ -1010,10 +981,7 @@ function UserFormModal({
               {sectors.map((s) => {
                 const assigned = assignments.find((a) => a.sector_id === s.id);
                 return (
-                  <div
-                    key={s.id}
-                    className="flex items-center justify-between gap-3"
-                  >
+                  <div key={s.id} className="flex items-center justify-between gap-3">
                     <label className="flex items-center gap-2 text-sm text-text-primary">
                       <input
                         type="checkbox"
@@ -1026,9 +994,7 @@ function UserFormModal({
                     {assigned && (
                       <Select
                         value={assigned.role}
-                        onValueChange={(v) =>
-                          setAssignmentRole(s.id, v as SectorRole)
-                        }
+                        onValueChange={(v) => setAssignmentRole(s.id, v as SectorRole)}
                       >
                         <SelectTrigger className="w-32 h-8">
                           <SelectValue />
@@ -1050,11 +1016,7 @@ function UserFormModal({
         </div>
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={submitting}
-          >
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
             Cancelar
           </Button>
           <Button
@@ -1164,9 +1126,7 @@ function RescueUserModal({
       toast.success("Usuário reativado com sucesso. E-mail de acesso reenviado.");
       onReactivated();
     } catch (err) {
-      toast.error(
-        err instanceof Error ? `Falha: ${err.message}` : "Falha ao reativar usuário.",
-      );
+      toast.error(err instanceof Error ? `Falha: ${err.message}` : "Falha ao reativar usuário.");
     } finally {
       setReactivating(false);
     }
@@ -1323,9 +1283,7 @@ function EditUserModal({
       return;
     }
     if (newPassword && !isValidInitialPassword(newPassword)) {
-      setPwError(
-        "A senha deve ter no mínimo 8 caracteres, 1 número e 1 letra maiúscula",
-      );
+      setPwError("A senha deve ter no mínimo 8 caracteres, 1 número e 1 letra maiúscula");
       return;
     }
 
@@ -1340,10 +1298,7 @@ function EditUserModal({
       if (newPassword) {
         patch.must_change_password = true;
       }
-      const { error: profErr } = await supabase
-        .from("profiles")
-        .update(patch)
-        .eq("id", profile.id);
+      const { error: profErr } = await supabase.from("profiles").update(patch).eq("id", profile.id);
       if (profErr) throw profErr;
 
       // Replace sector memberships
@@ -1359,10 +1314,9 @@ function EditUserModal({
       }
 
       if (newPassword && profile.auth_type === "cpf") {
-        const { error: pwErr } = await supabase.functions.invoke(
-          "admin-update-password",
-          { body: { user_id: profile.id, new_password: newPassword } },
-        );
+        const { error: pwErr } = await supabase.functions.invoke("admin-update-password", {
+          body: { user_id: profile.id, new_password: newPassword },
+        });
         if (pwErr) throw pwErr;
       }
 
@@ -1389,9 +1343,7 @@ function EditUserModal({
       toast.success("Dados do usuário atualizados com sucesso.");
       onSaved();
     } catch (err) {
-      toast.error(
-        err instanceof Error ? `Falha: ${err.message}` : "Falha ao salvar.",
-      );
+      toast.error(err instanceof Error ? `Falha: ${err.message}` : "Falha ao salvar.");
     } finally {
       setSaving(false);
     }
@@ -1436,9 +1388,7 @@ function EditUserModal({
               maxLength={16}
               inputMode="numeric"
             />
-            {cellphoneError && (
-              <p className="mt-1 text-xs text-destructive">{cellphoneError}</p>
-            )}
+            {cellphoneError && <p className="mt-1 text-xs text-destructive">{cellphoneError}</p>}
           </div>
 
           <div>
@@ -1553,7 +1503,8 @@ function EditUserModal({
                 <p className="mt-1 text-xs text-destructive">{pwError}</p>
               ) : (
                 <p className="mt-1 text-xs text-text-muted">
-                  Se preenchida, a senha será redefinida e o usuário precisará alterá-la no próximo acesso.
+                  Se preenchida, a senha será redefinida e o usuário precisará alterá-la no próximo
+                  acesso.
                 </p>
               )}
             </div>
@@ -1672,16 +1623,14 @@ function HistoryTab({ companyId }: { companyId: string }) {
                     {formatDate(log.created_at)}
                   </TableCell>
                   <TableCell className="text-text-primary">
-                    {log.admin_id ? adminNames[log.admin_id] ?? "—" : "—"}
+                    {log.admin_id ? (adminNames[log.admin_id] ?? "—") : "—"}
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="border-border text-text-primary">
                       {ADMIN_ACTION_LABEL[log.action] ?? log.action}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-text-primary">
-                    {log.target_name ?? "—"}
-                  </TableCell>
+                  <TableCell className="text-text-primary">{log.target_name ?? "—"}</TableCell>
                 </TableRow>
               ))
             )}
