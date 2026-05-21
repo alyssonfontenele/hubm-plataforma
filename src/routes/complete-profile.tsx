@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cellphoneToDigits, isValidCellphone, maskCellphone } from "@/lib/auth";
+import { sanitize } from "@/lib/sanitize";
 
 export const Route = createFileRoute("/complete-profile")({
   head: () => ({ meta: [{ title: "Complete seu perfil — HubM" }] }),
@@ -37,11 +38,12 @@ function CompleteProfilePage() {
     if (!session?.user) return;
     setSaving(true);
     try {
+      const cleanDisplay = sanitize(displayName.trim());
       const { error: updErr } = await supabase
         .from("profiles")
         .update({
           cellphone: cellphoneToDigits(cellphone),
-          ...(displayName.trim() ? { display_name: displayName.trim() } : {}),
+          ...(cleanDisplay ? { display_name: cleanDisplay } : {}),
         })
         .eq("id", session.user.id);
       if (updErr) throw updErr;

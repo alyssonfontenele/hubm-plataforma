@@ -70,6 +70,7 @@ import {
   type AdminAction,
   type AdminLogRow,
 } from "@/lib/admin-log";
+import { sanitize } from "@/lib/sanitize";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Admin — HubM" }] }),
@@ -699,11 +700,12 @@ function UserFormModal({
       setSubmitting(true);
       try {
         const newId = crypto.randomUUID();
+        const cleanFullName = sanitize(fullName.trim());
         const { error } = await supabase.from("profiles").insert({
           id: newId,
           company_id: companyId,
-          full_name: fullName.trim(),
-          display_name: fullName.trim().split(" ")[0],
+          full_name: cleanFullName,
+          display_name: sanitize(cleanFullName.split(" ")[0]),
           auth_type: "google",
           global_role: globalRole,
           active: true,
@@ -765,7 +767,7 @@ function UserFormModal({
     try {
       const { data, error } = await supabase.functions.invoke("create-cpf-user", {
         body: {
-          full_name: fullName.trim(),
+          full_name: sanitize(fullName.trim()),
           cpf: cpfToDigits(cpf),
           recovery_email: recoveryEmail.trim().toLowerCase(),
           cellphone: cellphoneToDigits(cellphone),
@@ -1290,7 +1292,7 @@ function EditUserModal({
     setSaving(true);
     try {
       const patch: Record<string, unknown> = {
-        full_name: fullName.trim(),
+        full_name: sanitize(fullName.trim()),
         cellphone: cellphone ? cellphoneToDigits(cellphone) : null,
         recovery_email: recoveryEmail.trim().toLowerCase() || null,
         global_role: globalRole,
