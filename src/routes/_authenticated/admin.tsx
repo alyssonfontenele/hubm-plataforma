@@ -666,13 +666,13 @@ function UserActionsMenu({
       <AlertDialog open={simpleDeleteOpen} onOpenChange={(o) => !simpleDeleting && setSimpleDeleteOpen(o)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete user?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir usuário?</AlertDialogTitle>
             <AlertDialogDescription>
-              {profile.full_name} will be removed from the platform. Audit records will be preserved.
+              {profile.full_name} será removido da plataforma. Os registros de auditoria serão preservados.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={simpleDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={simpleDeleting}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               disabled={simpleDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -692,12 +692,12 @@ function UserActionsMenu({
                     details: { auth_type: profile.auth_type },
                   });
                   await queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
-                  toast.success("User deleted.");
+                  toast.success("Usuário excluído.");
                   setSimpleDeleteOpen(false);
                   await onChanged();
                 } catch (err) {
                   toast.error(
-                    err instanceof Error ? `Failed to delete: ${err.message}` : "Failed to delete user.",
+                    err instanceof Error ? `Falha ao excluir: ${err.message}` : "Falha ao excluir usuário.",
                   );
                   setSimpleDeleteOpen(false);
                 } finally {
@@ -705,7 +705,7 @@ function UserActionsMenu({
                 }
               }}
             >
-              {simpleDeleting ? "Deleting…" : "Delete"}
+              {simpleDeleting ? "Excluindo…" : "Excluir"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
