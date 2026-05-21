@@ -1372,6 +1372,36 @@ function UserFormModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog
+      open={existingDeleted !== null}
+      onOpenChange={(o) => {
+        if (!o && !reactivating) setExistingDeleted(null);
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Usuário já cadastrado</AlertDialogTitle>
+          <AlertDialogDescription>
+            Este usuário foi removido anteriormente. Deseja reativar o cadastro existente?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={reactivating}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={reactivating}
+            onClick={(e) => {
+              e.preventDefault();
+              void handleReactivate();
+            }}
+            className="bg-text-primary text-background hover:bg-text-primary/90"
+          >
+            {reactivating ? "Reativando…" : "Reativar"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 
