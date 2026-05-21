@@ -1111,8 +1111,8 @@ function UserFormModal({
         setSubmitting(false);
         return;
       }
-    } catch {
-      // fall through to invoke; backend will surface its own error if any
+    } catch (preErr) {
+      console.warn("[pre-check] erro ao consultar perfis removidos", preErr);
     }
     try {
       const { data, error } = await supabase.functions.invoke("create-cpf-user", {
