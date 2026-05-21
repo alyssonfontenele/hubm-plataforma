@@ -700,11 +700,12 @@ function UserFormModal({
       setSubmitting(true);
       try {
         const newId = crypto.randomUUID();
+        const cleanFullName = sanitize(fullName.trim());
         const { error } = await supabase.from("profiles").insert({
           id: newId,
           company_id: companyId,
-          full_name: fullName.trim(),
-          display_name: fullName.trim().split(" ")[0],
+          full_name: cleanFullName,
+          display_name: sanitize(cleanFullName.split(" ")[0]),
           auth_type: "google",
           global_role: globalRole,
           active: true,
