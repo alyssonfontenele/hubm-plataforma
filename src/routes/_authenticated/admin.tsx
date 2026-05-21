@@ -17,13 +17,11 @@ import {
   supabase,
   type GlobalRole,
   type SectorRole,
-  type AuthType,
   type Profile,
 } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -340,6 +338,10 @@ function UsersTab({
         </div>
 
       </header>
+
+      <div className="rounded-md border border-border bg-surface/50 p-3 text-xs text-text-muted">
+        Usuários Google são adicionados automaticamente ao fazer login pela primeira vez com um domínio autorizado.
+      </div>
 
       <UserList
         profiles={profiles}
@@ -716,8 +718,6 @@ function UserFormModal({
   onCreated: () => void;
 }) {
   const [fullName, setFullName] = useState("");
-  const [authType, setAuthType] = useState<AuthType>("google");
-  const [email, setEmail] = useState("");
   const [cpf, setCpf] = useState("");
   const [cellphone, setCellphone] = useState("");
   const [cellphoneError, setCellphoneError] = useState<string | null>(null);
@@ -733,8 +733,6 @@ function UserFormModal({
   useEffect(() => {
     if (!open) {
       setFullName("");
-      setAuthType("google");
-      setEmail("");
       setCpf("");
       setCellphone("");
       setCellphoneError(null);
@@ -773,62 +771,7 @@ function UserFormModal({
       return;
     }
 
-    if (authType === "google") {
-      if (!email.trim()) {
-        toast.error("Informe o e-mail do Google");
-        return;
-      }
-      setSubmitting(true);
-      try {
-        const newId = crypto.randomUUID();
-        const cleanFullName = sanitize(fullName.trim());
-        const { error } = await supabase.from("profiles").insert({
-          id: newId,
-          company_id: companyId,
-          full_name: cleanFullName,
-          display_name: sanitize(cleanFullName.split(" ")[0]),
-          auth_type: "google",
-          global_role: globalRole,
-          active: true,
-          must_change_password: false,
-          recovery_email: email.trim().toLowerCase(),
-        });
-        if (error) {
-          toast.error(GENERIC_CREATE_ERROR);
-          return;
-        }
-
-        if (assignmentsPayload.length > 0) {
-          await supabase.from("sector_members").insert(
-            assignmentsPayload.map((a) => ({
-              profile_id: newId,
-              sector_id: a.sector_id,
-              role: a.role,
-            })),
-          );
-        }
-        await logAdminAction({
-          adminId,
-          action: "create_user",
-          targetId: newId,
-          targetName: fullName.trim(),
-          details: {
-            auth_type: "google",
-            global_role: globalRole,
-            email: email.trim().toLowerCase(),
-          },
-        });
-        toast.success("Usuário criado com sucesso.");
-        onCreated();
-      } catch {
-        toast.error(GENERIC_CREATE_ERROR);
-      } finally {
-        setSubmitting(false);
-      }
-      return;
-    }
-
-    // CPF flow → Edge Function
+    // CPF flow only — Google users are auto-provisioned on first login.
     if (!isValidCpf(cpf)) {
       toast.error("CPF inválido");
       return;
@@ -917,128 +860,89 @@ function UserFormModal({
               />
             </div>
 
-            <div className="flex items-center justify-between rounded-md border border-border p-3">
-              <div>
-                <p className="text-sm font-medium text-text-primary">Tipo de autenticação</p>
-                <p className="text-xs text-text-muted">
-                  {authType === "google"
-                    ? "Login via Google (@mowig.com.br)"
-                    : "Login via CPF + senha interna"}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <span className={authType === "cpf" ? "text-text-primary" : "text-text-muted"}>
-                  CPF
-                </span>
-                <Switch
-                  checked={authType === "google"}
-                  onCheckedChange={(c) => setAuthType(c ? "google" : "cpf")}
-                />
-                <span className={authType === "google" ? "text-text-primary" : "text-text-muted"}>
-                  Google
-                </span>
-              </div>
+            <div>
+              <Label htmlFor="cpf">CPF</Label>
+              <Input
+                id="cpf"
+                value={cpf}
+                onChange={(e) => setCpf(maskCpf(e.target.value))}
+                placeholder="000.000.000-00"
+                maxLength={14}
+              />
             </div>
-
-            {authType === "google" ? (
-              <div>
-                <Label htmlFor="email">E-mail Google</Label>
+            <div>
+              <Label htmlFor="cellphone">Celular</Label>
+              <Input
+                id="cellphone"
+                value={cellphone}
+                onChange={(e) => {
+                  setCellphone(maskCellphone(e.target.value));
+                  if (cellphoneError) setCellphoneError(null);
+                }}
+                onBlur={() => {
+                  if (cellphone && !isValidCellphone(cellphone)) {
+                    setCellphoneError("Celular inválido");
+                  }
+                }}
+                placeholder="(00) 00000-0000"
+                maxLength={16}
+                inputMode="numeric"
+              />
+              {cellphoneError && (
+                <p className="mt-1 text-xs text-destructive">{cellphoneError}</p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="recovery">E-mail de recuperação</Label>
+              <Input
+                id="recovery"
+                type="email"
+                value={recoveryEmail}
+                onChange={(e) => setRecoveryEmail(e.target.value)}
+                maxLength={255}
+                placeholder="maria@exemplo.com"
+              />
+            </div>
+            <div>
+              <Label htmlFor="initial_password">Senha inicial</Label>
+              <div className="relative">
                 <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  maxLength={255}
-                  placeholder="maria@mowig.com.br"
+                  id="initial_password"
+                  type={showPassword ? "text" : "password"}
+                  value={initialPassword}
+                  onChange={(e) => {
+                    setInitialPassword(e.target.value);
+                    if (passwordError) setPasswordError(null);
+                  }}
+                  onBlur={() => {
+                    if (initialPassword && !isValidInitialPassword(initialPassword)) {
+                      setPasswordError(
+                        "A senha deve ter no mínimo 8 caracteres, 1 número e 1 letra maiúscula",
+                      );
+                    }
+                  }}
+                  placeholder="Mínimo 8 caracteres"
+                  maxLength={72}
+                  autoComplete="new-password"
+                  className="pr-10"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((s) => !s)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
+                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
-            ) : (
-              <>
-                <div>
-                  <Label htmlFor="cpf">CPF</Label>
-                  <Input
-                    id="cpf"
-                    value={cpf}
-                    onChange={(e) => setCpf(maskCpf(e.target.value))}
-                    placeholder="000.000.000-00"
-                    maxLength={14}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="cellphone">Celular</Label>
-                  <Input
-                    id="cellphone"
-                    value={cellphone}
-                    onChange={(e) => {
-                      setCellphone(maskCellphone(e.target.value));
-                      if (cellphoneError) setCellphoneError(null);
-                    }}
-                    onBlur={() => {
-                      if (cellphone && !isValidCellphone(cellphone)) {
-                        setCellphoneError("Celular inválido");
-                      }
-                    }}
-                    placeholder="(00) 00000-0000"
-                    maxLength={16}
-                    inputMode="numeric"
-                  />
-                  {cellphoneError && (
-                    <p className="mt-1 text-xs text-destructive">{cellphoneError}</p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="recovery">E-mail de recuperação</Label>
-                  <Input
-                    id="recovery"
-                    type="email"
-                    value={recoveryEmail}
-                    onChange={(e) => setRecoveryEmail(e.target.value)}
-                    maxLength={255}
-                    placeholder="maria@exemplo.com"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="initial_password">Senha inicial</Label>
-                  <div className="relative">
-                    <Input
-                      id="initial_password"
-                      type={showPassword ? "text" : "password"}
-                      value={initialPassword}
-                      onChange={(e) => {
-                        setInitialPassword(e.target.value);
-                        if (passwordError) setPasswordError(null);
-                      }}
-                      onBlur={() => {
-                        if (initialPassword && !isValidInitialPassword(initialPassword)) {
-                          setPasswordError(
-                            "A senha deve ter no mínimo 8 caracteres, 1 número e 1 letra maiúscula",
-                          );
-                        }
-                      }}
-                      placeholder="Mínimo 8 caracteres"
-                      maxLength={72}
-                      autoComplete="new-password"
-                      className="pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((s) => !s)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
-                      aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  {passwordError ? (
-                    <p className="mt-1 text-xs text-destructive">{passwordError}</p>
-                  ) : (
-                    <p className="mt-1 text-xs text-text-muted">
-                      Se não preenchida, uma senha será gerada automaticamente
-                    </p>
-                  )}
-                </div>
-              </>
-            )}
+              {passwordError ? (
+                <p className="mt-1 text-xs text-destructive">{passwordError}</p>
+              ) : (
+                <p className="mt-1 text-xs text-text-muted">
+                  Se não preenchida, uma senha será gerada automaticamente
+                </p>
+              )}
+            </div>
 
             <div>
               <Label>Papel global</Label>
