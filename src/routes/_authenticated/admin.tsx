@@ -1020,6 +1020,16 @@ function UserFormModal({
       // Google flow keeps the previous direct insert behaviour.
       setSubmitting(true);
       try {
+        const deleted = await findDeletedProfile();
+        if (deleted) {
+          setExistingDeleted(deleted);
+          setSubmitting(false);
+          return;
+        }
+      } catch {
+        // fall through and let the insert attempt surface its own error
+      }
+      try {
         const newId = crypto.randomUUID();
         const cleanFullName = sanitize(fullName.trim());
         const { error } = await supabase.from("profiles").insert({
