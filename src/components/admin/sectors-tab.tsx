@@ -370,16 +370,10 @@ function SectorFormSheet({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="sector-icon">Ícone (emoji)</Label>
-            <Input
-              id="sector-icon"
-              value={icon}
-              onChange={(e) => setIcon(e.target.value)}
-              placeholder="📦"
-              maxLength={4}
-              className="w-24 text-center text-lg"
-            />
+            <Label>Ícone do setor</Label>
+            <EmojiPicker value={icon} onChange={setIcon} sectorName={name} />
           </div>
+
 
           <div className="space-y-2">
             <Label htmlFor="sector-description">Descrição</Label>
