@@ -309,7 +309,7 @@ function isValidInitialPassword(pw: string): boolean {
 
 // ---------- Users tab ----------
 
-const adminProfilesQueryKey = (companyId: string) => ["admin-profiles", companyId] as const;
+
 
 function UsersTab({
   companyId,
