@@ -121,9 +121,9 @@ function SectorPage() {
       setSectorRecord((data as SectorRecord | null) ?? null);
     })();
     return () => {
-      cancelled = true;
-    };
-  }, [slug, company?.id]);
+  cancelled = true;
+};
+}, [slug, company?.id]);
 
 
   useEffect(() => {
