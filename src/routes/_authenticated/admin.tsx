@@ -1110,13 +1110,22 @@ function UserFormModal({
       if (error) {
         const ctxMsg = await getFunctionErrorText(data, error);
         if (isAlreadyRegisteredError(ctxMsg)) {
-          setExistingDeleted(null);
-          setShowReactivateDialog(true);
+          try {
+            const fallback = await findDeletedProfileFallback();
+            if (fallback) {
+              setExistingDeleted(fallback);
+              return;
+            }
+          } catch (fbErr) {
+            console.warn("[pre-check fallback] erro", fbErr);
+          }
+          toast.error("Erro ao criar usuário. Tente novamente.");
           return;
         }
         toast.error(friendlyCreateError(ctxMsg));
         return;
       }
+
       const createdId =
         (data as { user_id?: string; id?: string } | null)?.user_id ??
         (data as { user_id?: string; id?: string } | null)?.id ??
