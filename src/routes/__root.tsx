@@ -75,27 +75,27 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
+      { title: "HubM" },
       {
         name: "description",
         content:
-          "HubM is a full-stack internal company portal for resource and document management.",
+          "HubM — portal corporativo interno para gestão de recursos e documentos.",
       },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
+      { name: "author", content: "Mowig" },
+      { property: "og:title", content: "HubM" },
       {
         property: "og:description",
         content:
-          "HubM is a full-stack internal company portal for resource and document management.",
+          "HubM — portal corporativo interno para gestão de recursos e documentos.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "Lovable App" },
+      { name: "twitter:site", content: "@Mowig" },
+      { name: "twitter:title", content: "HubM" },
       {
         name: "twitter:description",
         content:
-          "HubM is a full-stack internal company portal for resource and document management.",
+          "HubM — portal corporativo interno para gestão de recursos e documentos.",
       },
       {
         property: "og:image",
