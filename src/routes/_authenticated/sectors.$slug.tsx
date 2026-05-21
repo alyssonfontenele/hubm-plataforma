@@ -200,11 +200,10 @@ function SectorPage() {
   );
 
   const SectorIcon = useMemo(() => {
-    const name = membership?.sector.icon;
-    if (!name) return FolderOpen;
-    const Cmp = (LucideIcons as unknown as Record<string, typeof FolderOpen>)[name];
+    if (!sectorIcon) return FolderOpen;
+    const Cmp = (LucideIcons as unknown as Record<string, typeof FolderOpen>)[sectorIcon];
     return Cmp ?? FolderOpen;
-  }, [membership?.sector.icon]);
+  }, [sectorIcon]);
 
   const openResource = (r: Resource) => {
     setSelected({
