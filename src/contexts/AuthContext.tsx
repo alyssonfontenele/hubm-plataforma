@@ -114,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       active = false;
       sub.subscription.unsubscribe();
     };
-  }, [loadProfile]);
+  }, [loadProfile, navigate]);
 
   const refresh = useCallback(async () => {
     if (session?.user) await loadProfile(session.user.id);
