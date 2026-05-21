@@ -887,31 +887,40 @@ function UserFormModal({
   }, [open]);
 
   const findDeletedProfile = async (): Promise<Profile | null> => {
-    if (authType === "google") {
-      const normalized = email.trim().toLowerCase();
-      if (!normalized) return null;
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("company_id", companyId)
-        .eq("recovery_email", normalized)
-        .not("deleted_at", "is", null)
-        .maybeSingle();
-      return (data as Profile | null) ?? null;
+    const normalizedEmail =
+      authType === "google" ? email.trim().toLowerCase() : recoveryEmail.trim().toLowerCase();
+    const cpfDigits = authType === "cpf" && isValidCpf(cpf) ? cpfToDigits(cpf) : "";
+
+    const orParts: string[] = [];
+    if (normalizedEmail) {
+      orParts.push(`recovery_email.eq.${normalizedEmail}`);
     }
-    const cpfDigits = cpfToDigits(cpf);
-    const normalizedRecovery = recoveryEmail.trim().toLowerCase();
-    const { data } = await supabase
+    if (cpfDigits) {
+      orParts.push(`cpf_hash.eq.${cpfDigits}`);
+    }
+    if (orParts.length === 0) return null;
+
+    const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .eq("company_id", companyId)
-      .or(
-        `cpf_hash.eq.${cpfDigits},recovery_email.eq.${normalizedRecovery}`,
-      )
+      .or(orParts.join(","))
       .not("deleted_at", "is", null)
-      .maybeSingle();
-    return (data as Profile | null) ?? null;
+      .limit(1);
+
+    console.log("[pre-check soft-deleted profile]", {
+      authType,
+      email: normalizedEmail,
+      cpf_hash: cpfDigits || null,
+      orFilter: orParts.join(","),
+      error,
+      data,
+    });
+
+    if (error) throw error;
+    return ((data?.[0] as Profile | undefined) ?? null) as Profile | null;
   };
+
 
   const handleReactivate = async () => {
     if (!existingDeleted) return;
