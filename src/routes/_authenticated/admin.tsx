@@ -84,7 +84,7 @@ import { sanitize } from "@/lib/sanitize";
 import { SectorsTab } from "@/components/admin/sectors-tab";
 import { UserList } from "@/components/admin/UserList";
 import { DeleteUserDialog } from "@/components/admin/DeleteUserDialog";
-import { ReactivateUserDialog } from "@/components/admin/ReactivateUserDialog";
+
 import { RescueByCPFDialog } from "@/components/admin/RescueByCPFDialog";
 import { adminProfilesQueryKey, useAdminUsers } from "@/hooks/useAdminUsers";
 
@@ -275,33 +275,6 @@ function SecuritySection() {
   );
 }
 
-// ---------- Friendly error mapper ----------
-
-function friendlyCreateError(message: string): string {
-  const raw = message?.trim() ?? "";
-  const m = raw.toLowerCase();
-  if (!raw) return "Erro ao criar usuário. Tente novamente.";
-  if (
-    m.includes("user inactive") ||
-    m.includes("usuário inativado") ||
-    m.includes("usuario inativado")
-  )
-    return "Este CPF pertence a um usuário inativado. Use a opção de resgate para reativá-lo.";
-  if (m.includes("invalid cpf")) return "CPF inválido. Verifique os dígitos informados.";
-  if (m.includes("not null violation") || m.includes("not-null"))
-    return "Preencha todos os campos obrigatórios.";
-  if (m.includes("foreign key")) return "Empresa não encontrada. Tente novamente.";
-  if (
-    (m.includes("already registered") || m.includes("duplicate")) &&
-    (m.includes("hubm.internal") || m.includes("cpf"))
-  )
-    return "Este CPF já está cadastrado no sistema.";
-  if (m.includes("duplicate") && m.includes("recovery_email"))
-    return "Este e-mail de recuperação já está em uso por outro usuário.";
-  if (m.includes("duplicate") && m.includes("cellphone"))
-    return "Este celular já está cadastrado no sistema.";
-  return `Erro ao criar usuário: ${raw}`;
-}
 
 function isValidInitialPassword(pw: string): boolean {
   return pw.length >= 8 && /\d/.test(pw) && /[A-Z]/.test(pw);
@@ -767,9 +740,6 @@ function UserFormModal({
   const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [existingDeleted, setExistingDeleted] = useState<Profile | null>(null);
-  const [showReactivateDialog, setShowReactivateDialog] = useState(false);
-  const [reactivating, setReactivating] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -786,184 +756,8 @@ function UserFormModal({
       setInitialPassword("");
       setShowPassword(false);
       setPasswordError(null);
-      setExistingDeleted(null);
-      setShowReactivateDialog(false);
-      setReactivating(false);
     }
   }, [open]);
-
-  const findDeletedProfile = async (): Promise<Profile | null> => {
-    const normalizedEmail =
-      authType === "google" ? email.trim().toLowerCase() : recoveryEmail.trim().toLowerCase();
-    if (!normalizedEmail) return null;
-
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("company_id", companyId)
-      .eq("recovery_email", normalizedEmail)
-      .not("deleted_at", "is", null)
-      .limit(1);
-
-    console.log("[pre-check soft-deleted profile by email]", {
-      authType,
-      email: normalizedEmail,
-      error,
-      data,
-    });
-
-    if (error) throw error;
-    return ((data?.[0] as Profile | undefined) ?? null) as Profile | null;
-  };
-
-  // Fallback after "already been registered": ONLY match by exact recovery_email.
-  // If the email matches a deleted profile (including anonymized ones whose
-  // full_name was reset to "Usuário removido"), allow reactivation. Otherwise
-  // return null so the caller shows a generic error — never trigger the
-  // reactivation dialog by full_name alone.
-  const findDeletedProfileFallback = async (): Promise<Profile | null> => {
-    const normalizedEmail =
-      authType === "google" ? email.trim().toLowerCase() : recoveryEmail.trim().toLowerCase();
-    if (!normalizedEmail) return null;
-
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("company_id", companyId)
-      .eq("recovery_email", normalizedEmail)
-      .not("deleted_at", "is", null)
-      .order("deleted_at", { ascending: false })
-      .limit(1);
-
-    console.log("[pre-check fallback by email]", {
-      email: normalizedEmail,
-      error,
-      count: data?.length,
-    });
-    if (error) throw error;
-    return ((data?.[0] as Profile | undefined) ?? null) as Profile | null;
-  };
-
-
-  const isAlreadyRegisteredError = (msg: string) =>
-    msg === "A user with this email address has already been registered" ||
-    /already (been )?registered/i.test(msg) ||
-    /already exists/i.test(msg);
-
-  const getFunctionErrorText = async (data: unknown, error: unknown) => {
-    const messages: string[] = [];
-    if (typeof data === "string") messages.push(data);
-    if (data && typeof data === "object") {
-      const body = data as Record<string, unknown>;
-      [body.error, body.message, body.details].forEach((value) => {
-        if (typeof value === "string") messages.push(value);
-      });
-    }
-    if (error instanceof Error) messages.push(error.message);
-
-    const context = (error as { context?: unknown } | null)?.context;
-    if (context instanceof Response) {
-      try {
-        messages.push(await context.clone().text());
-      } catch {
-        // ignore unreadable response body
-      }
-    } else if (context && typeof context === "object") {
-      const ctx = context as Record<string, unknown>;
-      [ctx.error, ctx.message, ctx.details, ctx.statusText].forEach((value) => {
-        if (typeof value === "string") messages.push(value);
-      });
-    }
-
-    return messages.filter(Boolean).join(" ");
-  };
-
-  const handleReactivate = async () => {
-    setReactivating(true);
-    try {
-      const cleanFullName = sanitize(fullName.trim());
-      const recoveryEmailForLookup =
-        authType === "cpf"
-          ? recoveryEmail.trim().toLowerCase()
-          : email.trim().toLowerCase();
-
-      const { data: rpcData, error: rpcErr } = await supabase.functions.invoke(
-        "admin-reactivate-user",
-        {
-          body: {
-            recovery_email: recoveryEmailForLookup,
-            full_name: cleanFullName,
-            global_role: globalRole,
-          },
-        },
-      );
-      if (rpcErr) throw rpcErr;
-      const reactivatedId = (rpcData as { user_id?: string } | null)?.user_id;
-      if (!reactivatedId) {
-        throw new Error("Não foi encontrado um cadastro removido para reativar.");
-      }
-
-      // Apply remaining fields (auth_type, contact info, etc.) now that RLS allows it
-      const updates: Record<string, unknown> = {
-        display_name: sanitize(cleanFullName.split(" ")[0]),
-        auth_type: authType,
-      };
-      if (authType === "cpf") {
-        updates.cpf_hash = cpfToDigits(cpf);
-        updates.recovery_email = recoveryEmailForLookup;
-        updates.cellphone = cellphoneToDigits(cellphone);
-        updates.must_change_password = !initialPassword;
-      } else {
-        updates.recovery_email = recoveryEmailForLookup;
-        updates.cpf_hash = null;
-        updates.must_change_password = false;
-      }
-
-      const { error: updErr } = await supabase
-        .from("profiles")
-        .update(updates)
-        .eq("id", reactivatedId);
-      if (updErr) throw updErr;
-
-      if (authType === "cpf" && initialPassword) {
-        const { error: pwErr } = await supabase.functions.invoke("admin-update-password", {
-          body: { user_id: reactivatedId, new_password: initialPassword },
-        });
-        if (pwErr) throw pwErr;
-      }
-
-      if (assignmentsPayload.length > 0) {
-        await supabase.from("sector_members").insert(
-          assignmentsPayload.map((a) => ({
-            profile_id: reactivatedId,
-            sector_id: a.sector_id,
-            role: a.role,
-          })),
-        );
-      }
-
-      await logAdminAction({
-        adminId,
-        action: "reactivate_user",
-        targetId: reactivatedId,
-        targetName: cleanFullName,
-        details: { reactivated: true, auth_type: authType, global_role: globalRole },
-      });
-
-      await queryClient.invalidateQueries({ queryKey: adminProfilesQueryKey(companyId) });
-      toast.success("Usuário reativado com sucesso.");
-      setExistingDeleted(null);
-      setShowReactivateDialog(false);
-      onCreated();
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? `Falha ao reativar: ${err.message}` : "Falha ao reativar usuário.",
-      );
-    } finally {
-      setReactivating(false);
-    }
-  };
-
 
   const toggleSector = (sectorId: string) => {
     setAssignments((prev) =>
@@ -982,6 +776,9 @@ function UserFormModal({
     [assignments],
   );
 
+  const GENERIC_CREATE_ERROR =
+    "Erro ao criar usuário. Verifique os dados e tente novamente.";
+
   const handleSubmit = async () => {
     if (!fullName.trim()) {
       toast.error("Informe o nome completo");
@@ -993,18 +790,7 @@ function UserFormModal({
         toast.error("Informe o e-mail do Google");
         return;
       }
-      // Google flow keeps the previous direct insert behaviour.
       setSubmitting(true);
-      try {
-        const deleted = await findDeletedProfile();
-        if (deleted) {
-          setExistingDeleted(deleted);
-          setSubmitting(false);
-          return;
-        }
-      } catch (preErr) {
-        console.warn("[pre-check] erro ao consultar perfis removidos", preErr);
-      }
       try {
         const newId = crypto.randomUUID();
         const cleanFullName = sanitize(fullName.trim());
@@ -1020,20 +806,8 @@ function UserFormModal({
           recovery_email: email.trim().toLowerCase(),
         });
         if (error) {
-          if (isAlreadyRegisteredError(error.message)) {
-            try {
-              const fallback = await findDeletedProfileFallback();
-              if (fallback) {
-                setExistingDeleted(fallback);
-                return;
-              }
-            } catch (fbErr) {
-              console.warn("[pre-check fallback] erro", fbErr);
-            }
-            toast.error("Erro ao criar usuário. Tente novamente.");
-            return;
-          }
-          throw error;
+          toast.error(GENERIC_CREATE_ERROR);
+          return;
         }
 
         if (assignmentsPayload.length > 0) {
@@ -1058,8 +832,8 @@ function UserFormModal({
         });
         toast.success("Usuário criado com sucesso.");
         onCreated();
-      } catch (err) {
-        toast.error(friendlyCreateError(err instanceof Error ? err.message : ""));
+      } catch {
+        toast.error(GENERIC_CREATE_ERROR);
       } finally {
         setSubmitting(false);
       }
@@ -1088,16 +862,6 @@ function UserFormModal({
 
     setSubmitting(true);
     try {
-      const deleted = await findDeletedProfile();
-      if (deleted) {
-        setExistingDeleted(deleted);
-        setSubmitting(false);
-        return;
-      }
-    } catch (preErr) {
-      console.warn("[pre-check] erro ao consultar perfis removidos", preErr);
-    }
-    try {
       const { data, error } = await supabase.functions.invoke("create-cpf-user", {
         body: {
           full_name: sanitize(fullName.trim()),
@@ -1111,21 +875,7 @@ function UserFormModal({
         },
       });
       if (error) {
-        const ctxMsg = await getFunctionErrorText(data, error);
-        if (isAlreadyRegisteredError(ctxMsg)) {
-          try {
-            const fallback = await findDeletedProfileFallback();
-            if (fallback) {
-              setExistingDeleted(fallback);
-              return;
-            }
-          } catch (fbErr) {
-            console.warn("[pre-check fallback] erro", fbErr);
-          }
-          toast.error("Erro ao criar usuário. Tente novamente.");
-          return;
-        }
-        toast.error(friendlyCreateError(ctxMsg));
+        toast.error(GENERIC_CREATE_ERROR);
         return;
       }
 
@@ -1148,27 +898,13 @@ function UserFormModal({
         `Usuário criado com sucesso. E-mail de acesso enviado para ${recoveryEmail.trim().toLowerCase()}.`,
       );
       onCreated();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "";
-      if (isAlreadyRegisteredError(message)) {
-        try {
-          const fallback = await findDeletedProfileFallback();
-          if (fallback) {
-            setExistingDeleted(fallback);
-            return;
-          }
-        } catch (fbErr) {
-          console.warn("[pre-check fallback] erro", fbErr);
-        }
-        toast.error("Erro ao criar usuário. Tente novamente.");
-        return;
-      }
-      toast.error(friendlyCreateError(err instanceof Error ? err.message : ""));
+    } catch {
+      toast.error(GENERIC_CREATE_ERROR);
     } finally {
-
       setSubmitting(false);
     }
   };
+
 
   return (
     <>
@@ -1389,25 +1125,8 @@ function UserFormModal({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <ReactivateUserDialog
-        open={showReactivateDialog || existingDeleted !== null}
-        onOpenChange={(o) => {
-          if (!o) {
-            setExistingDeleted(null);
-            setShowReactivateDialog(false);
-          }
-        }}
-        companyId={companyId}
-        fullName={sanitize(fullName.trim())}
-        globalRole={globalRole}
-        onReactivated={() => {
-          setExistingDeleted(null);
-          setShowReactivateDialog(false);
-          onCreated();
-        }}
-      />
     </>
+
   );
 }
 
