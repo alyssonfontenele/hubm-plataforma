@@ -72,6 +72,7 @@ import {
   type AdminLogRow,
 } from "@/lib/admin-log";
 import { sanitize } from "@/lib/sanitize";
+import { SectorsTab } from "@/components/admin/sectors-tab";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Admin — HubM" }] }),
@@ -115,11 +116,15 @@ function AdminPage() {
       <Tabs defaultValue="users" className="space-y-6">
         <TabsList className="bg-surface border border-border">
           <TabsTrigger value="users">Usuários</TabsTrigger>
+          <TabsTrigger value="sectors">Setores</TabsTrigger>
           <TabsTrigger value="history">Histórico de ações</TabsTrigger>
           <TabsTrigger value="settings">Configurações</TabsTrigger>
         </TabsList>
         <TabsContent value="users" className="mt-0">
           <UsersTab companyId={company.id} currentUserId={adminId} />
+        </TabsContent>
+        <TabsContent value="sectors" className="mt-0">
+          <SectorsTab companyId={company.id} />
         </TabsContent>
         <TabsContent value="history" className="mt-0">
           <HistoryTab companyId={company.id} />
