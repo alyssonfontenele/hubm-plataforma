@@ -113,7 +113,6 @@ function SectorPage() {
         .select("id,name,icon,config")
         .eq("slug", slug)
         .eq("active", true)
-        .is("deleted_at", null)
         .limit(1);
       if (company?.id) query = query.eq("company_id", company.id);
       const { data } = await query.maybeSingle();
