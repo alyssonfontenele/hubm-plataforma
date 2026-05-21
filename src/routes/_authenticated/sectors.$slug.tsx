@@ -13,6 +13,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, type ResourceType } from "@/integrations/supabase/client";
 import { ResourceModal, type ResourceModalData } from "@/components/resource-modal";
+import { FoldersManager } from "@/components/sectors/folders-manager";
 
 export const Route = createFileRoute("/_authenticated/sectors/$slug")({
   head: () => ({ meta: [{ title: "Setor — HubM" }] }),
@@ -28,6 +29,7 @@ interface Folder {
   sector_id: string;
   parent_id: string | null;
   sort_order: number | null;
+  is_page: boolean;
 }
 
 interface Resource {
@@ -68,10 +70,11 @@ function SectorPage() {
   const { slug } = Route.useParams();
   const search = Route.useSearch();
   const navigate = useNavigate();
-  const { sectorMemberships } = useAuth();
+  const { sectorMemberships, globalRole } = useAuth();
   const membership = sectorMemberships.find((m) => m.sector.slug === slug);
   const sectorId = membership?.sector.id;
   const sectorName = membership?.sector.name ?? slug;
+  const isAdmin = globalRole === "admin";
 
   const [folders, setFolders] = useState<Folder[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
@@ -96,8 +99,9 @@ function SectorPage() {
       const [foldersRes, resourcesRes] = await Promise.all([
         supabase
           .from("folders")
-          .select("id,name,sector_id,parent_id,sort_order")
+          .select("id,name,sector_id,parent_id,sort_order,is_page")
           .eq("sector_id", sectorId)
+          .is("deleted_at", null)
           .order("sort_order", { ascending: true, nullsFirst: false })
           .order("name", { ascending: true }),
         supabase
@@ -109,7 +113,12 @@ function SectorPage() {
           .order("name", { ascending: true }),
       ]);
       if (cancelled) return;
-      setFolders((foldersRes.data as Folder[] | null) ?? []);
+      setFolders(
+        ((foldersRes.data as Folder[] | null) ?? []).map((f) => ({
+          ...f,
+          is_page: Boolean(f.is_page),
+        })),
+      );
       setResources((resourcesRes.data as Resource[] | null) ?? []);
       setLoading(false);
     })();
@@ -127,12 +136,32 @@ function SectorPage() {
     () => resources.filter((r) => r.folder_id && folderMap.has(r.folder_id)),
     [resources, folderMap],
   );
-  const visibleResources = useMemo(
-    () =>
-      activeFolder === "all"
-        ? sectorResources
-        : sectorResources.filter((r) => r.folder_id === activeFolder),
-    [sectorResources, activeFolder],
+  const childrenOfPage = useMemo(() => {
+    const map = new Map<string, string[]>();
+    folders.forEach((f) => {
+      if (f.parent_id) {
+        const arr = map.get(f.parent_id) ?? [];
+        arr.push(f.id);
+        map.set(f.parent_id, arr);
+      }
+    });
+    return map;
+  }, [folders]);
+  const visibleResources = useMemo(() => {
+    if (activeFolder === "all") return sectorResources;
+    const activeRecord = folderMap.get(activeFolder);
+    if (activeRecord?.is_page) {
+      const childIds = new Set(childrenOfPage.get(activeFolder) ?? []);
+      childIds.add(activeFolder);
+      return sectorResources.filter(
+        (r) => r.folder_id && childIds.has(r.folder_id),
+      );
+    }
+    return sectorResources.filter((r) => r.folder_id === activeFolder);
+  }, [sectorResources, activeFolder, folderMap, childrenOfPage]);
+  const pillFolders = useMemo(
+    () => folders.filter((f) => !f.parent_id),
+    [folders],
   );
 
   const SectorIcon = useMemo(() => {
@@ -171,7 +200,7 @@ function SectorPage() {
         </div>
       </header>
 
-      {folders.length > 0 && (
+      {pillFolders.length > 0 && (
         <div className="flex flex-wrap gap-2">
           <FolderPill
             label="Todos"
@@ -179,12 +208,18 @@ function SectorPage() {
             active={activeFolder === "all"}
             onClick={() => setActiveFolder("all")}
           />
-          {folders.map((f) => {
-            const count = sectorResources.filter((r) => r.folder_id === f.id).length;
+          {pillFolders.map((f) => {
+            const count = f.is_page
+              ? sectorResources.filter((r) => {
+                  if (!r.folder_id) return false;
+                  const childIds = childrenOfPage.get(f.id) ?? [];
+                  return r.folder_id === f.id || childIds.includes(r.folder_id);
+                }).length
+              : sectorResources.filter((r) => r.folder_id === f.id).length;
             return (
               <FolderPill
                 key={f.id}
-                label={f.name}
+                label={`${f.is_page ? "📄 " : ""}${f.name}`}
                 count={count}
                 active={activeFolder === f.id}
                 onClick={() => setActiveFolder(f.id)}
@@ -193,6 +228,8 @@ function SectorPage() {
           })}
         </div>
       )}
+
+      {sectorId && <FoldersManager sectorId={sectorId} canManage={isAdmin} />}
 
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
