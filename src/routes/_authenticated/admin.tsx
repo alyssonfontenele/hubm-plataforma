@@ -401,6 +401,7 @@ function UsersTab({
         open={rescueOpen}
         onOpenChange={setRescueOpen}
         adminId={currentUserId}
+        companyId={companyId}
         onReactivated={() => {
           setRescueOpen(false);
           void load();

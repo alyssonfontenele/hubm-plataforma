@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -12,19 +13,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase, type Profile } from "@/integrations/supabase/client";
-import {
-  cpfToDigits,
-  isValidCpf,
-  maskCellphone,
-  maskCpf,
-} from "@/lib/auth";
+import { cpfToDigits, isValidCpf, maskCpf } from "@/lib/auth";
 import { logAdminAction } from "@/lib/admin-log";
 import { useRescueByCPF } from "@/hooks/useRescueByCPF";
+import { adminProfilesQueryKey } from "@/hooks/useAdminUsers";
 
 interface RescueByCPFDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   adminId: string | null;
+  companyId: string;
   onReactivated: () => void;
 }
 
@@ -32,8 +30,10 @@ export function RescueByCPFDialog({
   open,
   onOpenChange,
   adminId,
+  companyId,
   onReactivated,
 }: RescueByCPFDialogProps) {
+  const queryClient = useQueryClient();
   const [cpf, setCpf] = useState("");
   const [found, setFound] = useState<Profile | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -58,10 +58,10 @@ export function RescueByCPFDialog({
     setFound(null);
     try {
       const result = await lookup(cpfToDigits(cpf));
-      if (result.status === "not_found" || result.status === "deleted") {
-        setNotFound(true);
-      } else {
+      if (result.status === "deleted" && result.profile) {
         setFound(result.profile);
+      } else {
+        setNotFound(true);
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao buscar usuário.");
@@ -72,37 +72,37 @@ export function RescueByCPFDialog({
     if (!found) return;
     setReactivating(true);
     try {
-      const { error: updErr } = await supabase
-        .from("profiles")
-        .update({
-          active: true,
-          deleted_at: null,
-          must_change_password: true,
-        })
-        .eq("id", found.id);
-      if (updErr) throw updErr;
-
-      if (found.recovery_email) {
-        await supabase.functions.invoke("send-email", {
+      const { data, error } = await supabase.functions.invoke(
+        "admin-reactivate-user",
+        {
           body: {
-            to: found.recovery_email,
-            subject: "Seu acesso ao HubM foi reativado",
-            template: "user-reactivated",
-            data: { full_name: found.full_name },
+            full_name: found.full_name,
+            global_role: found.global_role,
           },
-        });
+        },
+      );
+
+      await queryClient.invalidateQueries({
+        queryKey: adminProfilesQueryKey(companyId),
+      });
+
+      const body = (data ?? null) as { success?: boolean } | null;
+      if (error || body?.success !== true) {
+        toast.error("Falha ao reativar usuário.");
+        return;
       }
+
       await logAdminAction({
         adminId,
         action: "reactivate_user",
         targetId: found.id,
         targetName: found.full_name,
-        details: { via: "rescue", new_status: "active" },
+        details: { via: "rescue_by_cpf" },
       });
-      toast.success("Usuário reativado com sucesso. E-mail de acesso reenviado.");
+      toast.success("Usuário reativado com sucesso.");
       onReactivated();
-    } catch (err) {
-      toast.error(err instanceof Error ? `Falha: ${err.message}` : "Falha ao reativar usuário.");
+    } catch {
+      toast.error("Falha ao reativar usuário.");
     } finally {
       setReactivating(false);
     }
@@ -112,9 +112,11 @@ export function RescueByCPFDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-surface border-border max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-text-primary">Resgatar usuário</DialogTitle>
+          <DialogTitle className="text-text-primary">
+            Resgatar usuário excluído
+          </DialogTitle>
           <DialogDescription className="text-text-muted">
-            Informe o CPF do usuário para reativar o acesso.
+            Informe o CPF do usuário removido para reativar o acesso.
           </DialogDescription>
         </DialogHeader>
 
@@ -145,36 +147,16 @@ export function RescueByCPFDialog({
             </div>
             {notFound && (
               <p className="mt-2 text-xs text-text-muted">
-                Nenhum usuário ativo encontrado com este CPF.
-              </p>
-            )}
-            {found && found.active === false && (
-              <p className="mt-2 text-xs text-text-muted">
-                Usuário encontrado mas está suspenso. Deseja reativá-lo?
+                Nenhum cadastro removido encontrado com este CPF.
               </p>
             )}
           </div>
 
           {found && (
             <div className="border border-border rounded-md p-4 space-y-2 bg-background">
-              <div>
-                <p className="text-xs text-text-muted">Nome</p>
-                <p className="text-sm text-text-primary">{found.full_name}</p>
-              </div>
-              <div>
-                <p className="text-xs text-text-muted">E-mail de recuperação</p>
-                <p className="text-sm text-text-primary">{found.recovery_email ?? "—"}</p>
-              </div>
-              <div>
-                <p className="text-xs text-text-muted">Celular</p>
-                <p className="text-sm text-text-primary">
-                  {found.cellphone ? maskCellphone(found.cellphone) : "—"}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-text-muted">Papel global</p>
-                <p className="text-sm text-text-primary capitalize">{found.global_role}</p>
-              </div>
+              <p className="text-sm text-text-primary">
+                Reativar acesso de <strong>{found.full_name}</strong>?
+              </p>
             </div>
           )}
         </div>
