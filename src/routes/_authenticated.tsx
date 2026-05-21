@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthenticatedLayout() {
-  const { session, loading, profile, signOut } = useAuth();
+  const { session, loading, profile, signOut, mfaState } = useAuth();
   const navigate = useNavigate();
   const href = useRouterState({ select: (r) => r.location.href });
 
@@ -23,20 +23,23 @@ function AuthenticatedLayout() {
   }, [loading, session, href, navigate]);
 
   useEffect(() => {
-    if (!loading && session && profile?.must_change_password) {
+    if (loading || !session || !profile) return;
+    if (profile.must_change_password) {
       void navigate({ to: "/change-password" });
       return;
     }
-    if (
-      !loading &&
-      session &&
-      profile &&
-      !profile.must_change_password &&
-      (!profile.cellphone || profile.cellphone.trim() === "")
-    ) {
+    if (!profile.cellphone || profile.cellphone.trim() === "") {
       void navigate({ to: "/complete-profile" });
+      return;
     }
-  }, [loading, session, profile, navigate]);
+    if (mfaState === "needs_enrollment") {
+      void navigate({ to: "/setup-mfa" });
+      return;
+    }
+    if (mfaState === "needs_challenge") {
+      void navigate({ to: "/mfa-challenge" });
+    }
+  }, [loading, session, profile, mfaState, navigate]);
 
   if (loading || !session) {
     return (
