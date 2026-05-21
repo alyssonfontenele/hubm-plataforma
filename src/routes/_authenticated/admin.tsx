@@ -1569,19 +1569,23 @@ function RescueUserModal({
     setNotFound(false);
     setFound(null);
     try {
+      const cpfDigits = cpfToDigits(cpf);
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("company_id", companyId)
-        .eq("cpf_hash", cpfToDigits(cpf))
+        .eq("cpf_hash", cpfDigits)
         .is("deleted_at", null)
-        .maybeSingle();
+        .limit(1);
       if (error) throw error;
-      if (!data) {
+      console.log("[rescue] cpf lookup", { cpfDigits, count: data?.length ?? 0 });
+      const profile = (data?.[0] as Profile | undefined) ?? null;
+      if (!profile) {
         setNotFound(true);
       } else {
-        setFound(data as Profile);
+        setFound(profile);
       }
+
 
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao buscar usuário.");
