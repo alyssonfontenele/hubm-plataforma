@@ -105,24 +105,27 @@ function SectorPage() {
   const sectorName = sectorRecord?.name ?? membership?.sector.name ?? slug;
   const sectorIcon = sectorRecord?.icon ?? membership?.sector.icon ?? null;
 
-  // Layout state — null means "use server default once loaded"
-  const [layoutOverride, setLayoutOverride] = useState<LayoutKind | null>(null);
-  const [columnsOverride, setColumnsOverride] = useState<number | null>(null);
-  // Reset overrides when navigating to a different sector
+  // Explicit layout state — initialized from server once per sector, then user-controlled
+  const [layoutMode, setLayoutMode] = useState<LayoutKind>("grid");
+  const [gridColumns, setGridColumns] = useState<number>(3);
+  const [layoutApplied, setLayoutApplied] = useState(false);
+
+  // Reset layout state when navigating to a different sector
   useEffect(() => {
     setSectorRecord(null);
-    setLayoutOverride(null);
-    setColumnsOverride(null);
+    setLayoutApplied(false);
   }, [slug]);
 
-  // Derive effective layout from server config (with fallbacks) and user overrides
-  const serverLayout: LayoutKind =
-    sectorRecord?.layout_config?.mode ??
-    sectorRecord?.config?.layout ??
-    "grid";
-  const serverColumns: number = sectorRecord?.layout_config?.columns ?? 3;
-  const layoutMode: LayoutKind = layoutOverride ?? serverLayout;
-  const gridColumns: number = columnsOverride ?? serverColumns;
+  // Apply server layout exactly once when sectorRecord first loads for this slug
+  useEffect(() => {
+    if (sectorRecord && !layoutApplied) {
+      setLayoutMode(
+        sectorRecord.layout_config?.mode ?? sectorRecord.config?.layout ?? "grid",
+      );
+      setGridColumns(sectorRecord.layout_config?.columns ?? 3);
+      setLayoutApplied(true);
+    }
+  }, [sectorRecord, layoutApplied]);
 
   const [folders, setFolders] = useState<Folder[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
@@ -142,21 +145,33 @@ function SectorPage() {
   // Resolve sector by slug (admin may not be a member).
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      let query = supabase
+
+    const buildQuery = (cols: string) => {
+      let q = supabase
         .from("sectors")
-        .select("id,name,icon,config,layout_config")
+        .select(cols)
         .eq("slug", slug)
         .eq("active", true)
         .limit(1);
-      if (company?.id) query = query.eq("company_id", company.id);
-      const { data } = await query.maybeSingle();
+      if (company?.id) q = q.eq("company_id", company.id);
+      return q;
+    };
+
+    (async () => {
+      // Try with layout_config first; fall back if column isn't in PostgREST schema cache yet
+      const { data, error } = await buildQuery("id,name,icon,config,layout_config").maybeSingle();
       if (cancelled) return;
+
+      if (error) {
+        const { data: fallbackData } = await buildQuery("id,name,icon,config").maybeSingle();
+        if (!cancelled) setSectorRecord((fallbackData as SectorRecord | null) ?? null);
+        return;
+      }
+
       setSectorRecord((data as SectorRecord | null) ?? null);
     })();
-    return () => {
-      cancelled = true;
-    };
+
+    return () => { cancelled = true; };
   }, [slug, company?.id]);
 
   useEffect(() => {
@@ -270,7 +285,7 @@ function SectorPage() {
           <Button
             variant={layoutMode === "grid" ? "secondary" : "ghost"}
             size="icon"
-            onClick={() => setLayoutOverride("grid")}
+            onClick={() => setLayoutMode("grid")}
             aria-label="Layout grade"
             title="Grade"
           >
@@ -279,7 +294,7 @@ function SectorPage() {
           <Button
             variant={layoutMode === "list" ? "secondary" : "ghost"}
             size="icon"
-            onClick={() => setLayoutOverride("list")}
+            onClick={() => setLayoutMode("list")}
             aria-label="Layout lista"
             title="Lista"
           >
@@ -288,7 +303,7 @@ function SectorPage() {
           <Button
             variant={layoutMode === "kanban" ? "secondary" : "ghost"}
             size="icon"
-            onClick={() => setLayoutOverride("kanban")}
+            onClick={() => setLayoutMode("kanban")}
             aria-label="Layout kanban"
             title="Kanban"
           >
@@ -297,7 +312,7 @@ function SectorPage() {
           <Button
             variant={layoutMode === "dashboard" ? "secondary" : "ghost"}
             size="icon"
-            onClick={() => setLayoutOverride("dashboard")}
+            onClick={() => setLayoutMode("dashboard")}
             aria-label="Layout dashboard"
             title="Dashboard"
           >
@@ -312,7 +327,7 @@ function SectorPage() {
                   variant={gridColumns === n ? "secondary" : "ghost"}
                   size="icon"
                   className="w-7 h-7 text-xs"
-                  onClick={() => setColumnsOverride(n)}
+                  onClick={() => setGridColumns(n)}
                   aria-label={`${n} colunas`}
                   title={`${n} colunas`}
                 >
