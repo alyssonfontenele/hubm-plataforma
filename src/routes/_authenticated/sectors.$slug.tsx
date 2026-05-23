@@ -119,13 +119,20 @@ function SectorPage() {
   // Apply server layout exactly once when sectorRecord first loads for this slug
   useEffect(() => {
     if (sectorRecord && !layoutApplied) {
-      setLayoutMode(
-        sectorRecord.layout_config?.mode ?? sectorRecord.config?.layout ?? "grid",
-      );
-      setGridColumns(sectorRecord.layout_config?.columns ?? 3);
+      const mode = sectorRecord.layout_config?.mode ?? sectorRecord.config?.layout ?? "grid";
+      const cols = sectorRecord.layout_config?.columns ?? 3;
+      console.log("[sector] layout initialized:", {
+        slug,
+        layout_config: sectorRecord.layout_config,
+        config_layout: sectorRecord.config?.layout,
+        resolved_mode: mode,
+        resolved_columns: cols,
+      });
+      setLayoutMode(mode);
+      setGridColumns(cols);
       setLayoutApplied(true);
     }
-  }, [sectorRecord, layoutApplied]);
+  }, [sectorRecord, layoutApplied, slug]);
 
   const [folders, setFolders] = useState<Folder[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
@@ -146,29 +153,49 @@ function SectorPage() {
   useEffect(() => {
     let cancelled = false;
 
-    const buildQuery = (cols: string) => {
-      let q = supabase
+    (async () => {
+      // Step 1: base query without layout_config — always succeeds
+      let baseQuery = supabase
         .from("sectors")
-        .select(cols)
+        .select("id,name,icon,config")
         .eq("slug", slug)
         .eq("active", true)
         .limit(1);
-      if (company?.id) q = q.eq("company_id", company.id);
-      return q;
-    };
+      if (company?.id) baseQuery = baseQuery.eq("company_id", company.id);
 
-    (async () => {
-      // Try with layout_config first; fall back if column isn't in PostgREST schema cache yet
-      const { data, error } = await buildQuery("id,name,icon,config,layout_config").maybeSingle();
+      const { data: base, error: baseError } = await baseQuery.maybeSingle();
       if (cancelled) return;
 
-      if (error) {
-        const { data: fallbackData } = await buildQuery("id,name,icon,config").maybeSingle();
-        if (!cancelled) setSectorRecord((fallbackData as SectorRecord | null) ?? null);
+      if (baseError || !base) {
+        console.warn("[sector] base query failed:", baseError?.message);
+        setSectorRecord(null);
         return;
       }
 
-      setSectorRecord((data as SectorRecord | null) ?? null);
+      const baseRecord = base as SectorRecord;
+
+      // Step 2: separate query for layout_config — isolated so a 400 here
+      // never blocks the sector from loading
+      const { data: lcData, error: lcError } = await supabase
+        .from("sectors")
+        .select("layout_config")
+        .eq("id", baseRecord.id)
+        .limit(1)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      const layout_config = !lcError && lcData
+        ? (lcData as { layout_config: LayoutConfig | null }).layout_config ?? null
+        : null;
+
+      if (lcError) {
+        console.warn("[sector] layout_config query failed (schema cache not ready?):", lcError.message);
+      }
+
+      const record: SectorRecord = { ...baseRecord, layout_config };
+      console.log("[sector] sectorRecord loaded:", record);
+      setSectorRecord(record);
     })();
 
     return () => { cancelled = true; };
