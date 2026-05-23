@@ -1,11 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import * as LucideIcons from "lucide-react";
-import { FileText, FileSpreadsheet, Link2, Presentation, FolderOpen, File, Cog } from "lucide-react";
+import {
+  FileText,
+  FileSpreadsheet,
+  Link2,
+  Presentation,
+  FolderOpen,
+  File,
+  Cog,
+  LayoutGrid,
+  List,
+  Columns2,
+  LayoutDashboard,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, type ResourceType } from "@/integrations/supabase/client";
 import { ResourceModal, type ResourceModalData } from "@/components/resource-modal";
 import { FoldersManager } from "@/components/sectors/folders-manager";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/sectors/$slug")({
   head: () => ({ meta: [{ title: "Setor — HubM" }] }),
@@ -60,12 +73,24 @@ const TYPE_LABEL: Record<ResourceType, string> = {
 
 type LayoutKind = "grid" | "list" | "kanban" | "dashboard";
 
+interface LayoutConfig {
+  mode: LayoutKind;
+  columns: number;
+}
+
 interface SectorRecord {
   id: string;
   name: string;
   icon: string | null;
   config: { layout?: LayoutKind } | null;
+  layout_config: LayoutConfig | null;
 }
+
+const GRID_COLS: Record<number, string> = {
+  2: "grid-cols-1 sm:grid-cols-2",
+  3: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
+  4: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4",
+};
 
 function SectorPage() {
   const { slug } = Route.useParams();
@@ -79,7 +104,25 @@ function SectorPage() {
   const sectorId = sectorRecord?.id ?? membership?.sector.id;
   const sectorName = sectorRecord?.name ?? membership?.sector.name ?? slug;
   const sectorIcon = sectorRecord?.icon ?? membership?.sector.icon ?? null;
-  const layout: LayoutKind = sectorRecord?.config?.layout ?? "grid";
+
+  // Layout state — null means "use server default once loaded"
+  const [layoutOverride, setLayoutOverride] = useState<LayoutKind | null>(null);
+  const [columnsOverride, setColumnsOverride] = useState<number | null>(null);
+  // Reset overrides when navigating to a different sector
+  useEffect(() => {
+    setSectorRecord(null);
+    setLayoutOverride(null);
+    setColumnsOverride(null);
+  }, [slug]);
+
+  // Derive effective layout from server config (with fallbacks) and user overrides
+  const serverLayout: LayoutKind =
+    sectorRecord?.layout_config?.mode ??
+    sectorRecord?.config?.layout ??
+    "grid";
+  const serverColumns: number = sectorRecord?.layout_config?.columns ?? 3;
+  const layoutMode: LayoutKind = layoutOverride ?? serverLayout;
+  const gridColumns: number = columnsOverride ?? serverColumns;
 
   const [folders, setFolders] = useState<Folder[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
@@ -100,7 +143,12 @@ function SectorPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      let query = supabase.from("sectors").select("id,name,icon,config").eq("slug", slug).eq("active", true).limit(1);
+      let query = supabase
+        .from("sectors")
+        .select("id,name,icon,config,layout_config")
+        .eq("slug", slug)
+        .eq("active", true)
+        .limit(1);
       if (company?.id) query = query.eq("company_id", company.id);
       const { data } = await query.maybeSingle();
       if (cancelled) return;
@@ -126,7 +174,9 @@ function SectorPage() {
           .order("name", { ascending: true }),
         supabase
           .from("resources")
-          .select("id,name,description,url,type,folder_id,thumbnail_url,sort_order,mime_type,created_by,created_at")
+          .select(
+            "id,name,description,url,type,folder_id,thumbnail_url,sort_order,mime_type,created_by,created_at",
+          )
           .order("sort_order", { ascending: true, nullsFirst: false })
           .order("name", { ascending: true }),
       ]);
@@ -200,15 +250,77 @@ function SectorPage() {
     setModalOpen(true);
   };
 
+  const colsClass = GRID_COLS[gridColumns] ?? GRID_COLS[3];
+
   return (
     <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
-      <header className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-surface border border-border flex items-center justify-center">
-          <SectorIcon className="w-5 h-5 text-text-primary" />
+      <header className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-surface border border-border flex items-center justify-center">
+            <SectorIcon className="w-5 h-5 text-text-primary" />
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wider text-text-muted">Setor</p>
+            <h1 className="text-2xl font-bold text-text-primary">{sectorName}</h1>
+          </div>
         </div>
-        <div>
-          <p className="text-xs uppercase tracking-wider text-text-muted">Setor</p>
-          <h1 className="text-2xl font-bold text-text-primary">{sectorName}</h1>
+
+        {/* Layout switcher */}
+        <div className="flex items-center gap-1">
+          <Button
+            variant={layoutMode === "grid" ? "secondary" : "ghost"}
+            size="icon"
+            onClick={() => setLayoutOverride("grid")}
+            aria-label="Layout grade"
+            title="Grade"
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </Button>
+          <Button
+            variant={layoutMode === "list" ? "secondary" : "ghost"}
+            size="icon"
+            onClick={() => setLayoutOverride("list")}
+            aria-label="Layout lista"
+            title="Lista"
+          >
+            <List className="w-4 h-4" />
+          </Button>
+          <Button
+            variant={layoutMode === "kanban" ? "secondary" : "ghost"}
+            size="icon"
+            onClick={() => setLayoutOverride("kanban")}
+            aria-label="Layout kanban"
+            title="Kanban"
+          >
+            <Columns2 className="w-4 h-4" />
+          </Button>
+          <Button
+            variant={layoutMode === "dashboard" ? "secondary" : "ghost"}
+            size="icon"
+            onClick={() => setLayoutOverride("dashboard")}
+            aria-label="Layout dashboard"
+            title="Dashboard"
+          >
+            <LayoutDashboard className="w-4 h-4" />
+          </Button>
+
+          {layoutMode === "grid" && (
+            <div className="flex items-center gap-1 ml-2 pl-2 border-l border-border">
+              {([2, 3, 4] as const).map((n) => (
+                <Button
+                  key={n}
+                  variant={gridColumns === n ? "secondary" : "ghost"}
+                  size="icon"
+                  className="w-7 h-7 text-xs"
+                  onClick={() => setColumnsOverride(n)}
+                  aria-label={`${n} colunas`}
+                  title={`${n} colunas`}
+                >
+                  {n}
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
       </header>
 
@@ -244,8 +356,8 @@ function SectorPage() {
       {sectorId && <FoldersManager sectorId={sectorId} canManage={isAdmin} />}
 
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
+        <div className={`grid ${colsClass} gap-4`}>
+          {Array.from({ length: gridColumns * 2 }).map((_, i) => (
             <div key={i} className="h-32 rounded-lg border border-border bg-surface animate-pulse" />
           ))}
         </div>
@@ -253,17 +365,19 @@ function SectorPage() {
         <div className="border border-border rounded-lg bg-surface p-10 text-center">
           <FolderOpen className="w-8 h-8 mx-auto text-text-muted mb-2" />
           <p className="text-sm text-text-muted">
-            {folders.length === 0 ? "Nenhuma pasta cadastrada neste setor ainda." : "Nenhum recurso nesta pasta."}
+            {folders.length === 0
+              ? "Nenhuma pasta cadastrada neste setor ainda."
+              : "Nenhum recurso nesta pasta."}
           </p>
         </div>
-      ) : layout === "list" ? (
+      ) : layoutMode === "list" ? (
         <ListLayout resources={visibleResources} onOpen={openResource} />
-      ) : layout === "kanban" ? (
+      ) : layoutMode === "kanban" ? (
         <KanbanLayout resources={visibleResources} folders={folders} onOpen={openResource} />
-      ) : layout === "dashboard" ? (
-        <DashboardLayout resources={visibleResources} onOpen={openResource} />
+      ) : layoutMode === "dashboard" ? (
+        <DashboardLayout resources={visibleResources} colsClass={colsClass} onOpen={openResource} />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className={`grid ${colsClass} gap-4`}>
           {visibleResources.map((r) => (
             <ResourceCard key={r.id} resource={r} onClick={() => openResource(r)} />
           ))}
@@ -314,15 +428,25 @@ function ResourceCard({ resource, onClick }: { resource: Resource; onClick: () =
         <Icon className="w-4 h-4 text-text-primary" />
       </div>
       <div className="mt-3 space-y-1">
-        <p className="text-xs uppercase tracking-wider text-text-muted">{TYPE_LABEL[resource.type] ?? "Recurso"}</p>
+        <p className="text-xs uppercase tracking-wider text-text-muted">
+          {TYPE_LABEL[resource.type] ?? "Recurso"}
+        </p>
         <h3 className="text-sm font-semibold text-text-primary line-clamp-2">{resource.name}</h3>
-        {resource.description && <p className="text-xs text-text-muted line-clamp-2">{resource.description}</p>}
+        {resource.description && (
+          <p className="text-xs text-text-muted line-clamp-2">{resource.description}</p>
+        )}
       </div>
     </button>
   );
 }
 
-function ListLayout({ resources, onOpen }: { resources: Resource[]; onOpen: (r: Resource) => void }) {
+function ListLayout({
+  resources,
+  onOpen,
+}: {
+  resources: Resource[];
+  onOpen: (r: Resource) => void;
+}) {
   return (
     <ul className="border border-border rounded-lg bg-surface divide-y divide-border">
       {resources.map((r) => {
@@ -339,7 +463,9 @@ function ListLayout({ resources, onOpen }: { resources: Resource[]; onOpen: (r: 
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-text-primary truncate">{r.name}</p>
-                {r.description && <p className="text-xs text-text-muted truncate">{r.description}</p>}
+                {r.description && (
+                  <p className="text-xs text-text-muted truncate">{r.description}</p>
+                )}
               </div>
               <span className="text-xs uppercase tracking-wider text-text-muted shrink-0">
                 {TYPE_LABEL[r.type] ?? "Recurso"}
@@ -401,7 +527,9 @@ function KanbanLayout({
                     <Icon className="w-4 h-4 text-text-primary shrink-0" />
                     <p className="text-sm font-medium text-text-primary truncate">{r.name}</p>
                   </div>
-                  {r.description && <p className="mt-1 text-xs text-text-muted line-clamp-2">{r.description}</p>}
+                  {r.description && (
+                    <p className="mt-1 text-xs text-text-muted line-clamp-2">{r.description}</p>
+                  )}
                 </button>
               );
             })}
@@ -412,7 +540,15 @@ function KanbanLayout({
   );
 }
 
-function DashboardLayout({ resources, onOpen }: { resources: Resource[]; onOpen: (r: Resource) => void }) {
+function DashboardLayout({
+  resources,
+  colsClass,
+  onOpen,
+}: {
+  resources: Resource[];
+  colsClass: string;
+  onOpen: (r: Resource) => void;
+}) {
   const counts = useMemo(() => {
     const acc: Partial<Record<ResourceType, number>> = {};
     resources.forEach((r) => {
@@ -442,7 +578,7 @@ function DashboardLayout({ resources, onOpen }: { resources: Resource[]; onOpen:
           );
         })}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className={`grid ${colsClass} gap-4`}>
         {resources.map((r) => (
           <ResourceCard key={r.id} resource={r} onClick={() => onOpen(r)} />
         ))}
