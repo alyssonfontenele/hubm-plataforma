@@ -121,13 +121,6 @@ function SectorPage() {
     if (sectorRecord && !layoutApplied) {
       const mode = sectorRecord.layout_config?.mode ?? sectorRecord.config?.layout ?? "grid";
       const cols = sectorRecord.layout_config?.columns ?? 3;
-      console.log("[sector] layout initialized:", {
-        slug,
-        layout_config: sectorRecord.layout_config,
-        config_layout: sectorRecord.config?.layout,
-        resolved_mode: mode,
-        resolved_columns: cols,
-      });
       setLayoutMode(mode);
       setGridColumns(cols);
       setLayoutApplied(true);
@@ -167,7 +160,6 @@ function SectorPage() {
       if (cancelled) return;
 
       if (baseError || !base) {
-        console.warn("[sector] base query failed:", baseError?.message);
         setSectorRecord(null);
         return;
       }
@@ -189,12 +181,7 @@ function SectorPage() {
         ? (lcData as { layout_config: LayoutConfig | null }).layout_config ?? null
         : null;
 
-      if (lcError) {
-        console.warn("[sector] layout_config query failed (schema cache not ready?):", lcError.message);
-      }
-
       const record: SectorRecord = { ...baseRecord, layout_config };
-      console.log("[sector] sectorRecord loaded:", record);
       setSectorRecord(record);
     })();
 
