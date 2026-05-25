@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cpfToDigits, isValidCpf, maskCpf, signInWithCpf, signInWithGoogle, ALLOWED_GOOGLE_DOMAINS } from "@/lib/auth";
 
 export const Route = createFileRoute("/login")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Entrar — HubM" },

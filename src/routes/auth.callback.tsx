@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ALLOWED_GOOGLE_DOMAINS } from "@/lib/auth";
 
 export const Route = createFileRoute("/auth/callback")({
+  ssr: false,
   component: AuthCallbackPage,
 });
 
