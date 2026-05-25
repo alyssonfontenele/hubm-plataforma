@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SetupMfaRouteImport } from './routes/setup-mfa'
+import { Route as RequestAccessRouteImport } from './routes/request-access'
 import { Route as MfaChallengeRouteImport } from './routes/mfa-challenge'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as CompleteProfileRouteImport } from './routes/complete-profile'
@@ -24,6 +25,11 @@ import { Route as AuthenticatedSectorsSlugRouteImport } from './routes/_authenti
 const SetupMfaRoute = SetupMfaRouteImport.update({
   id: '/setup-mfa',
   path: '/setup-mfa',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RequestAccessRoute = RequestAccessRouteImport.update({
+  id: '/request-access',
+  path: '/request-access',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MfaChallengeRoute = MfaChallengeRouteImport.update({
@@ -83,6 +89,7 @@ export interface FileRoutesByFullPath {
   '/complete-profile': typeof CompleteProfileRoute
   '/login': typeof LoginRoute
   '/mfa-challenge': typeof MfaChallengeRoute
+  '/request-access': typeof RequestAccessRoute
   '/setup-mfa': typeof SetupMfaRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/app': typeof AuthenticatedAppRoute
@@ -95,6 +102,7 @@ export interface FileRoutesByTo {
   '/complete-profile': typeof CompleteProfileRoute
   '/login': typeof LoginRoute
   '/mfa-challenge': typeof MfaChallengeRoute
+  '/request-access': typeof RequestAccessRoute
   '/setup-mfa': typeof SetupMfaRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/app': typeof AuthenticatedAppRoute
@@ -109,6 +117,7 @@ export interface FileRoutesById {
   '/complete-profile': typeof CompleteProfileRoute
   '/login': typeof LoginRoute
   '/mfa-challenge': typeof MfaChallengeRoute
+  '/request-access': typeof RequestAccessRoute
   '/setup-mfa': typeof SetupMfaRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/app': typeof AuthenticatedAppRoute
@@ -123,6 +132,7 @@ export interface FileRouteTypes {
     | '/complete-profile'
     | '/login'
     | '/mfa-challenge'
+    | '/request-access'
     | '/setup-mfa'
     | '/admin'
     | '/app'
@@ -135,6 +145,7 @@ export interface FileRouteTypes {
     | '/complete-profile'
     | '/login'
     | '/mfa-challenge'
+    | '/request-access'
     | '/setup-mfa'
     | '/admin'
     | '/app'
@@ -148,6 +159,7 @@ export interface FileRouteTypes {
     | '/complete-profile'
     | '/login'
     | '/mfa-challenge'
+    | '/request-access'
     | '/setup-mfa'
     | '/_authenticated/admin'
     | '/_authenticated/app'
@@ -162,6 +174,7 @@ export interface RootRouteChildren {
   CompleteProfileRoute: typeof CompleteProfileRoute
   LoginRoute: typeof LoginRoute
   MfaChallengeRoute: typeof MfaChallengeRoute
+  RequestAccessRoute: typeof RequestAccessRoute
   SetupMfaRoute: typeof SetupMfaRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
 }
@@ -173,6 +186,13 @@ declare module '@tanstack/react-router' {
       path: '/setup-mfa'
       fullPath: '/setup-mfa'
       preLoaderRoute: typeof SetupMfaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/request-access': {
+      id: '/request-access'
+      path: '/request-access'
+      fullPath: '/request-access'
+      preLoaderRoute: typeof RequestAccessRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mfa-challenge': {
@@ -271,6 +291,7 @@ const rootRouteChildren: RootRouteChildren = {
   CompleteProfileRoute: CompleteProfileRoute,
   LoginRoute: LoginRoute,
   MfaChallengeRoute: MfaChallengeRoute,
+  RequestAccessRoute: RequestAccessRoute,
   SetupMfaRoute: SetupMfaRoute,
   AuthCallbackRoute: AuthCallbackRoute,
 }

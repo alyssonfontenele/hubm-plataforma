@@ -5,6 +5,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopbar } from "@/components/app-topbar";
 import { useAuth } from "@/contexts/AuthContext";
+import { ALLOWED_GOOGLE_DOMAINS } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedLayout,
@@ -32,6 +33,15 @@ function AuthenticatedLayout() {
     }
   }, [loading, session, profile, navigate]);
 
+  useEffect(() => {
+    if (loading || !session || profile) return;
+    const isGoogle = session.user.app_metadata?.provider === "google";
+    const domain = (session.user.email ?? "").split("@")[1]?.toLowerCase() ?? "";
+    if (isGoogle && ALLOWED_GOOGLE_DOMAINS.includes(domain)) {
+      void navigate({ to: "/request-access" });
+    }
+  }, [loading, session, profile, navigate]);
+
   if (loading || !session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -41,6 +51,15 @@ function AuthenticatedLayout() {
   }
 
   if (!profile) {
+    const isGoogle = session.user.app_metadata?.provider === "google";
+    const domain = (session.user.email ?? "").split("@")[1]?.toLowerCase() ?? "";
+    if (isGoogle && ALLOWED_GOOGLE_DOMAINS.includes(domain)) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="h-3 w-24 bg-accent-light rounded animate-pulse" />
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <div className="max-w-md text-center space-y-3">

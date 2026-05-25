@@ -3,7 +3,7 @@ import { createFileRoute, useNavigate, useRouterState } from "@tanstack/react-ro
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { cpfToDigits, isValidCpf, maskCpf, signInWithCpf, signInWithGoogle } from "@/lib/auth";
+import { cpfToDigits, isValidCpf, maskCpf, signInWithCpf, signInWithGoogle, ALLOWED_GOOGLE_DOMAINS } from "@/lib/auth";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -15,13 +15,15 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
-const ALLOWED_GOOGLE_DOMAIN = "@mowig.com.br";
-
 /** Runs after a successful Supabase Auth login; returns true if user is allowed in. */
-async function enforceLoginRules(): Promise<boolean> {
+async function enforceLoginRules(): Promise<boolean | "request-access"> {
   const { data: sessionRes } = await supabase.auth.getSession();
   const user = sessionRes.session?.user;
   if (!user) return false;
+
+  const isGoogleUser = user.app_metadata?.provider === "google";
+  const userDomain = (user.email ?? "").split("@")[1]?.toLowerCase() ?? "";
+  const isDomainAllowed = ALLOWED_GOOGLE_DOMAINS.includes(userDomain);
 
   const { data: prof, error } = await supabase
     .from("profiles")
@@ -30,23 +32,32 @@ async function enforceLoginRules(): Promise<boolean> {
     .maybeSingle();
 
   if (error || !prof) {
+    if (isGoogleUser && isDomainAllowed) {
+      return "request-access";
+    }
     await supabase.auth.signOut();
     toast.error("Não foi possível realizar o login. Entre em contato com o administrador.");
     return false;
   }
+
+  if (prof.auth_type === "google" && !prof.active && !prof.deleted_at) {
+    await supabase.auth.signOut();
+    toast.info("Seu acesso ainda está pendente de aprovação.");
+    return false;
+  }
+
   if (!prof.active || prof.deleted_at) {
     await supabase.auth.signOut();
     toast.error("Não foi possível realizar o login. Entre em contato com o administrador.");
     return false;
   }
-  if (
-    prof.auth_type === "google" &&
-    !(user.email ?? "").toLowerCase().endsWith(ALLOWED_GOOGLE_DOMAIN)
-  ) {
+
+  if (prof.auth_type === "google" && !isDomainAllowed) {
     await supabase.auth.signOut();
-    toast.error("Acesso restrito a contas @mowig.com.br.");
+    toast.error("Acesso restrito a domínios corporativos autorizados.");
     return false;
   }
+
   return true;
 }
 
@@ -59,8 +70,9 @@ function LoginPage() {
   useEffect(() => {
     if (loading || pathname !== "/login" || !session || enforced) return;
     setEnforced(true);
-    void enforceLoginRules().then((ok) => {
-      if (ok) void navigate({ to: "/app" });
+    void enforceLoginRules().then((result) => {
+      if (result === true) void navigate({ to: "/app" });
+      else if (result === "request-access") void navigate({ to: "/request-access" });
       else setEnforced(false);
     });
   }, [loading, session, pathname, navigate, enforced]);
@@ -125,7 +137,7 @@ function GoogleSection() {
         className="w-full flex items-center justify-center gap-2 h-11 rounded-md border border-border bg-surface text-sm font-medium text-text-primary hover:bg-accent-light transition-colors disabled:opacity-60"
       >
         <GoogleGlyph />
-        <span>{loading ? "Redirecionando…" : "Entrar com Google (@mowig.com.br)"}</span>
+        <span>{loading ? "Redirecionando…" : "Entrar com Google (corporativo)"}</span>
       </button>
       {error && <p className="text-xs text-destructive">{error}</p>}
     </section>
