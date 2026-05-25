@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { ALLOWED_GOOGLE_DOMAINS } from "@/lib/auth";
 
 export const Route = createFileRoute("/auth/callback")({
   component: AuthCallbackPage,
@@ -52,14 +53,26 @@ function AuthCallbackPage() {
         return;
       }
 
-      // 4. Look up must_change_password
+      // 4. Look up profile
       const { data: profile } = await supabase
         .from("profiles")
         .select("must_change_password")
         .eq("id", session.user.id)
         .maybeSingle();
 
-      if (profile?.must_change_password) {
+      // New Google user with no profile → send to request-access
+      if (!profile) {
+        const isGoogle = session.user.app_metadata?.provider === "google";
+        const domain = (session.user.email ?? "").split("@")[1]?.toLowerCase() ?? "";
+        if (isGoogle && ALLOWED_GOOGLE_DOMAINS.includes(domain)) {
+          window.location.replace("/request-access");
+          return;
+        }
+        window.location.replace("/login");
+        return;
+      }
+
+      if (profile.must_change_password) {
         window.location.replace("/change-password");
       } else {
         window.location.replace("/app");
