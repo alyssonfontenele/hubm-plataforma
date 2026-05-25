@@ -413,7 +413,16 @@ function SectorPage() {
         </div>
       )}
 
-      <ResourceModal resource={selected} open={modalOpen} onOpenChange={setModalOpen} />
+      <ResourceModal
+        resource={selected}
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        canDelete={isAdmin}
+        onDeleted={(id) => {
+          setResources((prev) => prev.filter((r) => r.id !== id));
+          setSelected(null);
+        }}
+      />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
   User,
   Folder,
   Calendar,
+  Trash2,
 } from "lucide-react";
 import {
   Dialog,
@@ -19,10 +20,21 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { supabase, type ResourceType } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { isSafeUrl, safeUrl } from "@/lib/safe-url";
+import { toast } from "sonner";
 
 export interface ResourceModalData {
   id: string;
@@ -42,6 +54,8 @@ interface Props {
   resource: ResourceModalData | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  canDelete?: boolean;
+  onDeleted?: (id: string) => void;
 }
 
 const TYPE_ICON = {
@@ -74,10 +88,12 @@ function actionLabel(type: ResourceType, url: string | null) {
   return "Abrir recurso";
 }
 
-export function ResourceModal({ resource, open, onOpenChange }: Props) {
+export function ResourceModal({ resource, open, onOpenChange, canDelete, onDeleted }: Props) {
   const { profile } = useAuth();
   const [addedByName, setAddedByName] = useState<string | null>(null);
   const loggedRef = useState<{ id: string | null }>({ id: null })[0];
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Log a view when the modal opens for a given resource
   useEffect(() => {
@@ -124,6 +140,21 @@ export function ResourceModal({ resource, open, onOpenChange }: Props) {
     if (!open) loggedRef.id = null;
   }, [open, loggedRef]);
 
+  const handleDelete = async () => {
+    if (!resource) return;
+    setDeleting(true);
+    const { error } = await supabase.from("resources").delete().eq("id", resource.id);
+    setDeleting(false);
+    if (error) {
+      toast.error("Falha ao excluir recurso: " + error.message);
+      return;
+    }
+    toast.success("Recurso excluído.");
+    setConfirmDelete(false);
+    onOpenChange(false);
+    onDeleted?.(resource.id);
+  };
+
   if (!resource) return null;
 
   const Icon = TYPE_ICON[resource.type] ?? File;
@@ -132,6 +163,7 @@ export function ResourceModal({ resource, open, onOpenChange }: Props) {
   const isDownload = resource.type === "pdf" || resource.type === "file";
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-surface border-border max-w-lg">
         <DialogHeader>
@@ -176,7 +208,7 @@ export function ResourceModal({ resource, open, onOpenChange }: Props) {
           )}
         </div>
 
-        <div className="pt-2">
+        <div className="pt-2 space-y-2">
           <Button
             asChild={hasUrl}
             disabled={!hasUrl}
@@ -200,9 +232,42 @@ export function ResourceModal({ resource, open, onOpenChange }: Props) {
               <span>Sem link disponível</span>
             )}
           </Button>
+          {canDelete && (
+            <Button
+              variant="ghost"
+              className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Excluir recurso
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(false)}>
+      <AlertDialogContent className="bg-surface border-border">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Excluir recurso?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tem certeza que deseja excluir{" "}
+            <strong className="text-text-primary">{resource.name}</strong>? Esta ação é permanente.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => void handleDelete()}
+            disabled={deleting}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {deleting ? "Excluindo…" : "Excluir permanentemente"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 

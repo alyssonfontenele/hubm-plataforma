@@ -16,7 +16,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Folders, GripVertical, Pencil, Plus } from "lucide-react";
+import { Folders, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { sanitize } from "@/lib/sanitize";
 
 type LayoutKind = "grid" | "list" | "kanban" | "dashboard";
@@ -95,6 +105,8 @@ export function SectorsTab({ companyId }: { companyId: string }) {
   const [editing, setEditing] = useState<SectorRow | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [localOrder, setLocalOrder] = useState<SectorRow[] | null>(null);
+  const [deleteSector, setDeleteSector] = useState<SectorRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const list = localOrder ?? sectors;
 
@@ -120,6 +132,20 @@ export function SectorsTab({ companyId }: { companyId: string }) {
       return;
     }
     toast.success(`${s.name} ${!s.active ? "ativado" : "desativado"}.`);
+    await queryClient.invalidateQueries({ queryKey });
+  };
+
+  const handleDelete = async () => {
+    if (!deleteSector) return;
+    setDeleting(true);
+    const { error } = await supabase.from("sectors").delete().eq("id", deleteSector.id);
+    setDeleting(false);
+    if (error) {
+      toast.error("Falha ao excluir setor: " + error.message);
+      return;
+    }
+    toast.success("Setor excluído.");
+    setDeleteSector(null);
     await queryClient.invalidateQueries({ queryKey });
   };
 
@@ -183,6 +209,7 @@ export function SectorsTab({ companyId }: { companyId: string }) {
                     sector={s}
                     onEdit={() => openEdit(s)}
                     onToggle={() => void toggleActive(s)}
+                    onDelete={() => setDeleteSector(s)}
                   />
                 ))}
               </ul>
@@ -204,6 +231,29 @@ export function SectorsTab({ companyId }: { companyId: string }) {
           await queryClient.invalidateQueries({ queryKey });
         }}
       />
+
+      <AlertDialog open={!!deleteSector} onOpenChange={(o) => !o && setDeleteSector(null)}>
+        <AlertDialogContent className="bg-surface border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir setor?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o setor{" "}
+              <strong className="text-text-primary">{deleteSector?.name}</strong>? Esta ação é
+              permanente e removerá todos os recursos, membros e configurações associados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => void handleDelete()}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Excluindo…" : "Excluir permanentemente"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -212,10 +262,12 @@ function SortableRow({
   sector,
   onEdit,
   onToggle,
+  onDelete,
 }: {
   sector: SectorRow;
   onEdit: () => void;
   onToggle: () => void;
+  onDelete: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: sector.id,
@@ -268,6 +320,15 @@ function SortableRow({
           aria-label={`Editar ${sector.name}`}
         >
           <Pencil className="w-4 h-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onDelete}
+          aria-label={`Excluir ${sector.name}`}
+          className="text-text-muted hover:text-destructive"
+        >
+          <Trash2 className="w-4 h-4" />
         </Button>
       </div>
     </li>
