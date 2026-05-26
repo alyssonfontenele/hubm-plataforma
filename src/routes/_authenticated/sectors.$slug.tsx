@@ -13,10 +13,12 @@ import {
   List,
   Columns2,
   LayoutDashboard,
+  Plus,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, type ResourceType } from "@/integrations/supabase/client";
 import { ResourceModal, type ResourceModalData } from "@/components/resource-modal";
+import { ResourceCreateModal } from "@/components/resource-create-modal";
 import { FoldersManager } from "@/components/sectors/folders-manager";
 import { Button } from "@/components/ui/button";
 
@@ -156,6 +158,8 @@ function SectorPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<ResourceModalData | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const canManage = globalRole === "admin" || globalRole === "manager";
 
   // Resolve sector by slug (admin may not be a member).
   useEffect(() => {
@@ -310,8 +314,17 @@ function SectorPage() {
           </div>
         </div>
 
-        {/* Layout switcher */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-3">
+          {canManage && sectorId && (
+            <Button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-text-primary text-background hover:bg-text-primary/90"
+            >
+              <Plus className="w-4 h-4 mr-2" /> Novo recurso
+            </Button>
+          )}
+          {/* Layout switcher */}
+          <div className="flex items-center gap-1">
           <Button
             variant={layoutMode === "grid" ? "secondary" : "ghost"}
             size="icon"
@@ -366,6 +379,7 @@ function SectorPage() {
               ))}
             </div>
           )}
+          </div>
         </div>
       </header>
 
@@ -449,6 +463,19 @@ function SectorPage() {
           setSelected(updated);
         }}
       />
+
+      {sectorId && (
+        <ResourceCreateModal
+          open={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          sectorId={sectorId}
+          folders={folders}
+          currentFolderId={activeFolder === "all" ? null : activeFolder}
+          onCreated={(resource) => {
+            setResources((prev) => [...prev, resource]);
+          }}
+        />
+      )}
     </div>
   );
 }
