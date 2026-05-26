@@ -125,8 +125,10 @@ function RequestAccessPage() {
       await supabase.auth.signOut();
       toast.success("Solicitação enviada. Aguarde a aprovação do administrador.");
       void navigate({ to: "/login" });
-    } catch {
-      toast.error("Erro ao enviar solicitação. Tente novamente.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message :
+        (err as { message?: string })?.message ?? "Erro ao enviar solicitação.";
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
