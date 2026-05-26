@@ -14,6 +14,7 @@ import {
 import { sanitize } from "@/lib/sanitize";
 
 export const Route = createFileRoute("/complete-profile")({
+  ssr: false,
   head: () => ({ meta: [{ title: "Complete seu perfil — HubM" }] }),
   component: CompleteProfilePage,
 });
@@ -105,7 +106,13 @@ function CompleteProfilePage() {
       toast.success("Perfil completado com sucesso. Bem-vindo ao HubM!");
       void navigate({ to: "/app" });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
+      const msg =
+        err instanceof Error
+          ? err.message
+          : typeof err === "object" && err !== null && "message" in err
+          ? String((err as { message: unknown }).message)
+          : "Erro ao salvar.";
+      toast.error(msg || "Erro ao salvar.");
     } finally {
       setSaving(false);
     }
