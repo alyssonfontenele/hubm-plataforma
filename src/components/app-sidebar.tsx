@@ -410,6 +410,7 @@ function SectorItem({
             <Link
               to="/sectors/$slug"
               params={{ slug: sector.slug }}
+              search={{ folder: undefined }}
               className="flex items-center gap-2"
             >
               {sector.icon && sector.icon.length <= 4 ? (

@@ -153,6 +153,7 @@ function HomePage() {
                   <Link
                     to="/sectors/$slug"
                     params={{ slug: m.sector.slug }}
+                    search={{ folder: undefined }}
                     className="group flex items-center gap-3 border border-border rounded-lg bg-surface p-4 hover:border-text-muted/40 transition-colors"
                   >
                     <div className="h-9 w-9 rounded-md bg-surface-elevated border border-border flex items-center justify-center">
