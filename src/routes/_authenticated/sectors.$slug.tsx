@@ -294,6 +294,7 @@ function SectorPage() {
       created_at: r.created_at,
       folder_name: r.folder_id ? (folderMap.get(r.folder_id)?.name ?? null) : null,
       sector_name: sectorName,
+      sector_id: sectorId ?? null,
       icon: r.icon,
     });
     setModalOpen(true);
@@ -456,7 +457,7 @@ function SectorPage() {
           setResources((prev) =>
             prev.map((r) =>
               r.id === updated.id
-                ? { ...r, name: updated.name, description: updated.description, url: updated.url, icon: updated.icon ?? null }
+                ? { ...r, name: updated.name, description: updated.description, url: updated.url, icon: updated.icon ?? null, folder_id: updated.folder_id ?? null }
                 : r
             )
           );

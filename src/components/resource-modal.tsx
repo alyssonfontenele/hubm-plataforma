@@ -56,6 +56,7 @@ export interface ResourceModalData {
   created_at?: string | null;
   folder_name?: string | null;
   sector_name?: string | null;
+  sector_id?: string | null;
   icon?: string | null;
 }
 
@@ -122,6 +123,10 @@ export function ResourceModal({ resource, open, onOpenChange, canDelete, onDelet
   const [editDescription, setEditDescription] = useState("");
   const [editUrl, setEditUrl] = useState("");
   const [editIcon, setEditIcon] = useState<string | null>(null);
+  const [editFolderId, setEditFolderId] = useState<string | null>(null);
+  const [editSectorId, setEditSectorId] = useState<string | null>(null);
+  const [sectors, setSectors] = useState<{ id: string; name: string }[]>([]);
+  const [foldersForSector, setFoldersForSector] = useState<{ id: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
 
   // Log a view when the modal opens for a given resource
@@ -179,15 +184,43 @@ export function ResourceModal({ resource, open, onOpenChange, canDelete, onDelet
       setEditDescription(resource.description ?? "");
       setEditUrl(resource.url ?? "");
       setEditIcon(resource.icon ?? null);
+      setEditFolderId(resource.folder_id ?? null);
+      setEditSectorId(resource.sector_id ?? null);
     }
   }, [resource?.id]);
+
+  // Fetch sectors when edit mode opens (admin only)
+  useEffect(() => {
+    if (!isEditing || !canDelete) return;
+    supabase
+      .from("sectors")
+      .select("id,name")
+      .eq("active", true)
+      .order("name")
+      .then(({ data }) => setSectors(data ?? []));
+  }, [isEditing, canDelete]);
+
+  // Fetch folders for the selected sector
+  useEffect(() => {
+    if (!isEditing || !editSectorId) {
+      setFoldersForSector([]);
+      return;
+    }
+    supabase
+      .from("folders")
+      .select("id,name")
+      .eq("sector_id", editSectorId)
+      .is("deleted_at", null)
+      .order("name")
+      .then(({ data }) => setFoldersForSector(data ?? []));
+  }, [isEditing, editSectorId]);
 
   const handleSave = async () => {
     if (!resource) return;
     setSaving(true);
     const { error } = await supabase
       .from("resources")
-      .update({ name: editName, description: editDescription || null, url: editUrl || null, icon: editIcon })
+      .update({ name: editName, description: editDescription || null, url: editUrl || null, icon: editIcon, folder_id: editFolderId || null })
       .eq("id", resource.id);
     setSaving(false);
     if (error) {
@@ -196,7 +229,7 @@ export function ResourceModal({ resource, open, onOpenChange, canDelete, onDelet
     }
     toast.success("Recurso atualizado.");
     setIsEditing(false);
-    onUpdated?.({ ...resource, name: editName, description: editDescription || null, url: editUrl || null, icon: editIcon });
+    onUpdated?.({ ...resource, name: editName, description: editDescription || null, url: editUrl || null, icon: editIcon, folder_id: editFolderId, sector_id: editSectorId });
   };
 
   const handleCancelEdit = () => {
@@ -205,6 +238,8 @@ export function ResourceModal({ resource, open, onOpenChange, canDelete, onDelet
     setEditDescription(resource?.description ?? "");
     setEditUrl(resource?.url ?? "");
     setEditIcon(resource?.icon ?? null);
+    setEditFolderId(resource?.folder_id ?? null);
+    setEditSectorId(resource?.sector_id ?? null);
   };
 
   const handleDelete = async () => {
@@ -296,6 +331,39 @@ export function ResourceModal({ resource, open, onOpenChange, canDelete, onDelet
                 className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
               />
             </div>
+            {canDelete && (
+              <>
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-text-secondary">Setor</label>
+                  <select
+                    value={editSectorId ?? ""}
+                    onChange={(e) => {
+                      setEditSectorId(e.target.value || null);
+                      setEditFolderId(null);
+                    }}
+                    className="w-full h-10 rounded-md border border-border bg-surface px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
+                  >
+                    <option value="">Sem setor</option>
+                    {sectors.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-text-secondary">Pasta</label>
+                  <select
+                    value={editFolderId ?? ""}
+                    onChange={(e) => setEditFolderId(e.target.value || null)}
+                    className="w-full h-10 rounded-md border border-border bg-surface px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
+                  >
+                    <option value="">Nenhuma (raiz do setor)</option>
+                    {foldersForSector.map((f) => (
+                      <option key={f.id} value={f.id}>{f.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
             <div className="space-y-1.5">
               <label className="block text-xs font-medium text-text-secondary">Ícone</label>
               <div className="grid grid-cols-5 gap-2">
