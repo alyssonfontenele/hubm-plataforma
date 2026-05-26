@@ -20,9 +20,10 @@ export const ROLE_LABEL: Record<GlobalRole, string> = {
   viewer:      "Visualizador",
   operational: "Operacional",
 };
-export const SECTOR_ROLES: SectorRole[] = ["manager", "member", "viewer"];
+export const SECTOR_ROLES: SectorRole[] = ["admin", "manager", "member", "viewer"];
 
 export const SECTOR_ROLE_LABEL: Record<SectorRole, string> = {
+  admin:   "Administrador do Setor",
   manager: "Gerente",
   member:  "Membro",
   viewer:  "Visualizador",

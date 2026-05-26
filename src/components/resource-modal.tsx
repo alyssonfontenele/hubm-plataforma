@@ -41,7 +41,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { supabase, type ResourceType } from "@/integrations/supabase/client";
+import { supabase, type ResourceType, type SectorRole } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { isSafeUrl, safeUrl } from "@/lib/safe-url";
 import { toast } from "sonner";
@@ -67,6 +67,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   canManage?: boolean;
+  sectorRole?: SectorRole | null;
   onDeleted?: (id: string) => void;
   onUpdated?: (updated: ResourceModalData) => void;
 }

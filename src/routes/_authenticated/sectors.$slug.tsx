@@ -115,10 +115,11 @@ function SectorPage() {
   const navigate = useNavigate();
   const { sectorMemberships, globalRole, company } = useAuth();
   const membership = sectorMemberships.find((m) => m.sector.slug === slug);
-  const isAdmin = globalRole === "admin";
 
   const [sectorRecord, setSectorRecord] = useState<SectorRecord | null>(null);
   const sectorId = sectorRecord?.id ?? membership?.sector.id;
+  const sectorRole = sectorMemberships.find((m) => m.sector_id === sectorId)?.role ?? null;
+  const isAdmin = globalRole === "admin" || sectorRole === "admin";
   const sectorName = sectorRecord?.name ?? membership?.sector.name ?? slug;
   const sectorIcon = sectorRecord?.icon ?? membership?.sector.icon ?? null;
 
@@ -159,7 +160,8 @@ function SectorPage() {
   const [selected, setSelected] = useState<ResourceModalData | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const canManage = globalRole === "admin" || globalRole === "manager";
+  const canManage = globalRole === "admin" || globalRole === "manager"
+    || sectorRole === "admin" || sectorRole === "manager";
 
   // Resolve sector by slug (admin may not be a member).
   useEffect(() => {
@@ -449,6 +451,7 @@ function SectorPage() {
         open={modalOpen}
         onOpenChange={setModalOpen}
         canManage={canManage}
+        sectorRole={sectorRole}
         onDeleted={(id) => {
           setResources((prev) => prev.filter((r) => r.id !== id));
           setSelected(null);
