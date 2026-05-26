@@ -48,6 +48,8 @@ interface CargosTabProps {
   companyId: string;
 }
 
+const EMPTY_PERMS: { resource_id: string; permission: string }[] = [];
+
 // ─── Permission toggle ────────────────────────────────────────────────────────
 
 const PERM_OPTIONS: { value: PermissionLevel; label: string; title: string }[] = [
@@ -113,8 +115,13 @@ function CreateCargoModal({
   const handleSave = async () => {
     if (!name.trim()) return;
     setSaving(true);
-    await onCreate(name.trim(), description.trim());
-    setSaving(false);
+    try {
+      await onCreate(name.trim(), description.trim());
+    } catch (err) {
+      console.error("[CreateCargoModal] onCreate threw:", err);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -224,7 +231,7 @@ export function CargosTab({ companyId }: CargosTabProps) {
     enabled: sectorIds.length > 0,
   });
 
-  const { data: cargoPerms = [] } = useQuery({
+  const { data: cargoPerms = EMPTY_PERMS } = useQuery({
     queryKey: ["admin-cargo-permissions", selectedCargoId] as const,
     queryFn: async () => {
       if (!selectedCargoId) return [];
@@ -295,13 +302,22 @@ export function CargosTab({ companyId }: CargosTabProps) {
   };
 
   const handleCreate = async (name: string, description: string) => {
-    const { error } = await supabase
-      .from("cargos")
-      .insert({ name, description: description || null, company_id: companyId });
-    if (error) { toast.error("Erro ao criar cargo: " + error.message); return; }
-    toast.success("Cargo criado.");
-    setCreateOpen(false);
-    await queryClient.invalidateQueries({ queryKey: ["admin-cargos", companyId] });
+    try {
+      console.log("[handleCreate] inserting cargo", { name, description, companyId });
+      const { data, error } = await supabase
+        .from("cargos")
+        .insert({ name, description: description || null, company_id: companyId })
+        .select("id,name")
+        .single();
+      console.log("[handleCreate] result", { data, error });
+      if (error) { toast.error("Erro ao criar cargo: " + error.message); return; }
+      toast.success("Cargo criado.");
+      setCreateOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ["admin-cargos", companyId] });
+    } catch (err) {
+      console.error("[handleCreate] unexpected throw:", err);
+      toast.error("Erro inesperado ao criar cargo.");
+    }
   };
 
   const handleDelete = async () => {
