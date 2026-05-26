@@ -205,6 +205,15 @@ export function UserFormModal({
       );
       console.log("[CreateUser] invoke result:", invokeErr, invokeData);
       if (invokeErr) {
+        // Extract actual error body from FunctionsHttpError
+        try {
+          const body = await (invokeErr as { context?: { json?: () => Promise<Record<string, unknown>> } }).context?.json?.();
+          console.log("[CreateUser] error body:", body);
+          if (body?.error) {
+            toast.error(String(body.error));
+            return;
+          }
+        } catch { /* ignore parse errors */ }
         toast.error(GENERIC_CREATE_ERROR);
         return;
       }

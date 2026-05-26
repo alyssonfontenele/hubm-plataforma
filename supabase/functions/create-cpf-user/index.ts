@@ -48,6 +48,22 @@ Deno.serve(async (req) => {
       )
     }
 
+    const cellphone_digits = cellphone ? cellphone.replace(/\D/g, '') : null
+    if (cellphone_digits) {
+      const { data: existingCell } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('cellphone', cellphone_digits)
+        .is('deleted_at', null)
+        .maybeSingle()
+      if (existingCell) {
+        return new Response(
+          JSON.stringify({ error: 'Este número de celular já está cadastrado' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+    }
+
     const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
       email,
       password: temp_password,
@@ -63,7 +79,7 @@ Deno.serve(async (req) => {
 
     const { data: cpf_hashed } = await supabase.rpc('hash_cpf', { cpf_input: cpf_digits })
 
-    console.log("[create-cpf-user] inserting profile:", JSON.stringify({ id: authUser.user.id, company_id, global_role }));
+    console.log("[create-cpf-user] inserting profile:", JSON.stringify({ id: authUser.user.id, company_id, global_role, cpf_hashed_is_null: cpf_hashed === null || cpf_hashed === undefined }));
 
     const { error: profileError } = await supabase.from('profiles').insert({
       id: authUser.user.id,
@@ -72,17 +88,17 @@ Deno.serve(async (req) => {
       auth_type: 'cpf',
       cpf_hash: cpf_hashed,
       recovery_email,
-      cellphone: cellphone.replace(/\D/g, ''),
+      cellphone: cellphone_digits,
       global_role: global_role || 'member',
       active: true,
       must_change_password: true
     })
 
     if (profileError) {
-      console.error("[create-cpf-user] profile insert failed:", profileError.message, profileError.details, profileError.hint);
+      console.error("[create-cpf-user] profile insert failed:", profileError.message, profileError.details, profileError.hint, profileError.code);
       await supabase.auth.admin.deleteUser(authUser.user.id);
       return new Response(
-        JSON.stringify({ error: profileError.message }),
+        JSON.stringify({ error: profileError.message, details: profileError.details, hint: profileError.hint, code: profileError.code }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
