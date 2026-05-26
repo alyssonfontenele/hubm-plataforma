@@ -49,6 +49,7 @@ interface Resource {
   mime_type: string | null;
   created_by: string | null;
   created_at: string | null;
+  icon: string | null;
 }
 
 const TYPE_ICON: Record<ResourceType, typeof FileText> = {
@@ -90,6 +91,20 @@ const GRID_COLS: Record<number, string> = {
   2: "grid-cols-1 sm:grid-cols-2",
   3: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
   4: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4",
+};
+
+const LI = LucideIcons as unknown as Record<string, typeof FileText>;
+const ICON_MAP: Record<string, typeof FileText> = {
+  FileText:  LI.FileText,
+  Link2:     LI.Link2,
+  Table2:    LI.Table2,
+  Film:      LI.Film,
+  Image:     LI.Image,
+  Folder:    LI.Folder,
+  BookOpen:  LI.BookOpen,
+  BarChart2: LI.BarChart2,
+  Globe:     LI.Globe,
+  Code2:     LI.Code2,
 };
 
 function SectorPage() {
@@ -204,7 +219,7 @@ function SectorPage() {
         supabase
           .from("resources")
           .select(
-            "id,name,description,url,type,folder_id,thumbnail_url,sort_order,mime_type,created_by,created_at",
+            "id,name,description,url,type,folder_id,thumbnail_url,sort_order,mime_type,created_by,created_at,icon",
           )
           .order("sort_order", { ascending: true, nullsFirst: false })
           .order("name", { ascending: true }),
@@ -275,6 +290,7 @@ function SectorPage() {
       created_at: r.created_at,
       folder_name: r.folder_id ? (folderMap.get(r.folder_id)?.name ?? null) : null,
       sector_name: sectorName,
+      icon: r.icon,
     });
     setModalOpen(true);
   };
@@ -422,6 +438,16 @@ function SectorPage() {
           setResources((prev) => prev.filter((r) => r.id !== id));
           setSelected(null);
         }}
+        onUpdated={(updated) => {
+          setResources((prev) =>
+            prev.map((r) =>
+              r.id === updated.id
+                ? { ...r, name: updated.name, description: updated.description, url: updated.url, icon: updated.icon ?? null }
+                : r
+            )
+          );
+          setSelected(updated);
+        }}
       />
     </div>
   );
@@ -455,7 +481,8 @@ function FolderPill({
 }
 
 function ResourceCard({ resource, onClick }: { resource: Resource; onClick: () => void }) {
-  const Icon = TYPE_ICON[resource.type] ?? File;
+  const TypeIcon = TYPE_ICON[resource.type] ?? File;
+  const Icon = (resource.icon ? (ICON_MAP[resource.icon] ?? null) : null) ?? TypeIcon;
   return (
     <button
       type="button"

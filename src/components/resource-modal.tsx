@@ -1,17 +1,25 @@
 import { useEffect, useState } from "react";
 import {
-  ExternalLink,
-  FileText,
-  FileSpreadsheet,
-  Link2,
-  Presentation,
-  Cog,
-  File,
-  Download,
-  User,
-  Folder,
+  BarChart2,
+  BookOpen,
   Calendar,
+  Code2,
+  Cog,
+  Download,
+  ExternalLink,
+  File,
+  FileSpreadsheet,
+  FileText,
+  Film,
+  Folder,
+  Globe,
+  Image as ImageIcon,
+  Link2,
+  Pencil,
+  Presentation,
+  Table2,
   Trash2,
+  User,
 } from "lucide-react";
 import {
   Dialog,
@@ -48,6 +56,7 @@ export interface ResourceModalData {
   created_at?: string | null;
   folder_name?: string | null;
   sector_name?: string | null;
+  icon?: string | null;
 }
 
 interface Props {
@@ -56,6 +65,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   canDelete?: boolean;
   onDeleted?: (id: string) => void;
+  onUpdated?: (updated: ResourceModalData) => void;
 }
 
 const TYPE_ICON = {
@@ -78,6 +88,19 @@ const TYPE_LABEL = {
   file: "Arquivo",
 } as const;
 
+const ICON_OPTIONS: { name: string; Icon: typeof FileText }[] = [
+  { name: "FileText",  Icon: FileText  },
+  { name: "Link2",     Icon: Link2     },
+  { name: "Table2",    Icon: Table2    },
+  { name: "Film",      Icon: Film      },
+  { name: "Image",     Icon: ImageIcon },
+  { name: "Folder",    Icon: Folder    },
+  { name: "BookOpen",  Icon: BookOpen  },
+  { name: "BarChart2", Icon: BarChart2 },
+  { name: "Globe",     Icon: Globe     },
+  { name: "Code2",     Icon: Code2     },
+];
+
 function actionLabel(type: ResourceType, url: string | null) {
   if (!url) return "Sem link disponível";
   if (type === "pdf" || type === "file") return "Baixar arquivo";
@@ -88,12 +111,18 @@ function actionLabel(type: ResourceType, url: string | null) {
   return "Abrir recurso";
 }
 
-export function ResourceModal({ resource, open, onOpenChange, canDelete, onDeleted }: Props) {
+export function ResourceModal({ resource, open, onOpenChange, canDelete, onDeleted, onUpdated }: Props) {
   const { profile } = useAuth();
   const [addedByName, setAddedByName] = useState<string | null>(null);
   const loggedRef = useState<{ id: string | null }>({ id: null })[0];
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editUrl, setEditUrl] = useState("");
+  const [editIcon, setEditIcon] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   // Log a view when the modal opens for a given resource
   useEffect(() => {
@@ -135,10 +164,48 @@ export function ResourceModal({ resource, open, onOpenChange, canDelete, onDelet
     };
   }, [resource?.created_by]);
 
-  // Reset logged ref when modal closes
+  // Reset logged ref and edit state when modal closes
   useEffect(() => {
-    if (!open) loggedRef.id = null;
+    if (!open) {
+      loggedRef.id = null;
+      setIsEditing(false);
+    }
   }, [open, loggedRef]);
+
+  // Init edit fields when resource changes
+  useEffect(() => {
+    if (resource) {
+      setEditName(resource.name);
+      setEditDescription(resource.description ?? "");
+      setEditUrl(resource.url ?? "");
+      setEditIcon(resource.icon ?? null);
+    }
+  }, [resource?.id]);
+
+  const handleSave = async () => {
+    if (!resource) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("resources")
+      .update({ name: editName, description: editDescription || null, url: editUrl || null, icon: editIcon })
+      .eq("id", resource.id);
+    setSaving(false);
+    if (error) {
+      toast.error("Falha ao atualizar recurso: " + error.message);
+      return;
+    }
+    toast.success("Recurso atualizado.");
+    setIsEditing(false);
+    onUpdated?.({ ...resource, name: editName, description: editDescription || null, url: editUrl || null, icon: editIcon });
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditName(resource?.name ?? "");
+    setEditDescription(resource?.description ?? "");
+    setEditUrl(resource?.url ?? "");
+    setEditIcon(resource?.icon ?? null);
+  };
 
   const handleDelete = async () => {
     if (!resource) return;
@@ -161,6 +228,7 @@ export function ResourceModal({ resource, open, onOpenChange, canDelete, onDelet
   const hasUrl = isSafeUrl(resource.url);
   const href = safeUrl(resource.url);
   const isDownload = resource.type === "pdf" || resource.type === "file";
+  const ActiveIcon = (isEditing ? ICON_OPTIONS.find((o) => o.name === editIcon)?.Icon : null) ?? Icon;
 
   return (
     <>
@@ -169,23 +237,87 @@ export function ResourceModal({ resource, open, onOpenChange, canDelete, onDelet
         <DialogHeader>
           <div className="flex items-start gap-3">
             <div className="w-11 h-11 rounded-lg bg-background border border-border flex items-center justify-center shrink-0">
-              <Icon className="w-5 h-5 text-text-primary" />
+              <ActiveIcon className="w-5 h-5 text-text-primary" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs uppercase tracking-wider text-text-muted">
                 {TYPE_LABEL[resource.type] ?? "Recurso"}
               </p>
-              <DialogTitle className="text-text-primary text-lg leading-tight">
-                {resource.name}
-              </DialogTitle>
-              {resource.description && (
-                <DialogDescription className="text-text-muted mt-1">
-                  {resource.description}
-                </DialogDescription>
+              {isEditing ? (
+                <>
+                  <DialogTitle className="sr-only">{resource.name}</DialogTitle>
+                  <input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full rounded-md border border-border bg-background px-2 py-1 text-base font-semibold text-text-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
+                  />
+                  <textarea
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    rows={2}
+                    placeholder="Descrição (opcional)"
+                    className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1 text-sm text-text-muted focus:outline-none focus:ring-2 focus:ring-ring/30 resize-none"
+                  />
+                </>
+              ) : (
+                <>
+                  <DialogTitle className="text-text-primary text-lg leading-tight">
+                    {resource.name}
+                  </DialogTitle>
+                  {resource.description && (
+                    <DialogDescription className="text-text-muted mt-1">
+                      {resource.description}
+                    </DialogDescription>
+                  )}
+                </>
               )}
             </div>
+            {canDelete && !isEditing && (
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="shrink-0 p-1.5 rounded-md text-text-muted hover:text-text-primary hover:bg-accent-light transition-colors"
+                aria-label="Editar recurso"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </DialogHeader>
+
+        {isEditing && (
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="block text-xs font-medium text-text-secondary">URL</label>
+              <input
+                value={editUrl}
+                onChange={(e) => setEditUrl(e.target.value)}
+                placeholder="https://..."
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-text-secondary">Ícone</label>
+              <div className="grid grid-cols-5 gap-2">
+                {ICON_OPTIONS.map(({ name, Icon: Ic }) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => setEditIcon(editIcon === name ? null : name)}
+                    className={`flex items-center justify-center h-9 rounded-md border transition-colors ${
+                      editIcon === name
+                        ? "border-text-primary bg-text-primary/10 text-text-primary"
+                        : "border-border bg-background text-text-muted hover:bg-accent-light"
+                    }`}
+                    aria-label={name}
+                  >
+                    <Ic className="w-4 h-4" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-2 text-sm">
           <MetaRow icon={Folder} label="Setor">
@@ -209,38 +341,60 @@ export function ResourceModal({ resource, open, onOpenChange, canDelete, onDelet
         </div>
 
         <div className="pt-2 space-y-2">
-          <Button
-            asChild={hasUrl}
-            disabled={!hasUrl}
-            className="w-full bg-text-primary text-background hover:bg-text-primary/90"
-          >
-            {hasUrl ? (
-              <a
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                {...(isDownload ? { download: "" } : {})}
+          {isEditing ? (
+            <>
+              <Button
+                onClick={() => void handleSave()}
+                disabled={saving || !editName.trim()}
+                className="w-full bg-text-primary text-background hover:bg-text-primary/90"
               >
-                {isDownload ? (
-                  <Download className="w-4 h-4 mr-2" />
+                {saving ? "Salvando…" : "Salvar alterações"}
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={handleCancelEdit}
+                disabled={saving}
+                className="w-full"
+              >
+                Cancelar
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                asChild={hasUrl}
+                disabled={!hasUrl}
+                className="w-full bg-text-primary text-background hover:bg-text-primary/90"
+              >
+                {hasUrl ? (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    {...(isDownload ? { download: "" } : {})}
+                  >
+                    {isDownload ? (
+                      <Download className="w-4 h-4 mr-2" />
+                    ) : (
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                    )}
+                    {actionLabel(resource.type, resource.url)}
+                  </a>
                 ) : (
-                  <ExternalLink className="w-4 h-4 mr-2" />
+                  <span>Sem link disponível</span>
                 )}
-                {actionLabel(resource.type, resource.url)}
-              </a>
-            ) : (
-              <span>Sem link disponível</span>
-            )}
-          </Button>
-          {canDelete && (
-            <Button
-              variant="ghost"
-              className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-              onClick={() => setConfirmDelete(true)}
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Excluir recurso
-            </Button>
+              </Button>
+              {canDelete && (
+                <Button
+                  variant="ghost"
+                  className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Excluir recurso
+                </Button>
+              )}
+            </>
           )}
         </div>
       </DialogContent>
