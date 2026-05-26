@@ -151,7 +151,7 @@ export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
         .select("profile_id, cargos(name)")
         .in("profile_id", profileIds);
       if (error) throw error;
-      return (data ?? []) as { profile_id: string; cargos: { name: string } | null }[];
+      return (data ?? []) as unknown as { profile_id: string; cargos: { name: string } | null }[];
     },
     enabled: profileIds.length > 0,
   });
@@ -179,7 +179,7 @@ export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
         .is("deleted_at", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as PendingRow[];
+      return (data ?? []) as unknown as PendingRow[];
     },
   });
 

@@ -264,7 +264,7 @@ export function ResourceModal({ resource, open, onOpenChange, canManage, onDelet
       .not("profile_id", "is", null)
       .then(({ data }) => {
         if (cancelled) return;
-        setPerms((data ?? []) as PermRow[]);
+        setPerms((data ?? []) as unknown as PermRow[]);
         setLoadingPerms(false);
       });
     return () => { cancelled = true; };
@@ -374,7 +374,7 @@ export function ResourceModal({ resource, open, onOpenChange, canManage, onDelet
       .single();
     setSavingPerm(false);
     if (error) { toast.error("Erro ao adicionar exceção: " + error.message); return; }
-    setPerms((prev) => [...prev, data as PermRow]);
+    setPerms((prev) => [...prev, data as unknown as PermRow]);
     setSelectedUserId(null);
     setUserSearch("");
     setNewPermission("view");
