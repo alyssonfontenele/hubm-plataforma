@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Calendar as CalendarIcon, Plus, ExternalLink, RefreshCw } from "lucide-react";
+import { Calendar as CalendarIcon, Plus, ExternalLink, RefreshCw, CalendarCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { signInWithGoogle } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,8 +48,31 @@ function formatHeader() {
 function isToday(iso: string | undefined) {
   if (!iso) return false;
   const d = new Date(iso);
-  const today = new Date();
-  return d.toDateString() === today.toDateString();
+  return d.toDateString() === new Date().toDateString();
+}
+
+function isTomorrow(iso: string | undefined) {
+  if (!iso) return false;
+  const d = new Date(iso);
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return d.toDateString() === tomorrow.toDateString();
+}
+
+function EventItem({ ev }: { ev: GCalEvent }) {
+  return (
+    <li
+      className="flex items-start gap-3 pl-3 py-2"
+      style={{ borderLeft: "3px solid #111111" }}
+    >
+      <span className="text-xs font-mono text-text-secondary tabular-nums shrink-0 w-12 mt-0.5">
+        {ev.start?.dateTime ? formatTime(ev.start.dateTime) : "—"}
+      </span>
+      <p className="text-sm text-text-primary truncate">
+        {ev.summary ?? "(sem título)"}
+      </p>
+    </li>
+  );
 }
 
 export function CalendarCard() {
@@ -152,39 +175,39 @@ export function CalendarCard() {
           <p className="text-sm text-text-muted py-4">Carregando…</p>
         ) : events.length === 0 ? (
           <p className="text-sm text-text-muted py-4">Nenhum evento agendado</p>
-        ) : (
-          <ul className="space-y-2">
-            {events.map((ev) => {
-              const startIso = ev.start?.dateTime ?? ev.start?.date;
-              const todayBadge = isToday(startIso);
-              return (
-                <li
-                  key={ev.id}
-                  className="flex items-start gap-3 pl-3 py-2"
-                  style={{ borderLeft: "3px solid #111111" }}
-                >
-                  <span className="text-xs font-mono text-text-secondary tabular-nums shrink-0 w-12 mt-0.5">
-                    {ev.start?.dateTime ? formatTime(ev.start.dateTime) : "—"}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-text-primary truncate">
-                      {ev.summary ?? "(sem título)"}
-                    </p>
-                    {!todayBadge && startIso && (
-                      <p className="text-xs text-text-muted">
-                        {new Date(startIso).toLocaleDateString("pt-BR", {
-                          weekday: "short",
-                          day: "2-digit",
-                          month: "short",
-                        })}
-                      </p>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        ) : (() => {
+          const todayEvents = events.filter((ev) => isToday(ev.start?.dateTime ?? ev.start?.date));
+          const tomorrowEvents = events.filter((ev) => isTomorrow(ev.start?.dateTime ?? ev.start?.date));
+          return (
+            <div className="space-y-1">
+              {todayEvents.length === 0 ? (
+                <div className="flex items-center gap-1.5 py-2 text-text-muted">
+                  <CalendarCheck className="h-3.5 w-3.5 shrink-0" />
+                  <p className="text-sm">Nenhum compromisso para hoje.</p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-1">Hoje</p>
+                  <ul className="space-y-2">
+                    {todayEvents.map((ev) => (
+                      <EventItem key={ev.id} ev={ev} />
+                    ))}
+                  </ul>
+                </>
+              )}
+              {tomorrowEvents.length > 0 && (
+                <>
+                  <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-1 mt-3">Amanhã</p>
+                  <ul className="space-y-2">
+                    {tomorrowEvents.map((ev) => (
+                      <EventItem key={ev.id} ev={ev} />
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       <NewEventDialog
