@@ -201,7 +201,10 @@ export function UserFormModal({
         },
       });
       if (error) {
-        toast.error(GENERIC_CREATE_ERROR);
+        const msg = typeof error === "object" && error !== null && "message" in error
+          ? String((error as { message: unknown }).message)
+          : null;
+        toast.error(msg || GENERIC_CREATE_ERROR);
         return;
       }
 
@@ -479,15 +482,29 @@ export function EditUserModal({
         .eq("id", profile.id);
       if (profErr) throw profErr;
 
-      await supabase.from("sector_members").delete().eq("profile_id", profile.id);
+      const { error: deleteError } = await supabase
+        .from("sector_members")
+        .delete()
+        .eq("profile_id", profile.id);
+      if (deleteError) {
+        toast.error("Erro ao atualizar setores: " + deleteError.message);
+        return;
+      }
+
       if (assignments.length > 0) {
-        await supabase.from("sector_members").insert(
-          assignments.map((a) => ({
-            profile_id: profile.id,
-            sector_id: a.sector_id,
-            role: a.role,
-          })),
-        );
+        const { error: insertError } = await supabase
+          .from("sector_members")
+          .insert(
+            assignments.map((a) => ({
+              profile_id: profile.id,
+              sector_id: a.sector_id,
+              role: a.role,
+            })),
+          );
+        if (insertError) {
+          toast.error("Erro ao atualizar setores: " + insertError.message);
+          return;
+        }
       }
 
       if (newPassword && profile.auth_type === "cpf") {
