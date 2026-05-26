@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ALLOWED_GOOGLE_DOMAINS } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated")({
+  ssr: false,
   component: AuthenticatedLayout,
 });
 
