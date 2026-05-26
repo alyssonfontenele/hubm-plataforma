@@ -465,19 +465,16 @@ function SectorPage() {
       />
 
       {sectorId && (
-        <>
-          {showCreateModal && console.log("folders when modal opens:", folders)}
-          <ResourceCreateModal
-            open={showCreateModal}
-            onClose={() => setShowCreateModal(false)}
-            sectorId={sectorId}
-            folders={folders}
-            currentFolderId={activeFolder === "all" ? null : activeFolder}
-            onCreated={(resource) => {
-              setResources((prev) => [...prev, resource]);
-            }}
-          />
-        </>
+        <ResourceCreateModal
+          open={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          sectorId={sectorId}
+          folders={folders}
+          currentFolderId={activeFolder === "all" ? null : activeFolder}
+          onCreated={(resource) => {
+            setResources((prev) => [...prev, resource]);
+          }}
+        />
       )}
     </div>
   );

@@ -86,7 +86,6 @@ export function ResourceCreateModal({
   currentFolderId,
   onCreated,
 }: Props) {
-  console.log("folders prop:", folders);
   const { profile } = useAuth();
   const [resourceName, setResourceName] = useState("");
   const [type, setType] = useState<ResourceType>("link");
