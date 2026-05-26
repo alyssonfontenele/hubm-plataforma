@@ -3,6 +3,7 @@ import {
   BarChart2,
   BookOpen,
   Calendar,
+  ChevronDown,
   Code2,
   Cog,
   Download,
@@ -20,6 +21,7 @@ import {
   Table2,
   Trash2,
   User,
+  X,
 } from "lucide-react";
 import {
   Dialog,
@@ -64,10 +66,26 @@ interface Props {
   resource: ResourceModalData | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  canDelete?: boolean;
+  canManage?: boolean;
   onDeleted?: (id: string) => void;
   onUpdated?: (updated: ResourceModalData) => void;
 }
+
+type PermRow = {
+  id: string;
+  profile_id: string;
+  permission: string;
+  profiles: { full_name: string | null; display_name: string | null } | null;
+};
+
+type UserOption = {
+  id: string;
+  full_name: string | null;
+  display_name: string | null;
+};
+
+const PERM_LABEL: Record<string, string> = { none: "Nenhum", view: "Ver", edit: "Editar" };
+const PERM_VALUES = ["none", "view", "edit"] as const;
 
 const TYPE_ICON = {
   link: Link2,
@@ -112,7 +130,7 @@ function actionLabel(type: ResourceType, url: string | null) {
   return "Abrir recurso";
 }
 
-export function ResourceModal({ resource, open, onOpenChange, canDelete, onDeleted, onUpdated }: Props) {
+export function ResourceModal({ resource, open, onOpenChange, canManage, onDeleted, onUpdated }: Props) {
   const { profile } = useAuth();
   const [addedByName, setAddedByName] = useState<string | null>(null);
   const loggedRef = useState<{ id: string | null }>({ id: null })[0];
@@ -128,6 +146,17 @@ export function ResourceModal({ resource, open, onOpenChange, canDelete, onDelet
   const [sectors, setSectors] = useState<{ id: string; name: string }[]>([]);
   const [foldersForSector, setFoldersForSector] = useState<{ id: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
+
+  // Individual permissions panel
+  const [permOpen, setPermOpen] = useState(false);
+  const [perms, setPerms] = useState<PermRow[]>([]);
+  const [loadingPerms, setLoadingPerms] = useState(false);
+  const [addingUser, setAddingUser] = useState(false);
+  const [userSearch, setUserSearch] = useState("");
+  const [allUsers, setAllUsers] = useState<UserOption[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [newPermission, setNewPermission] = useState<"view" | "edit" | "none">("view");
+  const [savingPerm, setSavingPerm] = useState(false);
 
   // Log a view when the modal opens for a given resource
   useEffect(() => {
@@ -169,11 +198,17 @@ export function ResourceModal({ resource, open, onOpenChange, canDelete, onDelet
     };
   }, [resource?.created_by]);
 
-  // Reset logged ref and edit state when modal closes
+  // Reset state when modal closes
   useEffect(() => {
     if (!open) {
       loggedRef.id = null;
       setIsEditing(false);
+      setPermOpen(false);
+      setPerms([]);
+      setAddingUser(false);
+      setUserSearch("");
+      setSelectedUserId(null);
+      setNewPermission("view");
     }
   }, [open, loggedRef]);
 
@@ -189,16 +224,16 @@ export function ResourceModal({ resource, open, onOpenChange, canDelete, onDelet
     }
   }, [resource?.id]);
 
-  // Fetch sectors when edit mode opens (admin only)
+  // Fetch sectors when edit mode opens (managers/admins only)
   useEffect(() => {
-    if (!isEditing || !canDelete) return;
+    if (!isEditing || !canManage) return;
     supabase
       .from("sectors")
       .select("id,name")
       .eq("active", true)
       .order("name")
       .then(({ data }) => setSectors(data ?? []));
-  }, [isEditing, canDelete]);
+  }, [isEditing, canManage]);
 
   // Fetch folders for the selected sector
   useEffect(() => {
@@ -215,12 +250,52 @@ export function ResourceModal({ resource, open, onOpenChange, canDelete, onDelet
       .then(({ data }) => setFoldersForSector(data ?? []));
   }, [isEditing, editSectorId]);
 
+  // Fetch individual permission overrides when panel opens
+  useEffect(() => {
+    if (!permOpen || !resource || !canManage) return;
+    let cancelled = false;
+    setLoadingPerms(true);
+    supabase
+      .from("resource_permissions")
+      .select("id, profile_id, permission, profiles(full_name, display_name)")
+      .eq("resource_id", resource.id)
+      .not("profile_id", "is", null)
+      .then(({ data }) => {
+        if (cancelled) return;
+        setPerms((data ?? []) as PermRow[]);
+        setLoadingPerms(false);
+      });
+    return () => { cancelled = true; };
+  }, [permOpen, resource?.id, canManage]);
+
+  // Fetch active users when adding an exception
+  useEffect(() => {
+    if (!addingUser || !canManage) return;
+    let cancelled = false;
+    supabase
+      .from("profiles")
+      .select("id, full_name, display_name")
+      .eq("active", true)
+      .then(({ data }) => {
+        if (cancelled) return;
+        setAllUsers((data ?? []) as UserOption[]);
+      });
+    return () => { cancelled = true; };
+  }, [addingUser, canManage]);
+
   const handleSave = async () => {
     if (!resource) return;
     setSaving(true);
     const { error } = await supabase
       .from("resources")
-      .update({ name: editName, description: editDescription || null, url: editUrl || null, icon: editIcon, folder_id: editFolderId || null })
+      .update({
+        name: editName,
+        description: editDescription || null,
+        url: editUrl || null,
+        icon: editIcon,
+        folder_id: editFolderId || null,
+        sector_id: editSectorId || null,
+      })
       .eq("id", resource.id);
     setSaving(false);
     if (error) {
@@ -257,6 +332,46 @@ export function ResourceModal({ resource, open, onOpenChange, canDelete, onDelet
     onDeleted?.(resource.id);
   };
 
+  const handlePermToggle = async (permId: string, newPerm: string) => {
+    const { error } = await supabase
+      .from("resource_permissions")
+      .update({ permission: newPerm })
+      .eq("id", permId);
+    if (error) { toast.error("Erro ao atualizar permissão: " + error.message); return; }
+    setPerms((prev) => prev.map((p) => p.id === permId ? { ...p, permission: newPerm } : p));
+  };
+
+  const handlePermRemove = async (permId: string) => {
+    const { error } = await supabase
+      .from("resource_permissions")
+      .delete()
+      .eq("id", permId);
+    if (error) { toast.error("Erro ao remover permissão: " + error.message); return; }
+    setPerms((prev) => prev.filter((p) => p.id !== permId));
+  };
+
+  const handleAddPerm = async () => {
+    if (!selectedUserId || !resource) return;
+    setSavingPerm(true);
+    const { data, error } = await supabase
+      .from("resource_permissions")
+      .insert({
+        resource_id: resource.id,
+        profile_id: selectedUserId,
+        permission: newPermission,
+        created_by: profile?.id ?? null,
+      })
+      .select("id, profile_id, permission, profiles(full_name, display_name)")
+      .single();
+    setSavingPerm(false);
+    if (error) { toast.error("Erro ao adicionar exceção: " + error.message); return; }
+    setPerms((prev) => [...prev, data as PermRow]);
+    setSelectedUserId(null);
+    setUserSearch("");
+    setNewPermission("view");
+    setAddingUser(false);
+  };
+
   if (!resource) return null;
 
   const Icon = TYPE_ICON[resource.type] ?? File;
@@ -264,6 +379,13 @@ export function ResourceModal({ resource, open, onOpenChange, canDelete, onDelet
   const href = safeUrl(resource.url);
   const isDownload = resource.type === "pdf" || resource.type === "file";
   const ActiveIcon = (isEditing ? ICON_OPTIONS.find((o) => o.name === editIcon)?.Icon : null) ?? Icon;
+
+  const filteredUsers = allUsers.filter(
+    (u) =>
+      !perms.some((p) => p.profile_id === u.id) &&
+      ((u.full_name ?? "").toLowerCase().includes(userSearch.toLowerCase()) ||
+        (u.display_name ?? "").toLowerCase().includes(userSearch.toLowerCase())),
+  );
 
   return (
     <>
@@ -307,7 +429,7 @@ export function ResourceModal({ resource, open, onOpenChange, canDelete, onDelet
                 </>
               )}
             </div>
-            {canDelete && !isEditing && (
+            {canManage && !isEditing && (
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
@@ -331,7 +453,7 @@ export function ResourceModal({ resource, open, onOpenChange, canDelete, onDelet
                 className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
               />
             </div>
-            {canDelete && (
+            {canManage && (
               <>
                 <div className="space-y-1">
                   <label className="block text-xs font-medium text-text-secondary">Setor</label>
@@ -452,7 +574,7 @@ export function ResourceModal({ resource, open, onOpenChange, canDelete, onDelet
                   <span>Sem link disponível</span>
                 )}
               </Button>
-              {canDelete && (
+              {canManage && (
                 <Button
                   variant="ghost"
                   className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
@@ -465,6 +587,151 @@ export function ResourceModal({ resource, open, onOpenChange, canDelete, onDelet
             </>
           )}
         </div>
+
+        {canManage && !isEditing && (
+          <div className="border-t border-border pt-3 mt-1">
+            <button
+              type="button"
+              onClick={() => setPermOpen((o) => !o)}
+              className="flex items-center justify-between w-full text-sm font-medium text-text-primary"
+            >
+              <span>Acesso individual</span>
+              <ChevronDown
+                className={`w-4 h-4 text-text-muted transition-transform ${permOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+
+            {permOpen && (
+              <div className="mt-3 space-y-3">
+                {loadingPerms ? (
+                  <p className="text-xs text-text-muted">Carregando…</p>
+                ) : (
+                  <>
+                    {perms.length === 0 && !addingUser && (
+                      <p className="text-xs text-text-muted">Nenhuma exceção individual configurada.</p>
+                    )}
+
+                    {perms.length > 0 && (
+                      <div className="space-y-2">
+                        {perms.map((p) => {
+                          const name = p.profiles?.display_name ?? p.profiles?.full_name ?? "—";
+                          return (
+                            <div key={p.id} className="flex items-center gap-2">
+                              <span className="flex-1 text-sm text-text-primary truncate">{name}</span>
+                              <div className="flex rounded-md border border-border overflow-hidden text-xs shrink-0">
+                                {PERM_VALUES.map((val) => (
+                                  <button
+                                    key={val}
+                                    type="button"
+                                    onClick={() => void handlePermToggle(p.id, val)}
+                                    className={`px-2 py-1 transition-colors ${
+                                      p.permission === val
+                                        ? "bg-text-primary text-background"
+                                        : "bg-surface text-text-muted hover:bg-accent-light"
+                                    }`}
+                                  >
+                                    {PERM_LABEL[val]}
+                                  </button>
+                                ))}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => void handlePermRemove(p.id)}
+                                className="p-1 text-text-muted hover:text-destructive transition-colors shrink-0"
+                                aria-label="Remover exceção"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {addingUser ? (
+                      <div className="space-y-2 rounded-md border border-border bg-background p-3">
+                        <input
+                          value={userSearch}
+                          onChange={(e) => { setUserSearch(e.target.value); setSelectedUserId(null); }}
+                          placeholder="Buscar usuário…"
+                          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
+                          autoFocus
+                        />
+                        {userSearch.length > 0 && filteredUsers.length > 0 && (
+                          <div className="max-h-36 overflow-y-auto rounded-md border border-border bg-surface divide-y divide-border">
+                            {filteredUsers.slice(0, 8).map((u) => (
+                              <button
+                                key={u.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedUserId(u.id);
+                                  setUserSearch(u.display_name ?? u.full_name ?? "");
+                                }}
+                                className={`w-full text-left px-3 py-2 text-sm hover:bg-accent-light transition-colors ${
+                                  selectedUserId === u.id
+                                    ? "font-medium text-text-primary bg-accent-light"
+                                    : "text-text-secondary"
+                                }`}
+                              >
+                                {u.display_name ?? u.full_name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <div className="flex rounded-md border border-border overflow-hidden text-xs">
+                            {PERM_VALUES.map((val) => (
+                              <button
+                                key={val}
+                                type="button"
+                                onClick={() => setNewPermission(val)}
+                                className={`px-2 py-1.5 transition-colors ${
+                                  newPermission === val
+                                    ? "bg-text-primary text-background"
+                                    : "bg-surface text-text-muted hover:bg-accent-light"
+                                }`}
+                              >
+                                {PERM_LABEL[val]}
+                              </button>
+                            ))}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void handleAddPerm()}
+                            disabled={!selectedUserId || savingPerm}
+                            className="h-8 px-3 rounded-md bg-text-primary text-background text-xs font-medium hover:bg-text-primary/90 disabled:opacity-60"
+                          >
+                            {savingPerm ? "…" : "Confirmar"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAddingUser(false);
+                              setSelectedUserId(null);
+                              setUserSearch("");
+                              setNewPermission("view");
+                            }}
+                            className="h-8 px-3 rounded-md border border-border text-xs text-text-secondary hover:bg-accent-light"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setAddingUser(true)}
+                        className="text-xs text-text-muted hover:text-text-primary transition-colors"
+                      >
+                        + Adicionar exceção
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
 

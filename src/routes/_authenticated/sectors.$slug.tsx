@@ -448,7 +448,7 @@ function SectorPage() {
         resource={selected}
         open={modalOpen}
         onOpenChange={setModalOpen}
-        canDelete={isAdmin}
+        canManage={canManage}
         onDeleted={(id) => {
           setResources((prev) => prev.filter((r) => r.id !== id));
           setSelected(null);
