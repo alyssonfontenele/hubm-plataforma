@@ -14,6 +14,7 @@ import {
   Columns2,
   LayoutDashboard,
   Plus,
+  Search,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, type ResourceType } from "@/integrations/supabase/client";
@@ -160,6 +161,8 @@ function SectorPage() {
   const [selected, setSelected] = useState<ResourceModalData | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [localSearch, setLocalSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const canManage = globalRole === "admin" || globalRole === "manager"
     || sectorRole === "admin" || sectorRole === "manager";
 
@@ -276,6 +279,19 @@ function SectorPage() {
     return sectorResources.filter((r) => r.folder_id === activeFolder);
   }, [sectorResources, activeFolder, folderMap, childrenOfPage]);
   const pillFolders = useMemo(() => folders.filter((f) => !f.parent_id), [folders]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(localSearch.trim()), 300);
+    return () => clearTimeout(t);
+  }, [localSearch]);
+
+  const filteredResources = useMemo(() => {
+    if (!debouncedSearch) return visibleResources;
+    const q = debouncedSearch.toLowerCase();
+    return visibleResources.filter(
+      (r) => r.name.toLowerCase().includes(q) || r.description?.toLowerCase().includes(q),
+    );
+  }, [visibleResources, debouncedSearch]);
 
   const SectorIcon = useMemo(() => {
     if (!sectorIcon) return FolderOpen;
@@ -417,30 +433,50 @@ function SectorPage() {
 
       {sectorId && <FoldersManager sectorId={sectorId} canManage={isAdmin} />}
 
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted pointer-events-none" />
+          <input
+            type="search"
+            value={localSearch}
+            onChange={(e) => setLocalSearch(e.target.value)}
+            placeholder="Buscar recursos..."
+            className="h-9 w-full rounded-md border border-border bg-background pl-8 pr-3 text-sm placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-ring/30"
+          />
+        </div>
+        {debouncedSearch && (
+          <p className="text-xs text-text-muted whitespace-nowrap">
+            {filteredResources.length} resultado(s) para &ldquo;{debouncedSearch}&rdquo;
+          </p>
+        )}
+      </div>
+
       {loading ? (
         <div className={`grid ${colsClass} gap-4`}>
           {Array.from({ length: gridColumns * 2 }).map((_, i) => (
             <div key={i} className="h-32 rounded-lg border border-border bg-surface animate-pulse" />
           ))}
         </div>
-      ) : visibleResources.length === 0 ? (
+      ) : filteredResources.length === 0 ? (
         <div className="border border-border rounded-lg bg-surface p-10 text-center">
           <FolderOpen className="w-8 h-8 mx-auto text-text-muted mb-2" />
           <p className="text-sm text-text-muted">
-            {folders.length === 0
+            {debouncedSearch
+              ? `Nenhum recurso encontrado para "${debouncedSearch}".`
+              : folders.length === 0
               ? "Nenhuma pasta cadastrada neste setor ainda."
               : "Nenhum recurso nesta pasta."}
           </p>
         </div>
       ) : layoutMode === "list" ? (
-        <ListLayout resources={visibleResources} onOpen={openResource} />
+        <ListLayout resources={filteredResources} onOpen={openResource} />
       ) : layoutMode === "kanban" ? (
-        <KanbanLayout resources={visibleResources} folders={folders} onOpen={openResource} />
+        <KanbanLayout resources={filteredResources} folders={folders} onOpen={openResource} />
       ) : layoutMode === "dashboard" ? (
-        <DashboardLayout resources={visibleResources} colsClass={colsClass} onOpen={openResource} />
+        <DashboardLayout resources={filteredResources} colsClass={colsClass} onOpen={openResource} />
       ) : (
         <div className={`grid ${colsClass} gap-4`}>
-          {visibleResources.map((r) => (
+          {filteredResources.map((r) => (
             <ResourceCard key={r.id} resource={r} onClick={() => openResource(r)} />
           ))}
         </div>
