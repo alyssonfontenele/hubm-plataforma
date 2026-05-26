@@ -11,7 +11,9 @@ export type AdminAction =
   | "reset_password"
   | "resend_access"
   | "approve_user"
-  | "reject_user";
+  | "reject_user"
+  | "delete_sector"
+  | "delete_resource";
 
 export const ADMIN_ACTION_LABEL: Record<AdminAction, string> = {
   create_user:         "Criação de usuário",
@@ -25,6 +27,8 @@ export const ADMIN_ACTION_LABEL: Record<AdminAction, string> = {
   resend_access:       "Reenvio de acesso",
   approve_user:        "Aprovação de acesso",
   reject_user:         "Rejeição de acesso",
+  delete_sector:       "Exclusão de setor",
+  delete_resource:     "Exclusão de recurso",
 };
 
 export const ADMIN_ACTION_COLOR: Partial<Record<AdminAction, string>> = {
@@ -35,6 +39,8 @@ export const ADMIN_ACTION_COLOR: Partial<Record<AdminAction, string>> = {
   inactivate_user: "border-amber-200 bg-amber-50 text-amber-800",
   reactivate_user: "border-emerald-200 bg-emerald-50 text-emerald-800",
   create_user:     "border-blue-200 bg-blue-50 text-blue-800",
+  delete_sector:   "border-red-200 bg-red-50 text-red-800",
+  delete_resource: "border-red-200 bg-red-50 text-red-800",
 };
 
 export interface AdminLogRow {
@@ -53,6 +59,7 @@ export async function logAdminAction(params: {
   action: AdminAction;
   targetId: string;
   targetName: string;
+  targetType?: string;
   details?: Record<string, unknown>;
 }) {
   if (!params.adminId) return;
@@ -60,7 +67,7 @@ export async function logAdminAction(params: {
     await supabase.from("admin_logs").insert({
       admin_id: params.adminId,
       action: params.action,
-      target_type: "user",
+      target_type: params.targetType ?? "user",
       target_id: params.targetId,
       target_name: params.targetName,
       details: params.details ?? {},
