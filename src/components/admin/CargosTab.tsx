@@ -48,7 +48,9 @@ interface CargosTabProps {
   companyId: string;
 }
 
+// Stable empty fallbacks — avoid new references on every render
 const EMPTY_PERMS: { resource_id: string; permission: string }[] = [];
+const EMPTY_CARGO_SECTORS: { sector_id: string }[] = [];
 
 // ─── Permission toggle ────────────────────────────────────────────────────────
 
@@ -98,25 +100,35 @@ function PermToggle({
 function CreateCargoModal({
   open,
   onClose,
+  sectors,
   onCreate,
 }: {
   open: boolean;
   onClose: () => void;
-  onCreate: (name: string, description: string) => Promise<void>;
+  sectors: SectorRow[];
+  onCreate: (name: string, description: string, sectorIds: string[]) => Promise<void>;
 }) {
-  const [name, setName] = useState("");
+  const [name, setName]               = useState("");
   const [description, setDescription] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [selected, setSelected]       = useState<Set<string>>(new Set());
+  const [saving, setSaving]           = useState(false);
 
   useEffect(() => {
-    if (!open) { setName(""); setDescription(""); }
+    if (!open) { setName(""); setDescription(""); setSelected(new Set()); }
   }, [open]);
+
+  const toggleSector = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
 
   const handleSave = async () => {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      await onCreate(name.trim(), description.trim());
+      await onCreate(name.trim(), description.trim(), Array.from(selected));
     } catch (err) {
       console.error("[CreateCargoModal] onCreate threw:", err);
     } finally {
@@ -126,12 +138,12 @@ function CreateCargoModal({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="bg-surface border-border max-w-sm">
+      <DialogContent className="bg-surface border-border max-w-sm max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-text-primary">Novo cargo</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="space-y-1">
             <label className="block text-xs font-medium text-text-secondary">Nome *</label>
             <input
@@ -141,6 +153,7 @@ function CreateCargoModal({
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
             />
           </div>
+
           <div className="space-y-1">
             <label className="block text-xs font-medium text-text-secondary">Descrição</label>
             <textarea
@@ -151,6 +164,30 @@ function CreateCargoModal({
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-ring/30 resize-none"
             />
           </div>
+
+          {sectors.length > 0 && (
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-text-secondary">
+                Setores com acesso
+              </label>
+              <div className="space-y-1">
+                {sectors.map((s) => (
+                  <label
+                    key={s.id}
+                    className="flex items-center gap-3 rounded-md border border-border px-3 py-2 cursor-pointer hover:bg-accent-light transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.has(s.id)}
+                      onChange={() => toggleSector(s.id)}
+                      className="h-4 w-4 rounded border-border accent-text-primary shrink-0"
+                    />
+                    <span className="text-sm text-text-primary">{s.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex gap-2 pt-1">
@@ -183,6 +220,7 @@ export function CargosTab({ companyId }: CargosTabProps) {
   const [editDesc, setEditDesc]               = useState("");
   const [permMap, setPermMap]                 = useState<Map<string, PermissionLevel>>(new Map());
   const [savingPerms, setSavingPerms]         = useState<Set<string>>(new Set());
+  const [togglingSectors, setTogglingSectors] = useState<Set<string>>(new Set());
 
   // ── Queries ────────────────────────────────────────────────────────────────
 
@@ -234,13 +272,27 @@ export function CargosTab({ companyId }: CargosTabProps) {
   const { data: cargoPerms = EMPTY_PERMS } = useQuery({
     queryKey: ["admin-cargo-permissions", selectedCargoId] as const,
     queryFn: async () => {
-      if (!selectedCargoId) return [];
+      if (!selectedCargoId) return EMPTY_PERMS;
       const { data, error } = await supabase
         .from("cargo_permissions")
         .select("resource_id,permission")
         .eq("cargo_id", selectedCargoId);
       if (error) throw error;
       return (data ?? []) as { resource_id: string; permission: string }[];
+    },
+    enabled: !!selectedCargoId,
+  });
+
+  const { data: cargoSectors = EMPTY_CARGO_SECTORS } = useQuery({
+    queryKey: ["admin-cargo-sectors", selectedCargoId] as const,
+    queryFn: async () => {
+      if (!selectedCargoId) return EMPTY_CARGO_SECTORS;
+      const { data, error } = await supabase
+        .from("cargo_sectors")
+        .select("sector_id")
+        .eq("cargo_id", selectedCargoId);
+      if (error) throw error;
+      return (data ?? []) as { sector_id: string }[];
     },
     enabled: !!selectedCargoId,
   });
@@ -259,6 +311,11 @@ export function CargosTab({ companyId }: CargosTabProps) {
 
   const selectedCargo = cargos.find((c) => c.id === selectedCargoId) ?? null;
 
+  const cargoSectorIds = useMemo(
+    () => new Set(cargoSectors.map((cs) => cs.sector_id)),
+    [cargoSectors]
+  );
+
   const resourcesBySector = useMemo(() => {
     const map = new Map<string, ResourceRow[]>();
     for (const r of resources) {
@@ -274,6 +331,29 @@ export function CargosTab({ companyId }: CargosTabProps) {
   const handleSelectCargo = (id: string) => {
     setSelectedCargoId(id);
     setIsEditingMeta(false);
+  };
+
+  const handleToggleSector = async (sectorId: string) => {
+    if (!selectedCargoId) return;
+    setTogglingSectors((prev) => new Set(prev).add(sectorId));
+    try {
+      if (cargoSectorIds.has(sectorId)) {
+        const { error } = await supabase
+          .from("cargo_sectors")
+          .delete()
+          .eq("cargo_id", selectedCargoId)
+          .eq("sector_id", sectorId);
+        if (error) { toast.error("Erro ao remover setor."); return; }
+      } else {
+        const { error } = await supabase
+          .from("cargo_sectors")
+          .insert({ cargo_id: selectedCargoId, sector_id: sectorId });
+        if (error) { toast.error("Erro ao adicionar setor."); return; }
+      }
+      await queryClient.invalidateQueries({ queryKey: ["admin-cargo-sectors", selectedCargoId] });
+    } finally {
+      setTogglingSectors((prev) => { const next = new Set(prev); next.delete(sectorId); return next; });
+    }
   };
 
   const handlePermChange = async (resourceId: string, perm: PermissionLevel) => {
@@ -301,16 +381,22 @@ export function CargosTab({ companyId }: CargosTabProps) {
     }
   };
 
-  const handleCreate = async (name: string, description: string) => {
+  const handleCreate = async (name: string, description: string, newSectorIds: string[]) => {
     try {
-      console.log("[handleCreate] inserting cargo", { name, description, companyId });
       const { data, error } = await supabase
         .from("cargos")
         .insert({ name, description: description || null, company_id: companyId })
-        .select("id,name")
+        .select("id")
         .single();
-      console.log("[handleCreate] result", { data, error });
       if (error) { toast.error("Erro ao criar cargo: " + error.message); return; }
+
+      if (newSectorIds.length > 0) {
+        const { error: secErr } = await supabase
+          .from("cargo_sectors")
+          .insert(newSectorIds.map((sid) => ({ cargo_id: data.id, sector_id: sid })));
+        if (secErr) toast.error("Cargo criado, mas erro ao atribuir setores: " + secErr.message);
+      }
+
       toast.success("Cargo criado.");
       setCreateOpen(false);
       await queryClient.invalidateQueries({ queryKey: ["admin-cargos", companyId] });
@@ -418,7 +504,7 @@ export function CargosTab({ companyId }: CargosTabProps) {
           )}
         </div>
 
-        {/* ── Right panel: permission matrix ── */}
+        {/* ── Right panel ── */}
         {selectedCargo ? (
           <div className="flex-1 min-w-0 space-y-5">
             {/* Cargo name/description header */}
@@ -474,73 +560,120 @@ export function CargosTab({ companyId }: CargosTabProps) {
               )}
             </div>
 
-            {/* Legend */}
-            <div className="flex items-center gap-4 text-xs text-text-muted">
-              <span className="flex items-center gap-1.5">
-                <span className="inline-flex h-5 px-2 rounded border border-border bg-background text-xs items-center">—</span>
-                Sem acesso
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="inline-flex h-5 px-2 rounded bg-blue-500 text-white text-xs items-center">Ver</span>
-                Visualizar
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="inline-flex h-5 px-2 rounded bg-emerald-500 text-white text-xs items-center">Editar</span>
-                Editar e visualizar
-              </span>
+            {/* Setores com acesso */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+                Setores com acesso
+              </p>
+              {sectors.length === 0 ? (
+                <p className="text-xs text-text-muted">Nenhum setor ativo.</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {sectors.map((sector) => {
+                    const active = cargoSectorIds.has(sector.id);
+                    const toggling = togglingSectors.has(sector.id);
+                    return (
+                      <button
+                        key={sector.id}
+                        type="button"
+                        disabled={toggling}
+                        onClick={() => void handleToggleSector(sector.id)}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors disabled:opacity-50 ${
+                          active
+                            ? "bg-text-primary text-background border-text-primary"
+                            : "bg-background text-text-muted border-border hover:bg-accent-light"
+                        }`}
+                      >
+                        {active && <Check className="w-3 h-3" />}
+                        {sector.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            {/* Matrix grouped by sector */}
-            {resources.length === 0 ? (
+            {/* Permission matrix */}
+            {cargoSectorIds.size === 0 ? (
               <p className="text-sm text-text-muted text-center py-10">
-                Nenhum recurso cadastrado nos setores.
+                Nenhum setor atribuído a este cargo.
               </p>
             ) : (
-              <div className="space-y-6">
-                {sectors.map((sector) => {
-                  const sectorResources = resourcesBySector.get(sector.id) ?? [];
-                  if (sectorResources.length === 0) return null;
-                  return (
-                    <div key={sector.id} className="space-y-1.5">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-text-muted px-1">
-                        {sector.name}
-                      </p>
-                      <div className="space-y-1">
-                        {sectorResources.map((resource) => {
-                          const perm = permMap.get(resource.id) ?? "none";
-                          const saving = savingPerms.has(resource.id);
-                          return (
-                            <div
-                              key={resource.id}
-                              className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 bg-surface/50"
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                {perm === "none" && (
-                                  <span className="w-1.5 h-1.5 rounded-full bg-text-muted/40 shrink-0" />
-                                )}
-                                {perm === "view" && (
-                                  <Eye className="w-3 h-3 text-blue-500 shrink-0" />
-                                )}
-                                {perm === "edit" && (
-                                  <Pencil className="w-3 h-3 text-emerald-500 shrink-0" />
-                                )}
-                                <p className={`text-sm truncate ${perm === "none" ? "text-text-muted" : "text-text-primary"}`}>
-                                  {resource.name}
-                                </p>
+              <>
+                {/* Legend */}
+                <div className="flex items-center gap-4 text-xs text-text-muted">
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-flex h-5 px-2 rounded border border-border bg-background text-xs items-center">—</span>
+                    Sem acesso
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-flex h-5 px-2 rounded bg-blue-500 text-white text-xs items-center">Ver</span>
+                    Visualizar
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-flex h-5 px-2 rounded bg-emerald-500 text-white text-xs items-center">Editar</span>
+                    Editar e visualizar
+                  </span>
+                </div>
+
+                <div className="space-y-6">
+                  {sectors.map((sector) => {
+                    if (!cargoSectorIds.has(sector.id)) return null;
+                    const sectorResources = resourcesBySector.get(sector.id) ?? [];
+                    if (sectorResources.length === 0) {
+                      return (
+                        <div key={sector.id} className="space-y-1.5">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-text-muted px-1">
+                            {sector.name}
+                          </p>
+                          <p className="text-xs text-text-muted px-1">
+                            Nenhum recurso neste setor.
+                          </p>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={sector.id} className="space-y-1.5">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-text-muted px-1">
+                          {sector.name}
+                        </p>
+                        <div className="space-y-1">
+                          {sectorResources.map((resource) => {
+                            const perm = permMap.get(resource.id) ?? "none";
+                            const saving = savingPerms.has(resource.id);
+                            return (
+                              <div
+                                key={resource.id}
+                                className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 bg-surface/50"
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  {perm === "none" && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-text-muted/40 shrink-0" />
+                                  )}
+                                  {perm === "view" && (
+                                    <Eye className="w-3 h-3 text-blue-500 shrink-0" />
+                                  )}
+                                  {perm === "edit" && (
+                                    <Pencil className="w-3 h-3 text-emerald-500 shrink-0" />
+                                  )}
+                                  <p className={`text-sm truncate ${perm === "none" ? "text-text-muted" : "text-text-primary"}`}>
+                                    {resource.name}
+                                  </p>
+                                </div>
+                                <PermToggle
+                                  value={perm}
+                                  onChange={(p) => void handlePermChange(resource.id, p)}
+                                  disabled={saving}
+                                />
                               </div>
-                              <PermToggle
-                                value={perm}
-                                onChange={(p) => void handlePermChange(resource.id, p)}
-                                disabled={saving}
-                              />
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </div>
         ) : (
@@ -556,6 +689,7 @@ export function CargosTab({ companyId }: CargosTabProps) {
       <CreateCargoModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
+        sectors={sectors}
         onCreate={handleCreate}
       />
 
