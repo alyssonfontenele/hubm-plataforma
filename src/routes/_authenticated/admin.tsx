@@ -10,6 +10,7 @@ import { HistoryTab } from "@/components/admin/HistoryTab";
 import { SettingsTab } from "@/components/admin/SettingsTab";
 
 export const Route = createFileRoute("/_authenticated/admin")({
+  ssr: false,
   head: () => ({ meta: [{ title: "Admin — HubM" }] }),
   component: AdminPage,
 });
