@@ -188,16 +188,10 @@ export function UserFormModal({
 
     setSubmitting(true);
     try {
-      // TEMP DEBUG: raw fetch to expose the exact 400 body
-      const invokeResponse = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-cpf-user`,
+      const { data: invokeData, error: invokeErr } = await supabase.functions.invoke(
+        "create-cpf-user",
         {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({
+          body: {
             full_name: sanitize(fullName.trim()),
             cpf: cpfToDigits(cpf),
             recovery_email: recoveryEmail.trim().toLowerCase(),
@@ -206,19 +200,18 @@ export function UserFormModal({
             global_role: globalRole,
             sector_assignments: assignmentsPayload,
             initial_password: initialPassword || undefined,
-          }),
+          },
         },
       );
-      const invokeBody = await invokeResponse.json() as Record<string, unknown>;
-      console.log("[CreateUser] raw response:", invokeResponse.status, JSON.stringify(invokeBody));
-      if (!invokeResponse.ok) {
-        toast.error(String(invokeBody?.error ?? invokeBody?.message ?? GENERIC_CREATE_ERROR));
+      console.log("[CreateUser] invoke result:", invokeErr, invokeData);
+      if (invokeErr) {
+        toast.error(GENERIC_CREATE_ERROR);
         return;
       }
 
       const createdId =
-        (invokeBody.user_id as string | undefined) ??
-        (invokeBody.id as string | undefined) ??
+        (invokeData?.user_id as string | undefined) ??
+        (invokeData?.id as string | undefined) ??
         cpfToDigits(cpf);
       await logAdminAction({
         adminId,
