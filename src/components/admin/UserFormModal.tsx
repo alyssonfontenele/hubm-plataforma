@@ -200,6 +200,7 @@ export function UserFormModal({
           initial_password: initialPassword || undefined,
         },
       });
+      console.log("[CreateUser] invoke result:", JSON.stringify(data), JSON.stringify(error));
       if (error) {
         const msg = typeof error === "object" && error !== null && "message" in error
           ? String((error as { message: unknown }).message)
