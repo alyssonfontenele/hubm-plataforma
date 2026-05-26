@@ -7,6 +7,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CalendarCard } from "@/components/calendar-card";
+import { SECTOR_ROLE_LABEL } from "@/components/admin/shared";
+import type { SectorRole } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/app")({
   head: () => ({ meta: [{ title: "Home — HubM" }] }),
@@ -160,7 +162,7 @@ function HomePage() {
                       <p className="text-sm font-medium text-text-primary truncate">
                         {m.sector.name}
                       </p>
-                      <p className="text-xs text-text-muted capitalize">{m.role}</p>
+                      <p className="text-xs text-text-muted">{SECTOR_ROLE_LABEL[m.role as SectorRole] ?? m.role}</p>
                     </div>
                     <ArrowRight className="h-4 w-4 text-text-muted group-hover:text-text-primary transition-colors" />
                   </Link>

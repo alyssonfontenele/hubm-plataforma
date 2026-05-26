@@ -79,7 +79,7 @@ export function HistoryTab({ companyId }: { companyId: string }) {
           <TableHeader>
             <TableRow className="border-border">
               <TableHead className="w-44">Data/hora</TableHead>
-              <TableHead>Admin</TableHead>
+              <TableHead>Administrador</TableHead>
               <TableHead>Ação</TableHead>
               <TableHead>Usuário afetado</TableHead>
             </TableRow>

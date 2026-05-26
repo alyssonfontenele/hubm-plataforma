@@ -22,6 +22,12 @@ export const ROLE_LABEL: Record<GlobalRole, string> = {
 };
 export const SECTOR_ROLES: SectorRole[] = ["manager", "member", "viewer"];
 
+export const SECTOR_ROLE_LABEL: Record<SectorRole, string> = {
+  manager: "Gerente",
+  member:  "Membro",
+  viewer:  "Visualizador",
+};
+
 export function isValidInitialPassword(pw: string): boolean {
   return pw.length >= 8 && /\d/.test(pw) && /[A-Z]/.test(pw);
 }

@@ -35,7 +35,9 @@ import {
   type Sector,
   type SectorAssignment,
   GLOBAL_ROLES,
+  ROLE_LABEL,
   SECTOR_ROLES,
+  SECTOR_ROLE_LABEL,
   isValidInitialPassword,
 } from "@/components/admin/shared";
 
@@ -80,8 +82,8 @@ function SectorAssignmentList({
                 </SelectTrigger>
                 <SelectContent>
                   {SECTOR_ROLES.map((r) => (
-                    <SelectItem key={r} value={r} className="capitalize">
-                      {r}
+                    <SelectItem key={r} value={r}>
+                      {SECTOR_ROLE_LABEL[r]}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -346,8 +348,8 @@ export function UserFormModal({
               </SelectTrigger>
               <SelectContent>
                 {GLOBAL_ROLES.map((r) => (
-                  <SelectItem key={r} value={r} className="capitalize">
-                    {r}
+                  <SelectItem key={r} value={r}>
+                    {ROLE_LABEL[r]}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -585,8 +587,8 @@ export function EditUserModal({
               </SelectTrigger>
               <SelectContent>
                 {GLOBAL_ROLES.map((r) => (
-                  <SelectItem key={r} value={r} className="capitalize">
-                    {r}
+                  <SelectItem key={r} value={r}>
+                    {ROLE_LABEL[r]}
                   </SelectItem>
                 ))}
               </SelectContent>
