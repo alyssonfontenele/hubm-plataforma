@@ -249,7 +249,7 @@ function SectorPage() {
     return map;
   }, [folders]);
   const sectorResources = useMemo(
-    () => resources.filter((r) => r.folder_id && folderMap.has(r.folder_id)),
+    () => resources.filter((r) => r.folder_id === null || folderMap.has(r.folder_id)),
     [resources, folderMap],
   );
   const childrenOfPage = useMemo(() => {
@@ -269,7 +269,7 @@ function SectorPage() {
     if (activeRecord?.is_page) {
       const childIds = new Set(childrenOfPage.get(activeFolder) ?? []);
       childIds.add(activeFolder);
-      return sectorResources.filter((r) => r.folder_id && childIds.has(r.folder_id));
+      return sectorResources.filter((r) => r.folder_id !== null && childIds.has(r.folder_id));
     }
     return sectorResources.filter((r) => r.folder_id === activeFolder);
   }, [sectorResources, activeFolder, folderMap, childrenOfPage]);
@@ -465,16 +465,19 @@ function SectorPage() {
       />
 
       {sectorId && (
-        <ResourceCreateModal
-          open={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
-          sectorId={sectorId}
-          folders={folders}
-          currentFolderId={activeFolder === "all" ? null : activeFolder}
-          onCreated={(resource) => {
-            setResources((prev) => [...prev, resource]);
-          }}
-        />
+        <>
+          {showCreateModal && console.log("folders when modal opens:", folders)}
+          <ResourceCreateModal
+            open={showCreateModal}
+            onClose={() => setShowCreateModal(false)}
+            sectorId={sectorId}
+            folders={folders}
+            currentFolderId={activeFolder === "all" ? null : activeFolder}
+            onCreated={(resource) => {
+              setResources((prev) => [...prev, resource]);
+            }}
+          />
+        </>
       )}
     </div>
   );

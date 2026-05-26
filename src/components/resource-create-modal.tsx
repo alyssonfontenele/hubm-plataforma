@@ -86,10 +86,11 @@ export function ResourceCreateModal({
   currentFolderId,
   onCreated,
 }: Props) {
+  console.log("folders prop:", folders);
   const { profile } = useAuth();
   const [resourceName, setResourceName] = useState("");
   const [type, setType] = useState<ResourceType>("link");
-  const [folderId, setFolderId] = useState("");
+  const [folderId, setFolderId] = useState<string | null>(null);
   const [description, setDescription] = useState("");
   const [url, setUrl] = useState("");
   const [icon, setIcon] = useState<string | null>(null);
@@ -101,7 +102,7 @@ export function ResourceCreateModal({
       const valid =
         currentFolderId && folders.some((f) => f.id === currentFolderId)
           ? currentFolderId
-          : (folders[0]?.id ?? "");
+          : (folders[0]?.id ?? null);
       setFolderId(valid);
     }
   }, [open, currentFolderId, folders]);
@@ -111,6 +112,7 @@ export function ResourceCreateModal({
     if (!open) {
       setResourceName("");
       setType("link");
+      setFolderId(null);
       setDescription("");
       setUrl("");
       setIcon(null);
@@ -118,12 +120,12 @@ export function ResourceCreateModal({
   }, [open]);
 
   const handleSave = async () => {
-    if (!resourceName.trim() || !folderId) return;
+    if (!resourceName.trim()) return;
     setSaving(true);
     const { data, error } = await supabase
       .from("resources")
       .insert({
-        folder_id: folderId,
+        folder_id: folderId || null,
         type,
         name: resourceName.trim(),
         description: description.trim() || null,
@@ -183,12 +185,13 @@ export function ResourceCreateModal({
           </div>
 
           <div className="space-y-1">
-            <label className="block text-xs font-medium text-text-secondary">Pasta *</label>
+            <label className="block text-xs font-medium text-text-secondary">Pasta</label>
             <select
-              value={folderId}
-              onChange={(e) => setFolderId(e.target.value)}
+              value={folderId ?? ""}
+              onChange={(e) => setFolderId(e.target.value || null)}
               className="w-full h-10 rounded-md border border-border bg-surface px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
             >
+              <option value="">Nenhuma (raiz do setor)</option>
               {folders.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.name}
@@ -251,7 +254,7 @@ export function ResourceCreateModal({
           </Button>
           <Button
             onClick={() => void handleSave()}
-            disabled={saving || !resourceName.trim() || !folderId}
+            disabled={saving || !resourceName.trim()}
             className="flex-1 bg-text-primary text-background hover:bg-text-primary/90"
           >
             {saving ? "Criando…" : "Criar recurso"}
