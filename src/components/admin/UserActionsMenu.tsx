@@ -295,20 +295,10 @@ export function UserActionsMenu({
                 if (deleteConfirmText !== "EXCLUIR") return;
                 setDeleting(true);
                 try {
-                  const { error: fnErr } = await supabase.functions.invoke("admin-delete-user", {
+                  const { error: fnErr } = await supabase.functions.invoke("delete-user", {
                     body: { user_id: profile.id },
                   });
                   if (fnErr) throw fnErr;
-                  const { error: profErr } = await supabase
-                    .from("profiles")
-                    .update({
-                      full_name: "Usuário removido",
-                      cpf_hash: null,
-                      recovery_email: null,
-                      cellphone: null,
-                    })
-                    .eq("id", profile.id);
-                  if (profErr) throw profErr;
                   await logAdminAction({
                     adminId,
                     action: "delete_user",

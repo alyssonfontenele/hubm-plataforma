@@ -14,7 +14,7 @@ export function useDeleteUser(companyId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ userId }: DeleteUserParams) => {
-      const { error } = await supabase.functions.invoke("admin-delete-user", {
+      const { error } = await supabase.functions.invoke("delete-user", {
         body: { user_id: userId },
       });
       if (error) throw error;

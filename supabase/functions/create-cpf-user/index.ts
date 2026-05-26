@@ -49,20 +49,6 @@ Deno.serve(async (req) => {
     }
 
     const cellphone_digits = cellphone ? cellphone.replace(/\D/g, '') : null
-    if (cellphone_digits) {
-      const { data: existingCell } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('cellphone', cellphone_digits)
-        .is('deleted_at', null)
-        .maybeSingle()
-      if (existingCell) {
-        return new Response(
-          JSON.stringify({ error: 'Este número de celular já está cadastrado' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-    }
 
     const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
       email,
