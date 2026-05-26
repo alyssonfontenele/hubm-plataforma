@@ -188,30 +188,37 @@ export function UserFormModal({
 
     setSubmitting(true);
     try {
-      const { data, error } = await supabase.functions.invoke("create-cpf-user", {
-        body: {
-          full_name: sanitize(fullName.trim()),
-          cpf: cpfToDigits(cpf),
-          recovery_email: recoveryEmail.trim().toLowerCase(),
-          cellphone: cellphoneToDigits(cellphone),
-          company_id: companyId,
-          global_role: globalRole,
-          sector_assignments: assignmentsPayload,
-          initial_password: initialPassword || undefined,
+      // TEMP DEBUG: raw fetch to expose the exact 400 body
+      const invokeResponse = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-cpf-user`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            full_name: sanitize(fullName.trim()),
+            cpf: cpfToDigits(cpf),
+            recovery_email: recoveryEmail.trim().toLowerCase(),
+            cellphone: cellphoneToDigits(cellphone),
+            company_id: companyId,
+            global_role: globalRole,
+            sector_assignments: assignmentsPayload,
+            initial_password: initialPassword || undefined,
+          }),
         },
-      });
-      console.log("[CreateUser] invoke result:", JSON.stringify(data), JSON.stringify(error));
-      if (error) {
-        const msg = typeof error === "object" && error !== null && "message" in error
-          ? String((error as { message: unknown }).message)
-          : null;
-        toast.error(msg || GENERIC_CREATE_ERROR);
+      );
+      const invokeBody = await invokeResponse.json() as Record<string, unknown>;
+      console.log("[CreateUser] raw response:", invokeResponse.status, JSON.stringify(invokeBody));
+      if (!invokeResponse.ok) {
+        toast.error(String(invokeBody?.error ?? invokeBody?.message ?? GENERIC_CREATE_ERROR));
         return;
       }
 
       const createdId =
-        (data as { user_id?: string; id?: string } | null)?.user_id ??
-        (data as { user_id?: string; id?: string } | null)?.id ??
+        (invokeBody.user_id as string | undefined) ??
+        (invokeBody.id as string | undefined) ??
         cpfToDigits(cpf);
       await logAdminAction({
         adminId,
