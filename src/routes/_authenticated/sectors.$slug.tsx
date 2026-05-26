@@ -230,6 +230,7 @@ function SectorPage() {
           .select(
             "id,name,description,url,type,folder_id,thumbnail_url,sort_order,mime_type,created_by,created_at,icon",
           )
+          .eq("sector_id", sectorId)
           .order("sort_order", { ascending: true, nullsFirst: false })
           .order("name", { ascending: true }),
       ]);
