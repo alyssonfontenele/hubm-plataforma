@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "postbuild": "node scripts/generate-shell.mjs"
+    "postbuild": "node scripts/postbuild.mjs"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",
