@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ADMIN_ACTION_LABEL, type AdminLogRow } from "@/lib/admin-log";
+import { ADMIN_ACTION_COLOR, ADMIN_ACTION_LABEL, type AdminLogRow } from "@/lib/admin-log";
 
 function formatDate(iso: string): string {
   try {
@@ -107,7 +107,10 @@ export function HistoryTab({ companyId }: { companyId: string }) {
                     {log.admin_id ? (adminNames[log.admin_id] ?? "—") : "—"}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="border-border text-text-primary">
+                    <Badge
+                      variant="outline"
+                      className={ADMIN_ACTION_COLOR[log.action] ?? "border-border text-text-primary"}
+                    >
                       {ADMIN_ACTION_LABEL[log.action] ?? log.action}
                     </Badge>
                   </TableCell>

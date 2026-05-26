@@ -9,14 +9,16 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import type { Profile } from "@/integrations/supabase/client";
+import { ROLE_LABEL } from "@/components/admin/shared";
 
 interface UserListProps {
   profiles: Profile[];
   loading: boolean;
+  cargosMap: Record<string, string>;
   renderActions: (profile: Profile) => ReactNode;
 }
 
-export function UserList({ profiles, loading, renderActions }: UserListProps) {
+export function UserList({ profiles, loading, cargosMap, renderActions }: UserListProps) {
   return (
     <div className="border border-border rounded-lg bg-surface overflow-hidden">
       <Table>
@@ -25,6 +27,7 @@ export function UserList({ profiles, loading, renderActions }: UserListProps) {
             <TableHead>Nome</TableHead>
             <TableHead>Tipo</TableHead>
             <TableHead>Papel global</TableHead>
+            <TableHead>Cargo</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
@@ -32,13 +35,13 @@ export function UserList({ profiles, loading, renderActions }: UserListProps) {
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-text-muted py-8">
+              <TableCell colSpan={6} className="text-center text-text-muted py-8">
                 Carregando…
               </TableCell>
             </TableRow>
           ) : profiles.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-text-muted py-8">
+              <TableCell colSpan={6} className="text-center text-text-muted py-8">
                 Nenhum usuário cadastrado.
               </TableCell>
             </TableRow>
@@ -56,7 +59,12 @@ export function UserList({ profiles, loading, renderActions }: UserListProps) {
                     {p.auth_type === "google" ? "Google" : "CPF"}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-text-primary capitalize">{p.global_role}</TableCell>
+                <TableCell className="text-text-primary">
+                  {ROLE_LABEL[p.global_role] ?? p.global_role}
+                </TableCell>
+                <TableCell className="text-text-primary">
+                  {cargosMap[p.id] ?? "—"}
+                </TableCell>
                 <TableCell>
                   <span
                     className={`text-xs px-2 py-0.5 rounded-full border ${

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronDown, Clock, Plus, UserCog, X } from "lucide-react";
 import { toast } from "sonner";
@@ -9,18 +9,20 @@ import { UserList } from "@/components/admin/UserList";
 import { UserActionsMenu } from "@/components/admin/UserActionsMenu";
 import { UserFormModal, EditUserModal } from "@/components/admin/UserFormModal";
 import { adminProfilesQueryKey, useAdminUsers } from "@/hooks/useAdminUsers";
-import { GLOBAL_ROLES, type Sector } from "@/components/admin/shared";
+import { GLOBAL_ROLES, ROLE_LABEL, type Sector } from "@/components/admin/shared";
+import { logAdminAction } from "@/lib/admin-log";
 
 interface UsersTabProps {
   companyId: string;
   currentUserId: string | null;
 }
 
-type SectorRequest = {
+type CargoRequest = {
   id: string;
-  sector_id: string;
+  sector_id: string | null;
+  cargo_id: string | null;
   status: string;
-  sectors: { id: string; name: string } | null;
+  cargos: { id: string; name: string } | null;
 };
 
 type PendingRow = {
@@ -29,7 +31,13 @@ type PendingRow = {
   recovery_email: string | null;
   created_at: string;
   companies: { slug: string; name: string } | null;
-  profile_sector_requests: SectorRequest[];
+  profile_sector_requests: CargoRequest[];
+};
+
+type CargoRow = {
+  id: string;
+  name: string;
+  description: string | null;
 };
 
 const SLUG_TO_DOMAIN: Record<string, string> = {
@@ -39,11 +47,11 @@ const SLUG_TO_DOMAIN: Record<string, string> = {
 };
 
 const ROLE_META: Record<GlobalRole, { label: string; tooltip: string }> = {
-  admin:       { label: "Administrador", tooltip: "Acesso total: gerencia usuários, setores, configurações e conteúdo." },
-  manager:     { label: "Gerente",       tooltip: "Gerencia conteúdo e usuários do seu setor, sem acesso às configurações globais." },
-  member:      { label: "Membro",        tooltip: "Acesso padrão: visualiza e interage com os setores liberados." },
-  viewer:      { label: "Visualizador",  tooltip: "Somente leitura — não pode criar, editar ou excluir nada." },
-  operational: { label: "Operacional",   tooltip: "Acesso restrito a recursos operacionais específicos do setor." },
+  admin:       { label: ROLE_LABEL.admin,       tooltip: "Acesso total: gerencia usuários, setores, configurações e conteúdo." },
+  manager:     { label: ROLE_LABEL.manager,     tooltip: "Gerencia conteúdo e usuários do seu setor, sem acesso às configurações globais." },
+  member:      { label: ROLE_LABEL.member,      tooltip: "Acesso padrão: visualiza e interage com os setores liberados." },
+  viewer:      { label: ROLE_LABEL.viewer,      tooltip: "Somente leitura — não pode criar, editar ou excluir nada." },
+  operational: { label: ROLE_LABEL.operational, tooltip: "Acesso restrito a recursos operacionais específicos do setor." },
 };
 
 function RoleSelector({
@@ -96,11 +104,11 @@ function RoleSelector({
 
 export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
   const queryClient = useQueryClient();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<Profile | null>(null);
+  const [modalOpen, setModalOpen]         = useState(false);
+  const [editTarget, setEditTarget]       = useState<Profile | null>(null);
   const [approveTarget, setApproveTarget] = useState<PendingRow | null>(null);
-  const [approveRole, setApproveRole] = useState<GlobalRole>("member");
-  const [selectedSectorIds, setSelectedSectorIds] = useState<Set<string>>(new Set());
+  const [approveRole, setApproveRole]     = useState<GlobalRole>("member");
+  const [approveCargoId, setApproveCargoId] = useState<string | null>(null);
 
   const profilesQueryKey = adminProfilesQueryKey(companyId);
 
@@ -119,6 +127,43 @@ export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
     },
   });
 
+  const { data: cargos = [] } = useQuery({
+    queryKey: ["admin-cargos", companyId] as const,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cargos")
+        .select("id,name,description")
+        .eq("company_id", companyId)
+        .order("name");
+      if (error) throw error;
+      return (data ?? []) as CargoRow[];
+    },
+  });
+
+  const profileIds = useMemo(() => profiles.map((p) => p.id), [profiles]);
+
+  const { data: profileCargosRaw = [] } = useQuery({
+    queryKey: ["admin-profile-cargos-map", companyId, profileIds] as const,
+    queryFn: async () => {
+      if (profileIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("profile_cargos")
+        .select("profile_id, cargos(name)")
+        .in("profile_id", profileIds);
+      if (error) throw error;
+      return (data ?? []) as { profile_id: string; cargos: { name: string } | null }[];
+    },
+    enabled: profileIds.length > 0,
+  });
+
+  const cargosMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const pc of profileCargosRaw) {
+      if (pc.cargos?.name) map[pc.profile_id] = pc.cargos.name;
+    }
+    return map;
+  }, [profileCargosRaw]);
+
   const { data: pending = [] } = useQuery({
     queryKey: ["admin-pending-profiles", companyId] as const,
     queryFn: async () => {
@@ -127,7 +172,7 @@ export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
         .select(`
           id, full_name, recovery_email, created_at,
           companies(slug, name),
-          profile_sector_requests(id, sector_id, status, sectors(id, name))
+          profile_sector_requests(id, sector_id, cargo_id, status, cargos(id, name))
         `)
         .eq("company_id", companyId)
         .eq("active", false)
@@ -145,22 +190,15 @@ export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
       queryClient.invalidateQueries({ queryKey: profilesQueryKey }),
       queryClient.invalidateQueries({ queryKey: ["admin-sectors", companyId] }),
       queryClient.invalidateQueries({ queryKey: ["admin-pending-profiles", companyId] }),
+      queryClient.invalidateQueries({ queryKey: ["admin-profile-cargos-map", companyId, profileIds] }),
     ]);
   };
 
   const handleOpenApprove = (req: PendingRow) => {
     setApproveTarget(req);
     setApproveRole("member");
-    setSelectedSectorIds(new Set(req.profile_sector_requests.map((r) => r.sector_id)));
-  };
-
-  const toggleSector = (sectorId: string) => {
-    setSelectedSectorIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(sectorId)) next.delete(sectorId);
-      else next.add(sectorId);
-      return next;
-    });
+    const firstCargo = req.profile_sector_requests.find((r) => r.cargo_id)?.cargo_id ?? null;
+    setApproveCargoId(firstCargo);
   };
 
   const handleApprove = async () => {
@@ -175,32 +213,60 @@ export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
       return;
     }
 
-    if (selectedSectorIds.size > 0) {
-      await supabase.from("sector_members").upsert(
-        Array.from(selectedSectorIds).map((sid) => ({
-          profile_id: approveTarget.id,
-          sector_id: sid,
-          role: "member" as const,
-        })),
-        { ignoreDuplicates: true }
+    if (approveCargoId) {
+      // Fetch sectors covered by this cargo
+      const { data: cs } = await supabase
+        .from("cargo_sectors")
+        .select("sector_id")
+        .eq("cargo_id", approveCargoId);
+      const sectorIds = (cs ?? []).map((r) => r.sector_id as string);
+
+      if (sectorIds.length > 0) {
+        await supabase.from("sector_members").upsert(
+          sectorIds.map((sid) => ({
+            profile_id: approveTarget.id,
+            sector_id: sid,
+            role: "member" as const,
+          })),
+          { ignoreDuplicates: true }
+        );
+      }
+
+      await supabase.from("profile_cargos").upsert(
+        { profile_id: approveTarget.id, cargo_id: approveCargoId, sector_id: null },
+        { onConflict: "profile_id" }
       );
     }
 
     for (const req of approveTarget.profile_sector_requests) {
-      const status = selectedSectorIds.has(req.sector_id) ? "approved" : "rejected";
-      await supabase.from("profile_sector_requests").update({ status }).eq("id", req.id);
+      await supabase
+        .from("profile_sector_requests")
+        .update({ status: "approved" })
+        .eq("id", req.id);
     }
 
-    toast.success(
-      `${approveTarget.full_name} aprovado com acesso a ${selectedSectorIds.size} setor(es).`
-    );
+    await logAdminAction({
+      adminId: currentUserId,
+      action: "approve_user",
+      targetId: approveTarget.id,
+      targetName: approveTarget.full_name,
+      details: { cargo_id: approveCargoId, role: approveRole },
+    });
+
+    toast.success(`${approveTarget.full_name} aprovado.`);
     setApproveTarget(null);
     setApproveRole("member");
-    setSelectedSectorIds(new Set());
+    setApproveCargoId(null);
     await reload();
   };
 
   const handleReject = async (id: string, name: string) => {
+    await logAdminAction({
+      adminId: currentUserId,
+      action: "reject_user",
+      targetId: id,
+      targetName: name,
+    });
     const { error } = await supabase.from("profiles").delete().eq("id", id);
     if (error) {
       toast.error("Erro ao rejeitar solicitação.");
@@ -242,6 +308,7 @@ export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
               const domain = SLUG_TO_DOMAIN[slug] ?? req.companies?.name ?? slug;
               const date = new Date(req.created_at).toLocaleDateString("pt-BR");
               const displayEmail = req.recovery_email ?? req.full_name;
+              const requestedCargo = req.profile_sector_requests.find((r) => r.cargos)?.cargos;
               return (
                 <div
                   key={req.id}
@@ -272,17 +339,10 @@ export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
                       </button>
                     </div>
                   </div>
-                  {req.profile_sector_requests.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-0.5">
-                      {req.profile_sector_requests.map((sr) => (
-                        <span
-                          key={sr.id}
-                          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-accent-light text-text-secondary border border-border"
-                        >
-                          {sr.sectors?.name ?? sr.sector_id}
-                        </span>
-                      ))}
-                    </div>
+                  {requestedCargo && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-accent-light text-text-secondary border border-border">
+                      {requestedCargo.name}
+                    </span>
                   )}
                 </div>
               );
@@ -294,6 +354,7 @@ export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
       <UserList
         profiles={profiles}
         loading={loading}
+        cargosMap={cargosMap}
         renderActions={(p) => (
           <UserActionsMenu
             profile={p}
@@ -350,29 +411,26 @@ export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
               <RoleSelector value={approveRole} onChange={setApproveRole} />
             </div>
 
-            {approveTarget.profile_sector_requests.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-text-secondary">Setores solicitados</p>
-                <div className="space-y-1.5">
-                  {approveTarget.profile_sector_requests.map((sr) => (
-                    <label
-                      key={sr.id}
-                      className="flex items-center gap-3 rounded-md border border-border px-3 py-2 cursor-pointer hover:bg-accent-light"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedSectorIds.has(sr.sector_id)}
-                        onChange={() => toggleSector(sr.sector_id)}
-                        className="h-4 w-4 rounded border-border accent-text-primary shrink-0"
-                      />
-                      <span className="text-sm text-text-primary">
-                        {sr.sectors?.name ?? sr.sector_id}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
+            <div className="space-y-2">
+              <label className="block text-xs font-medium text-text-secondary">Cargo</label>
+              <select
+                value={approveCargoId ?? ""}
+                onChange={(e) => setApproveCargoId(e.target.value || null)}
+                className="w-full h-10 rounded-md border border-border bg-surface px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
+              >
+                <option value="">Sem cargo</option>
+                {cargos.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              {approveCargoId && (
+                <p className="text-xs text-text-muted">
+                  Os setores do cargo serão atribuídos automaticamente.
+                </p>
+              )}
+            </div>
 
             <div className="flex gap-2 pt-2">
               <button
@@ -387,7 +445,7 @@ export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
                 onClick={() => void handleApprove()}
                 className="flex-1 h-10 rounded-md bg-text-primary text-background text-sm font-medium hover:bg-text-primary/90"
               >
-                Confirmar ({selectedSectorIds.size})
+                Confirmar
               </button>
             </div>
           </div>

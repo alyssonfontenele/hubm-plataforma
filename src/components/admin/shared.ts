@@ -12,6 +12,14 @@ export interface SectorAssignment {
 }
 
 export const GLOBAL_ROLES: GlobalRole[] = ["admin", "manager", "member", "viewer", "operational"];
+
+export const ROLE_LABEL: Record<GlobalRole, string> = {
+  admin:       "Administrador",
+  manager:     "Gerente",
+  member:      "Membro",
+  viewer:      "Visualizador",
+  operational: "Operacional",
+};
 export const SECTOR_ROLES: SectorRole[] = ["manager", "member", "viewer"];
 
 export function isValidInitialPassword(pw: string): boolean {

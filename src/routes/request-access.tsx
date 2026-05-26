@@ -12,29 +12,28 @@ export const Route = createFileRoute("/request-access")({
   component: RequestAccessPage,
 });
 
-type SectorItem = {
+type CargoItem = {
   id: string;
   name: string;
-  icon: string | null;
-  group_name: string | null;
+  description: string | null;
 };
 
 const DOMAIN_SLUG: Record<string, string> = {
-  "mowig.com.br": "mowig",
-  "hubmkt.com.br": "mowig",
+  "mowig.com.br":   "mowig",
+  "hubmkt.com.br":  "mowig",
   "moveria.com.br": "mowig",
 };
 
 function RequestAccessPage() {
   const navigate = useNavigate();
-  const [sectors, setSectors] = useState<SectorItem[]>([]);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [submitting, setSubmitting] = useState(false);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [companyId, setCompanyId] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [fullName, setFullName] = useState("");
-  const [ready, setReady] = useState(false);
+  const [cargos, setCargos]               = useState<CargoItem[]>([]);
+  const [selectedCargoId, setSelectedCargoId] = useState<string | null>(null);
+  const [submitting, setSubmitting]       = useState(false);
+  const [userEmail, setUserEmail]         = useState<string | null>(null);
+  const [companyId, setCompanyId]         = useState<string | null>(null);
+  const [userId, setUserId]               = useState<string | null>(null);
+  const [fullName, setFullName]           = useState("");
+  const [ready, setReady]                 = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -55,7 +54,7 @@ function RequestAccessPage() {
         return;
       }
 
-      // Guard: if profile already exists, send back to login for proper handling
+      // Guard: if profile already exists, send back to login
       const { data: prof } = await supabase
         .from("profiles")
         .select("id")
@@ -92,12 +91,11 @@ function RequestAccessPage() {
 
       if (cId) {
         const { data: rows } = await supabase
-          .from("sectors")
-          .select("id, name, icon, group_name")
+          .from("cargos")
+          .select("id, name, description")
           .eq("company_id", cId)
-          .eq("active", true)
           .order("name", { ascending: true });
-        setSectors((rows ?? []) as SectorItem[]);
+        setCargos((rows ?? []) as CargoItem[]);
       }
 
       setReady(true);
@@ -105,16 +103,8 @@ function RequestAccessPage() {
     void init();
   }, [navigate]);
 
-  const toggle = (id: string) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
   const handleSubmit = async () => {
-    if (!userId || !companyId || selected.size === 0) return;
+    if (!userId || !companyId || !selectedCargoId) return;
     setSubmitting(true);
     try {
       const { error: profileError } = await supabase.from("profiles").insert({
@@ -127,9 +117,9 @@ function RequestAccessPage() {
       });
       if (profileError) throw profileError;
 
-      const { error: reqError } = await supabase.from("profile_sector_requests").insert(
-        Array.from(selected).map((sid) => ({ profile_id: userId, sector_id: sid }))
-      );
+      const { error: reqError } = await supabase
+        .from("profile_sector_requests")
+        .insert({ profile_id: userId, cargo_id: selectedCargoId, sector_id: null });
       if (reqError) throw reqError;
 
       await supabase.auth.signOut();
@@ -155,16 +145,6 @@ function RequestAccessPage() {
     );
   }
 
-  // Group sectors by group_name
-  const grouped = sectors.reduce<Record<string, SectorItem[]>>((acc, s) => {
-    const key = s.group_name ?? "";
-    (acc[key] ??= []).push(s);
-    return acc;
-  }, {});
-  const groupKeys = Object.keys(grouped).sort((a, b) =>
-    a === "" ? 1 : b === "" ? -1 : a.localeCompare(b)
-  );
-
   return (
     <main className="min-h-screen flex items-center justify-center px-4 py-10 bg-background">
       <div className="w-full max-w-md">
@@ -177,7 +157,7 @@ function RequestAccessPage() {
           <header className="space-y-1">
             <h2 className="text-base font-semibold text-text-primary">Solicitar acesso</h2>
             <p className="text-xs text-text-muted">
-              Selecione os setores que você precisa acessar. O administrador revisará sua
+              Selecione o cargo que melhor descreve sua função. O administrador revisará sua
               solicitação.
             </p>
             {userEmail && (
@@ -188,38 +168,33 @@ function RequestAccessPage() {
             )}
           </header>
 
-          {sectors.length === 0 ? (
+          {cargos.length === 0 ? (
             <p className="text-sm text-text-muted text-center py-4">
-              Nenhum setor disponível no momento.
+              Nenhum cargo disponível. Contate o administrador.
             </p>
           ) : (
-            <fieldset className="space-y-4">
-              <legend className="sr-only">Setores disponíveis</legend>
-              {groupKeys.map((groupKey) => (
-                <div key={groupKey} className="space-y-1.5">
-                  {groupKey !== "" && (
-                    <p className="text-xs font-semibold uppercase tracking-wider text-text-muted px-1">
-                      {groupKey}
-                    </p>
-                  )}
-                  {grouped[groupKey].map((s) => (
-                    <label
-                      key={s.id}
-                      className="flex items-center gap-3 rounded-md border border-border px-3 py-2.5 cursor-pointer hover:bg-accent-light transition-colors"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selected.has(s.id)}
-                        onChange={() => toggle(s.id)}
-                        className="h-4 w-4 rounded border-border accent-text-primary shrink-0"
-                      />
-                      {s.icon && (
-                        <span className="text-base leading-none shrink-0">{s.icon}</span>
-                      )}
-                      <span className="text-sm text-text-primary">{s.name}</span>
-                    </label>
-                  ))}
-                </div>
+            <fieldset className="space-y-2">
+              <legend className="sr-only">Cargos disponíveis</legend>
+              {cargos.map((c) => (
+                <label
+                  key={c.id}
+                  className="flex items-start gap-3 rounded-md border border-border px-3 py-2.5 cursor-pointer hover:bg-accent-light transition-colors"
+                >
+                  <input
+                    type="radio"
+                    name="cargo"
+                    value={c.id}
+                    checked={selectedCargoId === c.id}
+                    onChange={() => setSelectedCargoId(c.id)}
+                    className="h-4 w-4 mt-0.5 border-border accent-text-primary shrink-0"
+                  />
+                  <div>
+                    <span className="text-sm text-text-primary font-medium">{c.name}</span>
+                    {c.description && (
+                      <p className="text-xs text-text-muted mt-0.5">{c.description}</p>
+                    )}
+                  </div>
+                </label>
               ))}
             </fieldset>
           )}
@@ -228,14 +203,10 @@ function RequestAccessPage() {
             <button
               type="button"
               onClick={() => void handleSubmit()}
-              disabled={submitting || selected.size === 0}
+              disabled={submitting || !selectedCargoId}
               className="w-full h-11 rounded-md bg-text-primary text-background text-sm font-medium hover:bg-text-primary/90 disabled:opacity-60"
             >
-              {submitting
-                ? "Enviando…"
-                : selected.size === 0
-                  ? "Selecione ao menos um setor"
-                  : `Enviar solicitação (${selected.size} setor${selected.size > 1 ? "es" : ""})`}
+              {submitting ? "Enviando…" : !selectedCargoId ? "Selecione um cargo" : "Enviar solicitação"}
             </button>
             <button
               type="button"
