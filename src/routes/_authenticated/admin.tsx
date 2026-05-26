@@ -51,7 +51,7 @@ function AdminPage() {
         </TabsContent>
 
         <TabsContent value="sectors" className="mt-0">
-          <SectorsTab companyId={company.id} />
+          <SectorsTab companyId={company.id} adminId={adminId} />
         </TabsContent>
 
         <TabsContent value="cargos" className="mt-0">
