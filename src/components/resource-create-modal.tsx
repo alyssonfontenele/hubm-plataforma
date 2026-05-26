@@ -81,7 +81,7 @@ const ICON_OPTIONS: { iconName: string; Icon: typeof FileText }[] = [
 export function ResourceCreateModal({
   open,
   onClose,
-  sectorId: _sectorId,
+  sectorId,
   folders,
   currentFolderId,
   onCreated,
@@ -124,6 +124,7 @@ export function ResourceCreateModal({
     const { data, error } = await supabase
       .from("resources")
       .insert({
+        sector_id: sectorId,
         folder_id: folderId || null,
         type,
         name: resourceName.trim(),
