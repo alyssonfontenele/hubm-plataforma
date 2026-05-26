@@ -21,7 +21,7 @@ type SectorItem = {
 
 const DOMAIN_SLUG: Record<string, string> = {
   "mowig.com.br": "mowig",
-  "hubmkt.com.br": "hubmkt",
+  "hubmkt.com.br": "mowig",
   "moveria.com.br": "moveria",
 };
 
