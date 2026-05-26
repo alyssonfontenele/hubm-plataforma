@@ -44,6 +44,7 @@ import { Button } from "@/components/ui/button";
 import { supabase, type ResourceType, type SectorRole } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { isSafeUrl, safeUrl } from "@/lib/safe-url";
+import { logAdminAction } from "@/lib/admin-log";
 import { toast } from "sonner";
 
 export interface ResourceModalData {
@@ -321,6 +322,13 @@ export function ResourceModal({ resource, open, onOpenChange, canManage, onDelet
   const handleDelete = async () => {
     if (!resource) return;
     setDeleting(true);
+    await logAdminAction({
+      adminId: profile?.id,
+      action: "delete_resource",
+      targetId: resource.id,
+      targetName: resource.name,
+      targetType: "resource",
+    });
     const { error } = await supabase.from("resources").delete().eq("id", resource.id);
     setDeleting(false);
     if (error) {

@@ -19,6 +19,8 @@ import { CSS } from "@dnd-kit/utilities";
 import { Folders, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { logAdminAction } from "@/lib/admin-log";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -86,6 +88,7 @@ function slugify(input: string): string {
 
 export function SectorsTab({ companyId }: { companyId: string }) {
   const queryClient = useQueryClient();
+  const { profile } = useAuth();
   const queryKey = ["admin-sectors-manage", companyId] as const;
 
   const { data: sectors = [], isLoading } = useQuery({
@@ -138,6 +141,13 @@ export function SectorsTab({ companyId }: { companyId: string }) {
   const handleDelete = async () => {
     if (!deleteSector) return;
     setDeleting(true);
+    await logAdminAction({
+      adminId: profile?.id,
+      action: "delete_sector",
+      targetId: deleteSector.id,
+      targetName: deleteSector.name,
+      targetType: "sector",
+    });
     const { error } = await supabase.from("sectors").delete().eq("id", deleteSector.id);
     setDeleting(false);
     if (error) {
