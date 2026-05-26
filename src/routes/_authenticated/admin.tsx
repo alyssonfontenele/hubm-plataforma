@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UsersTab } from "@/components/admin/UsersTab";
 import { SectorsTab } from "@/components/admin/sectors-tab";
+import { CargosTab } from "@/components/admin/CargosTab";
 import { HistoryTab } from "@/components/admin/HistoryTab";
 import { SettingsTab } from "@/components/admin/SettingsTab";
 
@@ -40,6 +41,7 @@ function AdminPage() {
         <TabsList className="bg-surface border border-border">
           <TabsTrigger value="users">Usuários</TabsTrigger>
           <TabsTrigger value="sectors">Setores</TabsTrigger>
+          <TabsTrigger value="cargos">Cargos</TabsTrigger>
           <TabsTrigger value="history">Histórico de ações</TabsTrigger>
           <TabsTrigger value="settings">Configurações</TabsTrigger>
         </TabsList>
@@ -50,6 +52,10 @@ function AdminPage() {
 
         <TabsContent value="sectors" className="mt-0">
           <SectorsTab companyId={company.id} />
+        </TabsContent>
+
+        <TabsContent value="cargos" className="mt-0">
+          <CargosTab companyId={company.id} />
         </TabsContent>
 
         <TabsContent value="history" className="mt-0">
