@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Clock, Plus, UserCog, X } from "lucide-react";
+import { Check, ChevronDown, Clock, Plus, UserCog, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase, type GlobalRole, type Profile } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { UserList } from "@/components/admin/UserList";
 import { UserActionsMenu } from "@/components/admin/UserActionsMenu";
 import { UserFormModal, EditUserModal } from "@/components/admin/UserFormModal";
@@ -36,6 +37,62 @@ const SLUG_TO_DOMAIN: Record<string, string> = {
   hubmkt: "hubmkt.com.br",
   moveria: "moveria.com.br",
 };
+
+const ROLE_META: Record<GlobalRole, { label: string; tooltip: string }> = {
+  admin:       { label: "Administrador", tooltip: "Acesso total: gerencia usuários, setores, configurações e conteúdo." },
+  manager:     { label: "Gerente",       tooltip: "Gerencia conteúdo e usuários do seu setor, sem acesso às configurações globais." },
+  member:      { label: "Membro",        tooltip: "Acesso padrão: visualiza e interage com os setores liberados." },
+  viewer:      { label: "Visualizador",  tooltip: "Somente leitura — não pode criar, editar ou excluir nada." },
+  operational: { label: "Operacional",   tooltip: "Acesso restrito a recursos operacionais específicos do setor." },
+};
+
+function RoleSelector({
+  value,
+  onChange,
+}: {
+  value: GlobalRole;
+  onChange: (r: GlobalRole) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <TooltipProvider delayDuration={300}>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="w-full h-10 flex items-center justify-between gap-2 rounded-md border border-border bg-surface px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
+        >
+          <span>{ROLE_META[value].label}</span>
+          <ChevronDown className={`w-4 h-4 text-text-muted shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+        {open && (
+          <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-surface shadow-md py-1">
+            {GLOBAL_ROLES.map((role) => {
+              const { label, tooltip } = ROLE_META[role];
+              return (
+                <Tooltip key={role}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => { onChange(role); setOpen(false); }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-accent-light transition-colors ${value === role ? "font-medium text-text-primary" : "text-text-secondary"}`}
+                    >
+                      {value === role && <Check className="w-3.5 h-3.5 shrink-0" />}
+                      <span className={value === role ? "" : "pl-[1.375rem]"}>{label}</span>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-56">
+                    {tooltip}
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </TooltipProvider>
+  );
+}
 
 export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
   const queryClient = useQueryClient();
@@ -290,17 +347,7 @@ export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
 
             <div className="space-y-2">
               <label className="block text-xs font-medium text-text-secondary">Função</label>
-              <select
-                value={approveRole}
-                onChange={(e) => setApproveRole(e.target.value as GlobalRole)}
-                className="w-full h-10 rounded-md border border-border bg-surface px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
-              >
-                {GLOBAL_ROLES.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
+              <RoleSelector value={approveRole} onChange={setApproveRole} />
             </div>
 
             {approveTarget.profile_sector_requests.length > 0 && (
