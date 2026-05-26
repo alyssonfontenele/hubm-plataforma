@@ -257,7 +257,7 @@ export function ResourceModal({ resource, open, onOpenChange, canManage, onDelet
     setLoadingPerms(true);
     supabase
       .from("resource_permissions")
-      .select("id, profile_id, permission, profiles(full_name, display_name)")
+      .select("id, profile_id, permission, profiles!resource_permissions_profile_id_fkey(full_name, display_name)")
       .eq("resource_id", resource.id)
       .not("profile_id", "is", null)
       .then(({ data }) => {
@@ -361,7 +361,7 @@ export function ResourceModal({ resource, open, onOpenChange, canManage, onDelet
         permission: newPermission,
         created_by: profile?.id ?? null,
       })
-      .select("id, profile_id, permission, profiles(full_name, display_name)")
+      .select("id, profile_id, permission, profiles!resource_permissions_profile_id_fkey(full_name, display_name)")
       .single();
     setSavingPerm(false);
     if (error) { toast.error("Erro ao adicionar exceção: " + error.message); return; }
