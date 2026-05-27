@@ -9,9 +9,11 @@ export const Route = createFileRoute("/_superadmin")({
 });
 
 function SuperadminLayout() {
-  const { session, loading, globalRole, signOut } = useAuth();
+  const { session, loading, globalRole, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const fallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  console.log('superadmin guard:', { loading, hasSession: !!session, globalRole, profile: profile?.global_role });
 
   // Guard: no session after load → /login
   useEffect(() => {
