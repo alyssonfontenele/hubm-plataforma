@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CompanyFormModal } from "@/components/superadmin/CompanyFormModal";
 
-export const Route = createFileRoute("/_superadmin/dashboard")({
+export const Route = createFileRoute("/superadmin/dashboard")({
   ssr: false,
   component: SuperadminDashboard,
 });

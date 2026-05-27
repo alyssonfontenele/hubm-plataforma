@@ -256,10 +256,10 @@ export function AppSidebar() {
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
-                      isActive={isActive("/_superadmin/dashboard")}
+                      isActive={isActive("/superadmin/dashboard")}
                     >
                       <Link
-                        to="/_superadmin/dashboard"
+                        to="/superadmin/dashboard"
                         className="flex items-center gap-2"
                       >
                         <Database className="h-4 w-4" />

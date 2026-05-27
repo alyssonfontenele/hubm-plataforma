@@ -3,7 +3,7 @@ import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { Settings2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
-export const Route = createFileRoute("/_superadmin")({
+export const Route = createFileRoute("/superadmin")({
   ssr: false,
   component: SuperadminLayout,
 });
@@ -41,7 +41,6 @@ function SuperadminLayout() {
     };
   }, [loading, session, globalRole, navigate]);
 
-  // Still loading auth
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -50,10 +49,8 @@ function SuperadminLayout() {
     );
   }
 
-  // No session
   if (!session) return null;
 
-  // Profile not yet loaded
   if (globalRole === null) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -62,7 +59,6 @@ function SuperadminLayout() {
     );
   }
 
-  // Wrong role
   if (globalRole !== "superadmin") return null;
 
   return (

@@ -9,21 +9,26 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SuperadminRouteImport } from './routes/superadmin'
 import { Route as SetupMfaRouteImport } from './routes/setup-mfa'
 import { Route as RequestAccessRouteImport } from './routes/request-access'
 import { Route as MfaChallengeRouteImport } from './routes/mfa-challenge'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as CompleteProfileRouteImport } from './routes/complete-profile'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
-import { Route as SuperadminRouteImport } from './routes/_superadmin'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SuperadminDashboardRouteImport } from './routes/superadmin/dashboard'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
-import { Route as SuperadminDashboardRouteImport } from './routes/_superadmin/dashboard'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedSectorsSlugRouteImport } from './routes/_authenticated/sectors.$slug'
 
+const SuperadminRoute = SuperadminRouteImport.update({
+  id: '/superadmin',
+  path: '/superadmin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SetupMfaRoute = SetupMfaRouteImport.update({
   id: '/setup-mfa',
   path: '/setup-mfa',
@@ -54,10 +59,6 @@ const ChangePasswordRoute = ChangePasswordRouteImport.update({
   path: '/change-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SuperadminRoute = SuperadminRouteImport.update({
-  id: '/_superadmin',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
@@ -67,15 +68,15 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthCallbackRoute = AuthCallbackRouteImport.update({
-  id: '/auth/callback',
-  path: '/auth/callback',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SuperadminDashboardRoute = SuperadminDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => SuperadminRoute,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
   id: '/app',
@@ -102,10 +103,11 @@ export interface FileRoutesByFullPath {
   '/mfa-challenge': typeof MfaChallengeRoute
   '/request-access': typeof RequestAccessRoute
   '/setup-mfa': typeof SetupMfaRoute
+  '/superadmin': typeof SuperadminRouteWithChildren
   '/admin': typeof AuthenticatedAdminRoute
   '/app': typeof AuthenticatedAppRoute
-  '/dashboard': typeof SuperadminDashboardRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/superadmin/dashboard': typeof SuperadminDashboardRoute
   '/sectors/$slug': typeof AuthenticatedSectorsSlugRoute
 }
 export interface FileRoutesByTo {
@@ -116,27 +118,28 @@ export interface FileRoutesByTo {
   '/mfa-challenge': typeof MfaChallengeRoute
   '/request-access': typeof RequestAccessRoute
   '/setup-mfa': typeof SetupMfaRoute
+  '/superadmin': typeof SuperadminRouteWithChildren
   '/admin': typeof AuthenticatedAdminRoute
   '/app': typeof AuthenticatedAppRoute
-  '/dashboard': typeof SuperadminDashboardRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/superadmin/dashboard': typeof SuperadminDashboardRoute
   '/sectors/$slug': typeof AuthenticatedSectorsSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
-  '/_superadmin': typeof SuperadminRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
   '/complete-profile': typeof CompleteProfileRoute
   '/login': typeof LoginRoute
   '/mfa-challenge': typeof MfaChallengeRoute
   '/request-access': typeof RequestAccessRoute
   '/setup-mfa': typeof SetupMfaRoute
+  '/superadmin': typeof SuperadminRouteWithChildren
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/app': typeof AuthenticatedAppRoute
-  '/_superadmin/dashboard': typeof SuperadminDashboardRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/superadmin/dashboard': typeof SuperadminDashboardRoute
   '/_authenticated/sectors/$slug': typeof AuthenticatedSectorsSlugRoute
 }
 export interface FileRouteTypes {
@@ -149,10 +152,11 @@ export interface FileRouteTypes {
     | '/mfa-challenge'
     | '/request-access'
     | '/setup-mfa'
+    | '/superadmin'
     | '/admin'
     | '/app'
-    | '/dashboard'
     | '/auth/callback'
+    | '/superadmin/dashboard'
     | '/sectors/$slug'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -163,44 +167,52 @@ export interface FileRouteTypes {
     | '/mfa-challenge'
     | '/request-access'
     | '/setup-mfa'
+    | '/superadmin'
     | '/admin'
     | '/app'
-    | '/dashboard'
     | '/auth/callback'
+    | '/superadmin/dashboard'
     | '/sectors/$slug'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
-    | '/_superadmin'
     | '/change-password'
     | '/complete-profile'
     | '/login'
     | '/mfa-challenge'
     | '/request-access'
     | '/setup-mfa'
+    | '/superadmin'
     | '/_authenticated/admin'
     | '/_authenticated/app'
-    | '/_superadmin/dashboard'
     | '/auth/callback'
+    | '/superadmin/dashboard'
     | '/_authenticated/sectors/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
-  SuperadminRoute: typeof SuperadminRouteWithChildren
   ChangePasswordRoute: typeof ChangePasswordRoute
   CompleteProfileRoute: typeof CompleteProfileRoute
   LoginRoute: typeof LoginRoute
   MfaChallengeRoute: typeof MfaChallengeRoute
   RequestAccessRoute: typeof RequestAccessRoute
   SetupMfaRoute: typeof SetupMfaRoute
+  SuperadminRoute: typeof SuperadminRouteWithChildren
   AuthCallbackRoute: typeof AuthCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/superadmin': {
+      id: '/superadmin'
+      path: '/superadmin'
+      fullPath: '/superadmin'
+      preLoaderRoute: typeof SuperadminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/setup-mfa': {
       id: '/setup-mfa'
       path: '/setup-mfa'
@@ -243,13 +255,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChangePasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_superadmin': {
-      id: '/_superadmin'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof SuperadminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_authenticated': {
       id: '/_authenticated'
       path: ''
@@ -264,19 +269,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/superadmin/dashboard': {
+      id: '/superadmin/dashboard'
+      path: '/dashboard'
+      fullPath: '/superadmin/dashboard'
+      preLoaderRoute: typeof SuperadminDashboardRouteImport
+      parentRoute: typeof SuperadminRoute
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/auth/callback'
       fullPath: '/auth/callback'
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/_superadmin/dashboard': {
-      id: '/_superadmin/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof SuperadminDashboardRouteImport
-      parentRoute: typeof SuperadminRoute
     }
     '/_authenticated/app': {
       id: '/_authenticated/app'
@@ -333,13 +338,13 @@ const SuperadminRouteWithChildren = SuperadminRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
-  SuperadminRoute: SuperadminRouteWithChildren,
   ChangePasswordRoute: ChangePasswordRoute,
   CompleteProfileRoute: CompleteProfileRoute,
   LoginRoute: LoginRoute,
   MfaChallengeRoute: MfaChallengeRoute,
   RequestAccessRoute: RequestAccessRoute,
   SetupMfaRoute: SetupMfaRoute,
+  SuperadminRoute: SuperadminRouteWithChildren,
   AuthCallbackRoute: AuthCallbackRoute,
 }
 export const routeTree = rootRouteImport
