@@ -12,6 +12,25 @@ import { adminProfilesQueryKey, useAdminUsers } from "@/hooks/useAdminUsers";
 import { GLOBAL_ROLES, ROLE_LABEL, type Sector } from "@/components/admin/shared";
 import { logAdminAction } from "@/lib/admin-log";
 
+const INTERNAL_SECRET = import.meta.env.VITE_INTERNAL_SECRET;
+const SUPABASE_FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_URL + "/functions/v1";
+
+async function sendNotificationEmail(to: string | null, subject: string, html: string) {
+  if (!to) return;
+  try {
+    await fetch(`${SUPABASE_FUNCTIONS_URL}/send-email`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-secret": INTERNAL_SECRET,
+      },
+      body: JSON.stringify({ to: [to], subject, html }),
+    });
+  } catch {
+    // silencia erro de email — não bloqueia o fluxo principal
+  }
+}
+
 interface UsersTabProps {
   companyId: string;
   currentUserId: string | null;
@@ -253,6 +272,13 @@ export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
       details: { cargo_id: approveCargoId, role: approveRole },
     });
 
+    await sendNotificationEmail(
+      approveTarget.recovery_email,
+      "Seu acesso ao HubMowig foi aprovado",
+      `<p>Olá, <strong>${approveTarget.full_name}</strong>!</p>
+   <p>Seu acesso ao <strong>HubMowig</strong> foi aprovado. Você já pode fazer login em <a href="https://hubm.mowig.ind.br">hubm.mowig.ind.br</a>.</p>`
+    );
+
     toast.success(`${approveTarget.full_name} aprovado.`);
     setApproveTarget(null);
     setApproveRole("member");
@@ -260,7 +286,7 @@ export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
     await reload();
   };
 
-  const handleReject = async (id: string, name: string) => {
+  const handleReject = async (id: string, name: string, email: string | null) => {
     await logAdminAction({
       adminId: currentUserId,
       action: "reject_user",
@@ -272,6 +298,12 @@ export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
       toast.error("Erro ao rejeitar solicitação.");
       return;
     }
+    await sendNotificationEmail(
+      email,
+      "Solicitação de acesso ao HubMowig",
+      `<p>Olá, <strong>${name}</strong>.</p>
+   <p>Infelizmente sua solicitação de acesso ao <strong>HubMowig</strong> não foi aprovada. Entre em contato com o administrador para mais informações.</p>`
+    );
     toast.success(`Solicitação de ${name} rejeitada.`);
     await queryClient.invalidateQueries({ queryKey: ["admin-pending-profiles", companyId] });
   };
@@ -332,7 +364,7 @@ export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
                       </button>
                       <button
                         type="button"
-                        onClick={() => void handleReject(req.id, req.full_name)}
+                        onClick={() => void handleReject(req.id, req.full_name, req.recovery_email)}
                         className="flex items-center gap-1 h-8 px-3 rounded-md border border-border text-xs text-text-primary hover:bg-accent-light"
                       >
                         <X className="w-3 h-3" /> Rejeitar
