@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { Settings2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,20 +11,36 @@ export const Route = createFileRoute("/_superadmin")({
 function SuperadminLayout() {
   const { session, loading, globalRole, signOut } = useAuth();
   const navigate = useNavigate();
+  const fallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Guard: no session after load → /login
   useEffect(() => {
     if (!loading && !session) {
       void navigate({ to: "/login" });
     }
   }, [loading, session, navigate]);
 
+  // Guard: wrong role after load → /app
   useEffect(() => {
     if (!loading && session && globalRole !== null && globalRole !== "superadmin") {
       void navigate({ to: "/app" });
     }
   }, [loading, session, globalRole, navigate]);
 
-  if (loading || !session || globalRole === null) {
+  // Fallback: profile still null 500ms after auth loaded → /login
+  useEffect(() => {
+    if (!loading && session && globalRole === null) {
+      fallbackRef.current = setTimeout(() => {
+        void navigate({ to: "/login" });
+      }, 500);
+    }
+    return () => {
+      if (fallbackRef.current) clearTimeout(fallbackRef.current);
+    };
+  }, [loading, session, globalRole, navigate]);
+
+  // Still loading auth
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="h-3 w-24 bg-accent-light rounded animate-pulse" />
@@ -32,13 +48,20 @@ function SuperadminLayout() {
     );
   }
 
-  if (globalRole !== "superadmin") {
+  // No session
+  if (!session) return null;
+
+  // Profile not yet loaded
+  if (globalRole === null) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="h-3 w-24 bg-accent-light rounded animate-pulse" />
       </div>
     );
   }
+
+  // Wrong role
+  if (globalRole !== "superadmin") return null;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
