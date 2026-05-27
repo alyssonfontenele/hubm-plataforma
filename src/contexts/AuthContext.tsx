@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(prof as Profile);
 
     const [{ data: comp }, { data: members }] = await Promise.all([
-      supabase.from("companies").select("id,slug,name,domain,logo_url,primary_color,email_sender,active").eq("id", prof.company_id).maybeSingle(),
+      supabase.from("companies").select("id,slug,name,domain,logo_url,favicon_url,primary_color,email_sender,active").eq("id", prof.company_id).maybeSingle(),
       supabase
         .from("sector_members")
         .select("sector_id, role, sector:sectors!inner(id, name, slug, icon, group_name)")
@@ -177,7 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     document.documentElement.style.setProperty('--company-primary', company.primary_color ?? '#111111');
     document.documentElement.style.setProperty('--company-name', `"${company.name}"`);
     const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement | null;
-    if (link && company.logo_url) link.href = company.logo_url;
+    if (link && company.favicon_url) link.href = company.favicon_url;
   }, [company]);
 
   useEffect(() => {
