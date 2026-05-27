@@ -18,12 +18,6 @@ type CargoItem = {
   description: string | null;
 };
 
-const DOMAIN_SLUG: Record<string, string> = {
-  "mowig.com.br":   "mowig",
-  "hubmkt.com.br":  "mowig",
-  "moveria.com.br": "mowig",
-};
-
 function RequestAccessPage() {
   const navigate = useNavigate();
   const [cargos, setCargos]               = useState<CargoItem[]>([]);
@@ -31,6 +25,7 @@ function RequestAccessPage() {
   const [submitting, setSubmitting]       = useState(false);
   const [userEmail, setUserEmail]         = useState<string | null>(null);
   const [companyId, setCompanyId]         = useState<string | null>(null);
+  const [companyName, setCompanyName]     = useState<string | null>(null);
   const [userId, setUserId]               = useState<string | null>(null);
   const [fullName, setFullName]           = useState("");
   const [ready, setReady]                 = useState(false);
@@ -69,25 +64,20 @@ function RequestAccessPage() {
       setUserId(user.id);
       setFullName((user.user_metadata?.full_name as string | undefined) ?? user.email ?? "");
 
-      const slug = DOMAIN_SLUG[domain];
-      let cId: string | null = null;
-      if (slug) {
-        const { data: co } = await supabase
-          .from("companies")
-          .select("id")
-          .eq("slug", slug)
-          .maybeSingle();
-        cId = co?.id ?? null;
+      const slug = import.meta.env.VITE_COMPANY_SLUG as string | undefined;
+      if (!slug) {
+        toast.error("Empresa não configurada.");
+        void navigate({ to: "/login" });
+        return;
       }
-      if (!cId) {
-        const { data: co } = await supabase
-          .from("companies")
-          .select("id")
-          .limit(1)
-          .maybeSingle();
-        cId = co?.id ?? null;
-      }
+      const { data: co } = await supabase
+        .from("companies")
+        .select("id, name")
+        .eq("slug", slug)
+        .maybeSingle();
+      const cId = co?.id ?? null;
       setCompanyId(cId);
+      setCompanyName(co?.name ?? null);
 
       if (cId) {
         const { data: rows } = await supabase
@@ -152,7 +142,7 @@ function RequestAccessPage() {
       <div className="w-full max-w-md">
         <header className="text-center mb-8">
           <h1 className="text-4xl font-bold tracking-tight text-text-primary">HubM</h1>
-          <p className="mt-1 text-sm text-text-secondary">Mowig</p>
+          {companyName && <p className="mt-1 text-sm text-text-secondary">{companyName}</p>}
         </header>
 
         <div className="bg-surface border border-border rounded-lg p-6 space-y-5">
