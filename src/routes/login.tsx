@@ -68,6 +68,17 @@ function LoginPage() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const [enforced, setEnforced] = useState(false);
+  const [loginCompany, setLoginCompany] = useState<{ name: string; logo_url: string | null } | null>(null);
+
+  useEffect(() => {
+    if (!COMPANY_SLUG) return;
+    void supabase
+      .from("companies")
+      .select("name, logo_url")
+      .eq("slug", COMPANY_SLUG)
+      .maybeSingle()
+      .then(({ data }) => { if (data) setLoginCompany(data); });
+  }, []);
 
   useEffect(() => {
     if (loading || pathname !== "/login" || !session || enforced) return;
@@ -83,7 +94,13 @@ function LoginPage() {
     <main className="min-h-screen flex items-center justify-center px-4 py-10 bg-background">
       <div className="w-full max-w-md">
         <header className="text-center mb-8">
-          <h1 className="text-4xl font-bold tracking-tight text-text-primary">HubM</h1>
+          {loginCompany?.logo_url ? (
+            <img src={loginCompany.logo_url} alt={loginCompany.name} className="h-12 mx-auto" />
+          ) : (
+            <h1 className="text-4xl font-bold tracking-tight text-text-primary">
+              {loginCompany?.name ?? COMPANY_SLUG ?? "HubM"}
+            </h1>
+          )}
           {COMPANY_SLUG && <p className="mt-1 text-sm text-text-secondary">{COMPANY_SLUG}</p>}
         </header>
 

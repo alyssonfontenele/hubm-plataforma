@@ -173,6 +173,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session, profile]);
 
   useEffect(() => {
+    if (!company) return;
+    document.documentElement.style.setProperty('--company-primary', company.primary_color ?? '#111111');
+    document.documentElement.style.setProperty('--company-name', `"${company.name}"`);
+    const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement | null;
+    if (link && company.logo_url) link.href = company.logo_url;
+  }, [company]);
+
+  useEffect(() => {
     if (loading) return;
     if (!session) {
       setMfaState("unknown");

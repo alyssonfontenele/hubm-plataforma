@@ -58,10 +58,14 @@
 :root {
   --radius: 8px;
 
+  /* Company branding — overridden at runtime by AuthContext */
+  --company-primary: oklch(0.165 0 0);
+  --company-name: "HubM";
+
   /* HubM tokens (converted to oklch) */
   --background: oklch(0.972 0 0); /* #F7F7F7 */
   --surface: oklch(1 0 0); /* #FFFFFF */
-  --sidebar-bg: oklch(0.165 0 0); /* #111111 */
+  --sidebar-bg: var(--company-primary);
   --sidebar-text: oklch(0.81 0 0); /* #C8C8C8 */
   --sidebar-muted: oklch(0.45 0 0); /* #555555 */
   --border: oklch(0.92 0 0); /* #E5E5E5 */
@@ -69,7 +73,7 @@
   --text-primary: oklch(0.165 0 0);
   --text-secondary: oklch(0.48 0 0); /* #666666 */
   --text-muted: oklch(0.66 0 0); /* #999999 */
-  --accent: oklch(0.165 0 0); /* #111111 */
+  --accent: var(--company-primary);
   --accent-light: oklch(0.955 0 0); /* #F0F0F0 */
 }
 

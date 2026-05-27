@@ -70,33 +70,25 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 
+const _slug = import.meta.env.VITE_COMPANY_SLUG as string | undefined;
+const _appTitle = _slug ? `HubM — ${_slug}` : "HubM";
+const _appDescription = `HubM — portal corporativo interno para gestão de recursos e documentos${_slug ? ` (${_slug})` : ""}.`;
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "HubM" },
-      {
-        name: "description",
-        content:
-          "HubM — portal corporativo interno para gestão de recursos e documentos.",
-      },
-      { name: "author", content: "Mowig" },
-      { property: "og:title", content: "HubM" },
-      {
-        property: "og:description",
-        content:
-          "HubM — portal corporativo interno para gestão de recursos e documentos.",
-      },
+      { title: _appTitle },
+      { name: "description", content: _appDescription },
+      { name: "author", content: _slug ?? "HubM" },
+      { property: "og:title", content: _appTitle },
+      { property: "og:description", content: _appDescription },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Mowig" },
-      { name: "twitter:title", content: "HubM" },
-      {
-        name: "twitter:description",
-        content:
-          "HubM — portal corporativo interno para gestão de recursos e documentos.",
-      },
+      { name: "twitter:site", content: _slug ? `@${_slug}` : "@HubM" },
+      { name: "twitter:title", content: _appTitle },
+      { name: "twitter:description", content: _appDescription },
       {
         property: "og:image",
         content:
@@ -109,10 +101,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
     ],
     links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
+      { rel: "stylesheet", href: appCss },
+      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
     ],
   }),
   shellComponent: RootShell,

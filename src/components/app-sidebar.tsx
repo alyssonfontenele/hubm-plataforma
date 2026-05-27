@@ -182,10 +182,7 @@ export function AppSidebar() {
           {!collapsed && (
             <div className="min-w-0">
               <p className="text-sm font-semibold text-sidebar-foreground truncate">
-                HubM
-              </p>
-              <p className="text-xs text-sidebar-foreground/60 truncate">
-                {company?.name ?? "—"}
+                {company?.name ?? "HubM"}
               </p>
             </div>
           )}
