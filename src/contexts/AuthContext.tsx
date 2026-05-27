@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(prof as Profile);
 
     const [{ data: comp }, { data: members }] = await Promise.all([
-      supabase.from("companies").select("*").eq("id", prof.company_id).maybeSingle(),
+      supabase.from("companies").select("id,slug,name,domain,logo_url,primary_color,email_sender,active").eq("id", prof.company_id).maybeSingle(),
       supabase
         .from("sector_members")
         .select("sector_id, role, sector:sectors!inner(id, name, slug, icon, group_name)")

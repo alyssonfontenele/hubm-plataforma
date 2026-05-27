@@ -22,6 +22,7 @@ DECLARE
   v_company_domain  TEXT    := 'acme.com.br';              -- Domínio principal (pode ser NULL)
   v_company_color   TEXT    := '#111111';                  -- Cor primária em hex
   v_company_logo    TEXT    := NULL;                       -- URL do logo (pode ser NULL)
+  v_email_sender    TEXT    := 'noreply@acme.com.br';      -- E-mail remetente dos e-mails transacionais
 
   -- Domínios Google permitidos para login corporativo (array)
   -- Deixe vazio ('{}') se não usar Google OAuth
@@ -57,13 +58,14 @@ BEGIN
   -- primary_color aceita qualquer valor CSS válido (hex, oklch, rgb...).
   -- allowed_domains define quais domínios de e-mail podem usar Google OAuth.
   -- ===========================================================================
-  INSERT INTO companies (name, slug, domain, primary_color, logo_url, allowed_domains, active)
+  INSERT INTO companies (name, slug, domain, primary_color, logo_url, email_sender, allowed_domains, active)
   VALUES (
     v_company_name,
     v_company_slug,
     v_company_domain,
     v_company_color,
     v_company_logo,
+    v_email_sender,
     v_allowed_domains,
     true
   )

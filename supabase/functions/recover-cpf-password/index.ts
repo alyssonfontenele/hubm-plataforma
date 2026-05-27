@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
   const cpfDigits = String(body.cpf ?? "").replace(/\D/g, "");
   if (cpfDigits.length !== 11) return json({ ok: true });
 
-  let profile: { full_name: string | null; recovery_email: string | null } | null = null;
+  let profile: { full_name: string | null; recovery_email: string | null; company_id: string | null } | null = null;
   let linkErr: { message?: string } | null = null;
   let sendRes: Response | null = null;
 
@@ -74,7 +74,20 @@ Deno.serve(async (req) => {
 
     if (!profile?.recovery_email) return json({ ok: true, debug: { profileFound: false, hasEmail: false, linkGenerated: false, sendStatus: null } });
 
-    // 2. Generate recovery link
+    // 2. Fetch company sender info
+    let senderName: string | undefined;
+    let senderEmail: string | undefined;
+    if (profile.company_id) {
+      const { data: company } = await admin
+        .from("companies")
+        .select("name, email_sender")
+        .eq("id", profile.company_id)
+        .maybeSingle();
+      senderName = company?.name ?? undefined;
+      senderEmail = company?.email_sender ?? undefined;
+    }
+
+    // 3. Generate recovery link
     const authEmail = `${cpfDigits}@hubm.internal`;
     const { data: linkData, error: linkErrData } = await admin.auth.admin.generateLink({
       type: "recovery",
@@ -125,6 +138,8 @@ Deno.serve(async (req) => {
         to: profile.recovery_email,
         subject: "Redefinição de senha — HubM",
         html,
+        ...(senderName && { sender_name: senderName }),
+        ...(senderEmail && { sender_email: senderEmail }),
       }),
     });
 

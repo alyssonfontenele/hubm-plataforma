@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { to, subject, html } = await req.json()
+    const { to, subject, html, sender_name, sender_email } = await req.json()
     const brevoKey = Deno.env.get('BREVO_API_KEY')
 
     const toFormatted = (Array.isArray(to) ? to : [to]).map((recipient: string | { email: string; name?: string }) =>
@@ -47,7 +47,10 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        sender: { name: 'HubMowig', email: 'noreply@mowig.ind.br' },
+        sender: {
+          name: sender_name ?? 'HubMowig',
+          email: sender_email ?? 'noreply@mowig.ind.br',
+        },
         to: toFormatted,
         subject,
         htmlContent: html,

@@ -49,6 +49,7 @@ export interface Company {
   domain: string | null;
   logo_url: string | null;
   primary_color: string | null;
+  email_sender: string | null;
   active: boolean;
 }
 
