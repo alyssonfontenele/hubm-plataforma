@@ -12,7 +12,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   },
 });
 
-export type GlobalRole = "admin" | "manager" | "member" | "viewer" | "operational";
+export type GlobalRole = "admin" | "manager" | "member" | "viewer" | "operational" | "superadmin";
 export type SectorRole = "admin" | "manager" | "member" | "viewer";
 export type ResourceType =
   | "link"
