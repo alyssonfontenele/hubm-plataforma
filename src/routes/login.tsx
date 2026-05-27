@@ -4,13 +4,14 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cpfToDigits, isValidCpf, maskCpf, signInWithCpf, signInWithGoogle, ALLOWED_GOOGLE_DOMAINS } from "@/lib/auth";
+import { COMPANY_SLUG } from "@/lib/company";
 
 export const Route = createFileRoute("/login")({
   ssr: false,
   head: () => ({
     meta: [
       { title: "Entrar — HubM" },
-      { name: "description", content: "Acesse o hub operacional da Mowig." },
+      { name: "description", content: `Acesse o hub operacional${COMPANY_SLUG ? ` da ${COMPANY_SLUG}` : ""}.` },
     ],
   }),
   component: LoginPage,
@@ -83,7 +84,7 @@ function LoginPage() {
       <div className="w-full max-w-md">
         <header className="text-center mb-8">
           <h1 className="text-4xl font-bold tracking-tight text-text-primary">HubM</h1>
-          <p className="mt-1 text-sm text-text-secondary">Mowig</p>
+          {COMPANY_SLUG && <p className="mt-1 text-sm text-text-secondary">{COMPANY_SLUG}</p>}
         </header>
 
         <div className="bg-surface border border-border rounded-lg p-6 space-y-6">

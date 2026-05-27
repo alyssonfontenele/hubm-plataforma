@@ -25,11 +25,19 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
   const SUPABASE_URL      = Deno.env.get("SUPABASE_URL");
-  const SERVICE_ROLE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const SERVICE_ROLE_KEY  = Deno.env.get("SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const INTERNAL_SECRET   = Deno.env.get("INTERNAL_SECRET");
   // SITE_URL must be set in Supabase project Edge Function env vars
   // e.g. https://hubm.mowig.com.br
   const SITE_URL          = Deno.env.get("SITE_URL") ?? "";
+
+  console.log("env check", JSON.stringify({
+    hasUrl: !!SUPABASE_URL,
+    hasServiceKey: !!SERVICE_ROLE_KEY,
+    serviceKeyPrefix: SERVICE_ROLE_KEY?.substring(0, 15),
+    hasInternal: !!INTERNAL_SECRET,
+    hasSiteUrl: !!SITE_URL,
+  }));
 
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !INTERNAL_SECRET || !SITE_URL) {
     console.error("recover-cpf-password: missing env vars");
@@ -47,36 +55,37 @@ Deno.serve(async (req) => {
   const cpfDigits = String(body.cpf ?? "").replace(/\D/g, "");
   if (cpfDigits.length !== 11) return json({ ok: true });
 
+  let profile: { full_name: string | null; recovery_email: string | null } | null = null;
+  let linkErr: { message?: string } | null = null;
+  let sendRes: Response | null = null;
+
   try {
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // 1. Look up profile by CPF (cpf_hash stores plain digits)
-    const { data: profile } = await admin
-      .from("profiles")
-      .select("full_name, recovery_email")
-      .eq("cpf_hash", cpfDigits)
-      .eq("auth_type", "cpf")
-      .eq("active", true)
-      .is("deleted_at", null)
+    // 1. Look up profile by CPF (bcrypt comparison via RPC)
+    const { data: profileData } = await admin
+      .rpc("find_profile_by_cpf", { cpf_digits: cpfDigits })
       .maybeSingle();
 
-    // Silent success if CPF not found or no recovery email registered
-    if (!profile?.recovery_email) return json({ ok: true });
+    profile = profileData;
+    console.log("recover-cpf-password: profile lookup", JSON.stringify({ found: !!profile, hasEmail: !!profile?.recovery_email }));
 
-    // 2. Generate a password-recovery link for the CPF auth email
+    if (!profile?.recovery_email) return json({ ok: true, debug: { profileFound: false, hasEmail: false, linkGenerated: false, sendStatus: null } });
+
+    // 2. Generate recovery link
     const authEmail = `${cpfDigits}@hubm.internal`;
-    const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
+    const { data: linkData, error: linkErrData } = await admin.auth.admin.generateLink({
       type: "recovery",
       email: authEmail,
       options: { redirectTo: `${SITE_URL}/auth/callback` },
     });
 
-    if (linkErr || !linkData?.properties?.action_link) {
-      console.error("recover-cpf-password: generateLink failed", linkErr);
-      return json({ ok: true });
-    }
+    linkErr = linkErrData;
+    console.log("recover-cpf-password: generateLink", JSON.stringify({ ok: !linkErr, error: linkErr?.message }));
+
+    if (linkErr || !linkData?.properties?.action_link) return json({ ok: true, debug: { profileFound: true, hasEmail: true, linkGenerated: false, sendStatus: null } });
 
     const recoveryUrl = linkData.properties.action_link;
     const firstName   = (profile.full_name ?? "").split(" ")[0] || null;
@@ -105,7 +114,7 @@ Deno.serve(async (req) => {
   </p>
 </div>`;
 
-    const sendRes = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+    sendRes = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -119,14 +128,11 @@ Deno.serve(async (req) => {
       }),
     });
 
-    if (!sendRes.ok) {
-      const text = await sendRes.text().catch(() => "");
-      console.error("recover-cpf-password: send-email failed", sendRes.status, text);
-    }
+    const sendText = await sendRes.text().catch(() => "");
+    console.log("recover-cpf-password: send-email status", sendRes.status, sendText);
   } catch (err) {
     console.error("recover-cpf-password: unexpected error", err);
   }
 
-  // Always return ok — never reveal outcome to caller
   return json({ ok: true });
 });
