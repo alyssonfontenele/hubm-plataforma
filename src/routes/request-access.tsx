@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { isGoogleDomainAllowed } from "@/lib/auth";
 
 export const Route = createFileRoute("/request-access")({
   ssr: false,
+  validateSearch: (search: Record<string, unknown>) => ({
+    cargo: typeof search.cargo === "string" ? search.cargo : undefined,
+  }),
   head: () => ({
     meta: [{ title: "Solicitar acesso — HubM" }],
   }),
@@ -20,6 +23,7 @@ type CargoItem = {
 
 function RequestAccessPage() {
   const navigate = useNavigate();
+  const { cargo: cargoParam } = useSearch({ from: "/request-access" });
   const [cargos, setCargos]               = useState<CargoItem[]>([]);
   const [selectedCargoId, setSelectedCargoId] = useState<string | null>(null);
   const [submitting, setSubmitting]       = useState(false);
@@ -85,7 +89,11 @@ function RequestAccessPage() {
           .select("id, name, description")
           .eq("company_id", cId)
           .order("name", { ascending: true });
-        setCargos((rows ?? []) as CargoItem[]);
+        const list = (rows ?? []) as CargoItem[];
+        setCargos(list);
+        if (cargoParam && list.some((c) => c.id === cargoParam)) {
+          setSelectedCargoId(cargoParam);
+        }
       }
 
       setReady(true);

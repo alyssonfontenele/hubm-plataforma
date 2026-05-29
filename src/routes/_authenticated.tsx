@@ -45,7 +45,7 @@ function AuthenticatedLayout() {
     const domain = (session.user.email ?? "").split("@")[1]?.toLowerCase() ?? "";
     void isGoogleDomainAllowed(domain).then((allowed) => {
       setGoogleDomainAllowed(allowed);
-      if (allowed) void navigate({ to: "/request-access" });
+      if (allowed) void navigate({ to: "/request-access", search: { cargo: undefined } });
     });
   }, [loading, session, profile, navigate]);
 

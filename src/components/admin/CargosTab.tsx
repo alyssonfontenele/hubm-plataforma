@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Briefcase, Check, Eye, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Briefcase, Check, Eye, Link2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase, type ResourceType } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -489,14 +489,30 @@ export function CargosTab({ companyId }: CargosTabProps) {
                         <p className="text-xs text-text-muted truncate mt-0.5">{cargo.description}</p>
                       )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); setDeleteTarget(cargo); }}
-                      className="shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 text-text-muted hover:text-red-500 transition-all"
-                      title="Excluir cargo"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-all">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void navigator.clipboard.writeText(
+                            window.location.origin + "/request-access?cargo=" + cargo.id
+                          );
+                          toast.success("Link copiado!");
+                        }}
+                        className="text-text-muted hover:text-blue-500 transition-colors"
+                        title="Copiar link de convite"
+                      >
+                        <Link2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(cargo); }}
+                        className="text-text-muted hover:text-red-500 transition-colors"
+                        title="Excluir cargo"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </button>
               ))}

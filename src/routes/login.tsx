@@ -85,7 +85,7 @@ function LoginPage() {
     setEnforced(true);
     void enforceLoginRules().then((result) => {
       if (result === true) void navigate({ to: "/app" });
-      else if (result === "request-access") void navigate({ to: "/request-access" });
+      else if (result === "request-access") void navigate({ to: "/request-access", search: { cargo: undefined } });
       else setEnforced(false);
     });
   }, [loading, session, pathname, navigate, enforced]);
