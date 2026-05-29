@@ -52,9 +52,9 @@ function parseCsv(text: string): ParsedRow[] {
 
 function StatusIcon({ status }: { status: RowStatus }) {
   if (status === "pending")   return <Loader2 className="w-4 h-4 animate-spin text-text-muted" />;
-  if (status === "success")   return <CheckCircle className="w-4 h-4 text-emerald-500" />;
-  if (status === "duplicate") return <AlertTriangle className="w-4 h-4 text-yellow-500" />;
-  if (status === "error")     return <XCircle className="w-4 h-4 text-red-500" />;
+  if (status === "success")   return <CheckCircle className="w-4 h-4 text-success" />;
+  if (status === "duplicate") return <AlertTriangle className="w-4 h-4 text-warning" />;
+  if (status === "error")     return <XCircle className="w-4 h-4 text-danger" />;
   return <span className="w-4 h-4 inline-flex items-center justify-center text-text-muted text-xs">—</span>;
 }
 
@@ -216,7 +216,7 @@ export function ImportTab({ companyId }: ImportTabProps) {
                     <tr
                       key={i}
                       className={`border-b border-border last:border-0 ${
-                        isErr ? "bg-red-500/5" : result?.status === "success" ? "bg-emerald-500/5" : ""
+                        isErr ? "bg-danger-light/50" : result?.status === "success" ? "bg-success-light/50" : ""
                       }`}
                     >
                       <td className="px-3 py-2 text-text-muted text-xs">{i + 1}</td>
@@ -231,7 +231,7 @@ export function ImportTab({ companyId }: ImportTabProps) {
                         <div className="flex items-center gap-1.5">
                           <StatusIcon status={result?.status ?? "idle"} />
                           {isErr && result.message && (
-                            <span className="text-xs text-red-500 truncate max-w-[120px]" title={result.message}>
+                            <span className="text-xs text-danger truncate max-w-[120px]" title={result.message}>
                               {result.message}
                             </span>
                           )}
@@ -247,15 +247,15 @@ export function ImportTab({ companyId }: ImportTabProps) {
           {/* Summary */}
           {done && (
             <div className="flex flex-wrap gap-4 rounded-md border border-border bg-surface px-4 py-3 text-sm">
-              <span className="flex items-center gap-1.5 text-emerald-600">
+              <span className="flex items-center gap-1.5 text-success-text">
                 <CheckCircle className="w-4 h-4" />
                 <strong>{created}</strong> criado{created !== 1 ? "s" : ""}
               </span>
-              <span className="flex items-center gap-1.5 text-yellow-600">
+              <span className="flex items-center gap-1.5 text-warning-text">
                 <AlertTriangle className="w-4 h-4" />
                 <strong>{duplicate}</strong> já existia{duplicate !== 1 ? "m" : ""}
               </span>
-              <span className="flex items-center gap-1.5 text-red-600">
+              <span className="flex items-center gap-1.5 text-danger-text">
                 <XCircle className="w-4 h-4" />
                 <strong>{errors}</strong> erro{errors !== 1 ? "s" : ""}
               </span>
