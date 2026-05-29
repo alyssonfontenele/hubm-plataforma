@@ -54,7 +54,7 @@ export function CompanyFormModal({ open, onClose, onSaved, editTarget }: Props) 
         domain: editTarget.domain ?? "",
         primary_color: editTarget.primary_color ?? "#111111",
         email_sender: editTarget.email_sender ?? "",
-        allowed_domains_raw: "",
+        allowed_domains_raw: (editTarget.allowed_domains ?? []).join(", "),
         active: editTarget.active,
       });
     } else {
@@ -76,6 +76,11 @@ export function CompanyFormModal({ open, onClose, onSaved, editTarget }: Props) 
     }
     setSaving(true);
     try {
+      const allowed: string[] = form.allowed_domains_raw
+        .split(",")
+        .map((s) => s.trim().replace(/^@/, "").toLowerCase())
+        .filter(Boolean);
+
       if (editTarget) {
         const { error } = await supabase
           .from("companies")
@@ -85,16 +90,13 @@ export function CompanyFormModal({ open, onClose, onSaved, editTarget }: Props) 
             domain: form.domain.trim() || null,
             primary_color: form.primary_color,
             email_sender: form.email_sender.trim() || null,
+            allowed_domains: allowed,
             active: form.active,
           })
           .eq("id", editTarget.id);
         if (error) throw error;
         toast.success("Empresa atualizada.");
       } else {
-        const allowed: string[] = form.allowed_domains_raw
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean);
 
         const { data: newCompany, error: compErr } = await supabase
           .from("companies")
@@ -211,20 +213,18 @@ export function CompanyFormModal({ open, onClose, onSaved, editTarget }: Props) 
             />
           </Field>
 
-          {!editTarget && (
-            <Field label="Domínios Google permitidos">
-              <input
-                type="text"
-                value={form.allowed_domains_raw}
-                onChange={(e) => set("allowed_domains_raw", e.target.value)}
-                placeholder="acme.com.br, acme.com"
-                className={inputCls}
-              />
-              <p className="text-xs text-text-muted mt-1">
-                Separados por vírgula. Deixe em branco para desabilitar login Google.
-              </p>
-            </Field>
-          )}
+          <Field label="Domínios Google permitidos">
+            <input
+              type="text"
+              value={form.allowed_domains_raw}
+              onChange={(e) => set("allowed_domains_raw", e.target.value)}
+              placeholder="acme.com.br, acme.com"
+              className={inputCls}
+            />
+            <p className="text-xs text-text-muted mt-1">
+              Separados por vírgula. Deixe em branco para desabilitar login Google.
+            </p>
+          </Field>
 
           <Field label="Cor principal">
             <div className="flex items-center gap-2">

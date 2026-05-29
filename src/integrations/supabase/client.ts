@@ -51,6 +51,7 @@ export interface Company {
   favicon_url: string | null;
   primary_color: string | null;
   email_sender: string | null;
+  allowed_domains: string[];
   active: boolean;
 }
 
