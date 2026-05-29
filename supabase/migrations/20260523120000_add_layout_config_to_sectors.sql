@@ -1,5 +1,11 @@
--- Add layout_config column to sectors table.
--- Stores the admin-defined default layout mode and grid column count.
--- Falls back gracefully: existing rows get the default value on next read.
-ALTER TABLE sectors
-  ADD COLUMN IF NOT EXISTS layout_config jsonb NOT NULL DEFAULT '{"mode":"grid","columns":3}';
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'sectors'
+  ) THEN
+    ALTER TABLE sectors
+      ADD COLUMN IF NOT EXISTS layout_config jsonb NOT NULL DEFAULT '{"mode":"grid","columns":3}';
+  END IF;
+END;
+$$;

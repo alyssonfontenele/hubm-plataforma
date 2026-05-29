@@ -62,7 +62,12 @@ echo -e "${BOLD}═════════════════════�
 echo ""
 
 # ─── Vincula projeto ──────────────────────────────────────────────────────────
-# Link não é necessário — --project-ref é passado explicitamente nos comandos.
+log "Vinculando ao projeto $PROJECT_REF…"
+if ! npx supabase link --project-ref "$PROJECT_REF" 2>&1; then
+  err "Falha ao vincular ao projeto $PROJECT_REF."
+  exit 1
+fi
+ok "Projeto vinculado."
 
 # ─── Estado remoto ────────────────────────────────────────────────────────────
 echo ""
@@ -136,7 +141,7 @@ fi
 log "Aplicando $PENDING_COUNT migration(s) pendente(s) via db push…"
 echo ""
 
-if npx supabase db push --linked --include-all 2>&1; then
+if npx supabase db push --linked --include-all --yes 2>&1; then
   echo ""
   ok "Deploy concluído — $PENDING_COUNT migration(s) aplicada(s):"
   for f in "${PENDING_LIST[@]}"; do

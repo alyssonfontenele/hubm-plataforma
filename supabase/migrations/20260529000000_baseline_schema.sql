@@ -30,7 +30,7 @@ DO $$ BEGIN CREATE TYPE public.sector_role      AS ENUM ('manager', 'member', 'v
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS public.companies (
-  id              uuid        NOT NULL DEFAULT uuid_generate_v4(),
+  id              uuid        NOT NULL DEFAULT gen_random_uuid(),
   slug            text        NOT NULL,
   name            text        NOT NULL,
   domain          text,
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS public.companies (
 );
 
 CREATE TABLE IF NOT EXISTS public.sectors (
-  id            uuid        NOT NULL DEFAULT uuid_generate_v4(),
+  id            uuid        NOT NULL DEFAULT gen_random_uuid(),
   company_id    uuid        NOT NULL,
   name          text        NOT NULL,
   slug          text        NOT NULL,
@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 );
 
 CREATE TABLE IF NOT EXISTS public.cargos (
-  id          uuid        NOT NULL DEFAULT uuid_generate_v4(),
+  id          uuid        NOT NULL DEFAULT gen_random_uuid(),
   name        text        NOT NULL,
   description text,
   company_id  uuid        NOT NULL,
@@ -94,14 +94,14 @@ CREATE TABLE IF NOT EXISTS public.cargo_sectors (
 );
 
 CREATE TABLE IF NOT EXISTS public.cargo_permissions (
-  id          uuid                    NOT NULL DEFAULT uuid_generate_v4(),
+  id          uuid                    NOT NULL DEFAULT gen_random_uuid(),
   cargo_id    uuid                    NOT NULL,
   resource_id uuid                    NOT NULL,
   permission  public.permission_level NOT NULL DEFAULT 'view'::public.permission_level
 );
 
 CREATE TABLE IF NOT EXISTS public.folders (
-  id          uuid        NOT NULL DEFAULT uuid_generate_v4(),
+  id          uuid        NOT NULL DEFAULT gen_random_uuid(),
   sector_id   uuid        NOT NULL,
   parent_id   uuid,
   name        text        NOT NULL,
@@ -116,7 +116,7 @@ CREATE TABLE IF NOT EXISTS public.folders (
 );
 
 CREATE TABLE IF NOT EXISTS public.resources (
-  id              uuid                    NOT NULL DEFAULT uuid_generate_v4(),
+  id              uuid                    NOT NULL DEFAULT gen_random_uuid(),
   folder_id       uuid,
   type            public.resource_type    NOT NULL,
   name            text                    NOT NULL,
@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS public.resources (
 );
 
 CREATE TABLE IF NOT EXISTS public.resource_permissions (
-  id          uuid                    NOT NULL DEFAULT uuid_generate_v4(),
+  id          uuid                    NOT NULL DEFAULT gen_random_uuid(),
   resource_id uuid                    NOT NULL,
   profile_id  uuid,
   sector_id   uuid,
@@ -149,7 +149,7 @@ CREATE TABLE IF NOT EXISTS public.resource_permissions (
 );
 
 CREATE TABLE IF NOT EXISTS public.sector_members (
-  id         uuid                NOT NULL DEFAULT uuid_generate_v4(),
+  id         uuid                NOT NULL DEFAULT gen_random_uuid(),
   profile_id uuid                NOT NULL,
   sector_id  uuid                NOT NULL,
   role       public.sector_role  NOT NULL DEFAULT 'member'::public.sector_role,
@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS public.sector_members (
 );
 
 CREATE TABLE IF NOT EXISTS public.announcements (
-  id         uuid        NOT NULL DEFAULT uuid_generate_v4(),
+  id         uuid        NOT NULL DEFAULT gen_random_uuid(),
   company_id uuid        NOT NULL,
   sector_id  uuid,
   title      text        NOT NULL,
@@ -172,7 +172,7 @@ CREATE TABLE IF NOT EXISTS public.announcements (
 );
 
 CREATE TABLE IF NOT EXISTS public.integrations (
-  id         uuid                       NOT NULL DEFAULT uuid_generate_v4(),
+  id         uuid                       NOT NULL DEFAULT gen_random_uuid(),
   company_id uuid                       NOT NULL,
   type       public.integration_type    NOT NULL,
   name       text                       NOT NULL,
@@ -184,7 +184,7 @@ CREATE TABLE IF NOT EXISTS public.integrations (
 );
 
 CREATE TABLE IF NOT EXISTS public.profile_cargos (
-  id         uuid        NOT NULL DEFAULT uuid_generate_v4(),
+  id         uuid        NOT NULL DEFAULT gen_random_uuid(),
   profile_id uuid        NOT NULL,
   cargo_id   uuid        NOT NULL,
   sector_id  uuid,
@@ -201,7 +201,7 @@ CREATE TABLE IF NOT EXISTS public.profile_sector_requests (
 );
 
 CREATE TABLE IF NOT EXISTS public.access_logs (
-  id         uuid                 NOT NULL DEFAULT uuid_generate_v4(),
+  id         uuid                 NOT NULL DEFAULT gen_random_uuid(),
   profile_id uuid,
   resource_id uuid,
   action     public.log_action    NOT NULL,
@@ -212,7 +212,7 @@ CREATE TABLE IF NOT EXISTS public.access_logs (
 );
 
 CREATE TABLE IF NOT EXISTS public.admin_logs (
-  id          uuid        NOT NULL DEFAULT uuid_generate_v4(),
+  id          uuid        NOT NULL DEFAULT gen_random_uuid(),
   admin_id    uuid,
   action      text        NOT NULL,
   target_type text        NOT NULL,
@@ -226,127 +226,127 @@ CREATE TABLE IF NOT EXISTS public.admin_logs (
 -- ---------------------------------------------------------------------------
 -- PRIMARY KEYS
 -- ---------------------------------------------------------------------------
-ALTER TABLE public.access_logs             ADD CONSTRAINT IF NOT EXISTS access_logs_pkey             PRIMARY KEY (id);
-ALTER TABLE public.admin_logs              ADD CONSTRAINT IF NOT EXISTS admin_logs_pkey              PRIMARY KEY (id);
-ALTER TABLE public.announcements           ADD CONSTRAINT IF NOT EXISTS announcements_pkey           PRIMARY KEY (id);
-ALTER TABLE public.cargo_permissions       ADD CONSTRAINT IF NOT EXISTS cargo_permissions_pkey       PRIMARY KEY (id);
-ALTER TABLE public.cargo_sectors           ADD CONSTRAINT IF NOT EXISTS cargo_sectors_pkey           PRIMARY KEY (cargo_id, sector_id);
-ALTER TABLE public.cargos                  ADD CONSTRAINT IF NOT EXISTS cargos_pkey                 PRIMARY KEY (id);
-ALTER TABLE public.companies               ADD CONSTRAINT IF NOT EXISTS companies_pkey              PRIMARY KEY (id);
-ALTER TABLE public.folders                 ADD CONSTRAINT IF NOT EXISTS folders_pkey                PRIMARY KEY (id);
-ALTER TABLE public.integrations            ADD CONSTRAINT IF NOT EXISTS integrations_pkey           PRIMARY KEY (id);
-ALTER TABLE public.profile_cargos          ADD CONSTRAINT IF NOT EXISTS profile_cargos_pkey         PRIMARY KEY (id);
-ALTER TABLE public.profile_sector_requests ADD CONSTRAINT IF NOT EXISTS profile_sector_requests_pkey PRIMARY KEY (id);
-ALTER TABLE public.profiles                ADD CONSTRAINT IF NOT EXISTS profiles_pkey               PRIMARY KEY (id);
-ALTER TABLE public.resource_permissions    ADD CONSTRAINT IF NOT EXISTS resource_permissions_pkey   PRIMARY KEY (id);
-ALTER TABLE public.resources               ADD CONSTRAINT IF NOT EXISTS resources_pkey              PRIMARY KEY (id);
-ALTER TABLE public.sector_members          ADD CONSTRAINT IF NOT EXISTS sector_members_pkey         PRIMARY KEY (id);
-ALTER TABLE public.sectors                 ADD CONSTRAINT IF NOT EXISTS sectors_pkey                PRIMARY KEY (id);
+ALTER TABLE public.access_logs             ADD CONSTRAINT access_logs_pkey             PRIMARY KEY (id);
+ALTER TABLE public.admin_logs              ADD CONSTRAINT admin_logs_pkey              PRIMARY KEY (id);
+ALTER TABLE public.announcements           ADD CONSTRAINT announcements_pkey           PRIMARY KEY (id);
+ALTER TABLE public.cargo_permissions       ADD CONSTRAINT cargo_permissions_pkey       PRIMARY KEY (id);
+ALTER TABLE public.cargo_sectors           ADD CONSTRAINT cargo_sectors_pkey           PRIMARY KEY (cargo_id, sector_id);
+ALTER TABLE public.cargos                  ADD CONSTRAINT cargos_pkey                 PRIMARY KEY (id);
+ALTER TABLE public.companies               ADD CONSTRAINT companies_pkey              PRIMARY KEY (id);
+ALTER TABLE public.folders                 ADD CONSTRAINT folders_pkey                PRIMARY KEY (id);
+ALTER TABLE public.integrations            ADD CONSTRAINT integrations_pkey           PRIMARY KEY (id);
+ALTER TABLE public.profile_cargos          ADD CONSTRAINT profile_cargos_pkey         PRIMARY KEY (id);
+ALTER TABLE public.profile_sector_requests ADD CONSTRAINT profile_sector_requests_pkey PRIMARY KEY (id);
+ALTER TABLE public.profiles                ADD CONSTRAINT profiles_pkey               PRIMARY KEY (id);
+ALTER TABLE public.resource_permissions    ADD CONSTRAINT resource_permissions_pkey   PRIMARY KEY (id);
+ALTER TABLE public.resources               ADD CONSTRAINT resources_pkey              PRIMARY KEY (id);
+ALTER TABLE public.sector_members          ADD CONSTRAINT sector_members_pkey         PRIMARY KEY (id);
+ALTER TABLE public.sectors                 ADD CONSTRAINT sectors_pkey                PRIMARY KEY (id);
 
 -- ---------------------------------------------------------------------------
 -- UNIQUE CONSTRAINTS
 -- ---------------------------------------------------------------------------
-ALTER TABLE public.cargo_permissions       ADD CONSTRAINT IF NOT EXISTS cargo_permissions_cargo_id_resource_id_key        UNIQUE (cargo_id, resource_id);
-ALTER TABLE public.companies               ADD CONSTRAINT IF NOT EXISTS companies_slug_key                                 UNIQUE (slug);
-ALTER TABLE public.profile_cargos          ADD CONSTRAINT IF NOT EXISTS profile_cargos_profile_id_key                     UNIQUE (profile_id);
-ALTER TABLE public.profile_sector_requests ADD CONSTRAINT IF NOT EXISTS profile_sector_requests_profile_id_sector_id_key  UNIQUE (profile_id, sector_id);
-ALTER TABLE public.sector_members          ADD CONSTRAINT IF NOT EXISTS sector_members_profile_id_sector_id_key            UNIQUE (profile_id, sector_id);
-ALTER TABLE public.sectors                 ADD CONSTRAINT IF NOT EXISTS sectors_company_id_slug_key                        UNIQUE (company_id, slug);
+ALTER TABLE public.cargo_permissions       ADD CONSTRAINT cargo_permissions_cargo_id_resource_id_key        UNIQUE (cargo_id, resource_id);
+ALTER TABLE public.companies               ADD CONSTRAINT companies_slug_key                                 UNIQUE (slug);
+ALTER TABLE public.profile_cargos          ADD CONSTRAINT profile_cargos_profile_id_key                     UNIQUE (profile_id);
+ALTER TABLE public.profile_sector_requests ADD CONSTRAINT profile_sector_requests_profile_id_sector_id_key  UNIQUE (profile_id, sector_id);
+ALTER TABLE public.sector_members          ADD CONSTRAINT sector_members_profile_id_sector_id_key            UNIQUE (profile_id, sector_id);
+ALTER TABLE public.sectors                 ADD CONSTRAINT sectors_company_id_slug_key                        UNIQUE (company_id, slug);
 
 -- ---------------------------------------------------------------------------
 -- CHECK CONSTRAINTS
 -- ---------------------------------------------------------------------------
-ALTER TABLE public.profiles ADD CONSTRAINT IF NOT EXISTS cpf_required_for_cpf_auth
+ALTER TABLE public.profiles ADD CONSTRAINT cpf_required_for_cpf_auth
   CHECK ((auth_type = 'google'::public.auth_type) OR (cpf_hash IS NOT NULL));
-ALTER TABLE public.profiles ADD CONSTRAINT IF NOT EXISTS recovery_email_required_for_cpf
+ALTER TABLE public.profiles ADD CONSTRAINT recovery_email_required_for_cpf
   CHECK ((auth_type = 'google'::public.auth_type) OR (recovery_email IS NOT NULL));
-ALTER TABLE public.resource_permissions ADD CONSTRAINT IF NOT EXISTS one_grantee
+ALTER TABLE public.resource_permissions ADD CONSTRAINT one_grantee
   CHECK ((profile_id IS NULL) <> (sector_id IS NULL));
 
 -- ---------------------------------------------------------------------------
 -- FOREIGN KEYS
 -- ---------------------------------------------------------------------------
-ALTER TABLE public.profiles ADD CONSTRAINT IF NOT EXISTS profiles_id_fkey
+ALTER TABLE public.profiles ADD CONSTRAINT profiles_id_fkey
   FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
-ALTER TABLE public.profiles ADD CONSTRAINT IF NOT EXISTS profiles_company_id_fkey
+ALTER TABLE public.profiles ADD CONSTRAINT profiles_company_id_fkey
   FOREIGN KEY (company_id) REFERENCES public.companies(id);
 
-ALTER TABLE public.sectors ADD CONSTRAINT IF NOT EXISTS sectors_company_id_fkey
+ALTER TABLE public.sectors ADD CONSTRAINT sectors_company_id_fkey
   FOREIGN KEY (company_id) REFERENCES public.companies(id);
 
-ALTER TABLE public.cargos ADD CONSTRAINT IF NOT EXISTS cargos_company_id_fkey
+ALTER TABLE public.cargos ADD CONSTRAINT cargos_company_id_fkey
   FOREIGN KEY (company_id) REFERENCES public.companies(id);
 
-ALTER TABLE public.cargo_sectors ADD CONSTRAINT IF NOT EXISTS cargo_sectors_cargo_id_fkey
+ALTER TABLE public.cargo_sectors ADD CONSTRAINT cargo_sectors_cargo_id_fkey
   FOREIGN KEY (cargo_id) REFERENCES public.cargos(id) ON DELETE CASCADE;
-ALTER TABLE public.cargo_sectors ADD CONSTRAINT IF NOT EXISTS cargo_sectors_sector_id_fkey
+ALTER TABLE public.cargo_sectors ADD CONSTRAINT cargo_sectors_sector_id_fkey
   FOREIGN KEY (sector_id) REFERENCES public.sectors(id) ON DELETE CASCADE;
 
-ALTER TABLE public.cargo_permissions ADD CONSTRAINT IF NOT EXISTS cargo_permissions_cargo_id_fkey
+ALTER TABLE public.cargo_permissions ADD CONSTRAINT cargo_permissions_cargo_id_fkey
   FOREIGN KEY (cargo_id) REFERENCES public.cargos(id) ON DELETE CASCADE;
-ALTER TABLE public.cargo_permissions ADD CONSTRAINT IF NOT EXISTS cargo_permissions_resource_id_fkey
+ALTER TABLE public.cargo_permissions ADD CONSTRAINT cargo_permissions_resource_id_fkey
   FOREIGN KEY (resource_id) REFERENCES public.resources(id) ON DELETE CASCADE;
 
-ALTER TABLE public.folders ADD CONSTRAINT IF NOT EXISTS folders_sector_id_fkey
+ALTER TABLE public.folders ADD CONSTRAINT folders_sector_id_fkey
   FOREIGN KEY (sector_id) REFERENCES public.sectors(id) ON DELETE CASCADE;
-ALTER TABLE public.folders ADD CONSTRAINT IF NOT EXISTS folders_parent_id_fkey
+ALTER TABLE public.folders ADD CONSTRAINT folders_parent_id_fkey
   FOREIGN KEY (parent_id) REFERENCES public.folders(id) ON DELETE CASCADE;
-ALTER TABLE public.folders ADD CONSTRAINT IF NOT EXISTS folders_created_by_fkey
+ALTER TABLE public.folders ADD CONSTRAINT folders_created_by_fkey
   FOREIGN KEY (created_by) REFERENCES public.profiles(id);
 
-ALTER TABLE public.resources ADD CONSTRAINT IF NOT EXISTS resources_folder_id_fkey
+ALTER TABLE public.resources ADD CONSTRAINT resources_folder_id_fkey
   FOREIGN KEY (folder_id) REFERENCES public.folders(id) ON DELETE CASCADE;
-ALTER TABLE public.resources ADD CONSTRAINT IF NOT EXISTS resources_sector_id_fkey
+ALTER TABLE public.resources ADD CONSTRAINT resources_sector_id_fkey
   FOREIGN KEY (sector_id) REFERENCES public.sectors(id) ON DELETE CASCADE;
-ALTER TABLE public.resources ADD CONSTRAINT IF NOT EXISTS resources_created_by_fkey
+ALTER TABLE public.resources ADD CONSTRAINT resources_created_by_fkey
   FOREIGN KEY (created_by) REFERENCES public.profiles(id);
 
-ALTER TABLE public.resource_permissions ADD CONSTRAINT IF NOT EXISTS resource_permissions_resource_id_fkey
+ALTER TABLE public.resource_permissions ADD CONSTRAINT resource_permissions_resource_id_fkey
   FOREIGN KEY (resource_id) REFERENCES public.resources(id) ON DELETE CASCADE;
-ALTER TABLE public.resource_permissions ADD CONSTRAINT IF NOT EXISTS resource_permissions_profile_id_fkey
+ALTER TABLE public.resource_permissions ADD CONSTRAINT resource_permissions_profile_id_fkey
   FOREIGN KEY (profile_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
-ALTER TABLE public.resource_permissions ADD CONSTRAINT IF NOT EXISTS resource_permissions_sector_id_fkey
+ALTER TABLE public.resource_permissions ADD CONSTRAINT resource_permissions_sector_id_fkey
   FOREIGN KEY (sector_id) REFERENCES public.sectors(id) ON DELETE CASCADE;
-ALTER TABLE public.resource_permissions ADD CONSTRAINT IF NOT EXISTS resource_permissions_created_by_fkey
+ALTER TABLE public.resource_permissions ADD CONSTRAINT resource_permissions_created_by_fkey
   FOREIGN KEY (created_by) REFERENCES public.profiles(id);
 
-ALTER TABLE public.sector_members ADD CONSTRAINT IF NOT EXISTS sector_members_profile_id_fkey
+ALTER TABLE public.sector_members ADD CONSTRAINT sector_members_profile_id_fkey
   FOREIGN KEY (profile_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
-ALTER TABLE public.sector_members ADD CONSTRAINT IF NOT EXISTS sector_members_sector_id_fkey
+ALTER TABLE public.sector_members ADD CONSTRAINT sector_members_sector_id_fkey
   FOREIGN KEY (sector_id) REFERENCES public.sectors(id) ON DELETE CASCADE;
 
-ALTER TABLE public.announcements ADD CONSTRAINT IF NOT EXISTS announcements_company_id_fkey
+ALTER TABLE public.announcements ADD CONSTRAINT announcements_company_id_fkey
   FOREIGN KEY (company_id) REFERENCES public.companies(id);
-ALTER TABLE public.announcements ADD CONSTRAINT IF NOT EXISTS announcements_sector_id_fkey
+ALTER TABLE public.announcements ADD CONSTRAINT announcements_sector_id_fkey
   FOREIGN KEY (sector_id) REFERENCES public.sectors(id) ON DELETE CASCADE;
-ALTER TABLE public.announcements ADD CONSTRAINT IF NOT EXISTS announcements_created_by_fkey
+ALTER TABLE public.announcements ADD CONSTRAINT announcements_created_by_fkey
   FOREIGN KEY (created_by) REFERENCES public.profiles(id);
 
-ALTER TABLE public.integrations ADD CONSTRAINT IF NOT EXISTS integrations_company_id_fkey
+ALTER TABLE public.integrations ADD CONSTRAINT integrations_company_id_fkey
   FOREIGN KEY (company_id) REFERENCES public.companies(id);
-ALTER TABLE public.integrations ADD CONSTRAINT IF NOT EXISTS integrations_created_by_fkey
+ALTER TABLE public.integrations ADD CONSTRAINT integrations_created_by_fkey
   FOREIGN KEY (created_by) REFERENCES public.profiles(id);
 
-ALTER TABLE public.profile_cargos ADD CONSTRAINT IF NOT EXISTS profile_cargos_profile_id_fkey
+ALTER TABLE public.profile_cargos ADD CONSTRAINT profile_cargos_profile_id_fkey
   FOREIGN KEY (profile_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
-ALTER TABLE public.profile_cargos ADD CONSTRAINT IF NOT EXISTS profile_cargos_cargo_id_fkey
+ALTER TABLE public.profile_cargos ADD CONSTRAINT profile_cargos_cargo_id_fkey
   FOREIGN KEY (cargo_id) REFERENCES public.cargos(id) ON DELETE CASCADE;
-ALTER TABLE public.profile_cargos ADD CONSTRAINT IF NOT EXISTS profile_cargos_sector_id_fkey
+ALTER TABLE public.profile_cargos ADD CONSTRAINT profile_cargos_sector_id_fkey
   FOREIGN KEY (sector_id) REFERENCES public.sectors(id) ON DELETE CASCADE;
 
-ALTER TABLE public.profile_sector_requests ADD CONSTRAINT IF NOT EXISTS profile_sector_requests_profile_id_fkey
+ALTER TABLE public.profile_sector_requests ADD CONSTRAINT profile_sector_requests_profile_id_fkey
   FOREIGN KEY (profile_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
-ALTER TABLE public.profile_sector_requests ADD CONSTRAINT IF NOT EXISTS profile_sector_requests_sector_id_fkey
+ALTER TABLE public.profile_sector_requests ADD CONSTRAINT profile_sector_requests_sector_id_fkey
   FOREIGN KEY (sector_id) REFERENCES public.sectors(id) ON DELETE CASCADE;
-ALTER TABLE public.profile_sector_requests ADD CONSTRAINT IF NOT EXISTS profile_sector_requests_cargo_id_fkey
+ALTER TABLE public.profile_sector_requests ADD CONSTRAINT profile_sector_requests_cargo_id_fkey
   FOREIGN KEY (cargo_id) REFERENCES public.cargos(id) ON DELETE CASCADE;
 
-ALTER TABLE public.access_logs ADD CONSTRAINT IF NOT EXISTS access_logs_profile_id_fkey
+ALTER TABLE public.access_logs ADD CONSTRAINT access_logs_profile_id_fkey
   FOREIGN KEY (profile_id) REFERENCES public.profiles(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED;
-ALTER TABLE public.access_logs ADD CONSTRAINT IF NOT EXISTS access_logs_resource_id_fkey
+ALTER TABLE public.access_logs ADD CONSTRAINT access_logs_resource_id_fkey
   FOREIGN KEY (resource_id) REFERENCES public.resources(id) ON DELETE SET NULL;
 
-ALTER TABLE public.admin_logs ADD CONSTRAINT IF NOT EXISTS admin_logs_admin_id_fkey
+ALTER TABLE public.admin_logs ADD CONSTRAINT admin_logs_admin_id_fkey
   FOREIGN KEY (admin_id) REFERENCES public.profiles(id) ON DELETE SET NULL;
 
 -- ---------------------------------------------------------------------------
@@ -414,18 +414,24 @@ CREATE OR REPLACE FUNCTION public.is_sector_member(p_sector_id uuid)
 $$;
 
 CREATE OR REPLACE FUNCTION public.hash_cpf(cpf_input text)
-  RETURNS text LANGUAGE sql SECURITY DEFINER AS $$
+  RETURNS text LANGUAGE sql SECURITY DEFINER
+  SET search_path = extensions, public
+  AS $$
   SELECT crypt(cpf_input, gen_salt('bf', 10));
 $$;
 
 CREATE OR REPLACE FUNCTION public.verify_cpf(cpf_input text, cpf_hash text)
-  RETURNS boolean LANGUAGE sql SECURITY DEFINER AS $$
+  RETURNS boolean LANGUAGE sql SECURITY DEFINER
+  SET search_path = extensions, public
+  AS $$
   SELECT cpf_hash = crypt(cpf_input, cpf_hash);
 $$;
 
 CREATE OR REPLACE FUNCTION public.find_profile_by_cpf(cpf_digits text)
   RETURNS TABLE(full_name text, recovery_email text, company_id uuid)
-  LANGUAGE sql SECURITY DEFINER AS $$
+  LANGUAGE sql SECURITY DEFINER
+  SET search_path = extensions, public
+  AS $$
   SELECT full_name, recovery_email, company_id
   FROM profiles
   WHERE auth_type = 'cpf'
@@ -609,139 +615,139 @@ ALTER TABLE public.sectors                 ENABLE ROW LEVEL SECURITY;
 -- ---------------------------------------------------------------------------
 
 -- access_logs
-CREATE POLICY IF NOT EXISTS "access_logs: apenas insert"
+CREATE POLICY "access_logs: apenas insert"
   ON public.access_logs FOR INSERT TO public WITH CHECK (auth_is_active());
-CREATE POLICY IF NOT EXISTS "access_logs: qualquer autenticado insere"
+CREATE POLICY "access_logs: qualquer autenticado insere"
   ON public.access_logs FOR INSERT TO public WITH CHECK ((profile_id = auth.uid()));
-CREATE POLICY IF NOT EXISTS "access_logs: usuário vê os próprios; admin vê todos"
+CREATE POLICY "access_logs: usuário vê os próprios; admin vê todos"
   ON public.access_logs FOR SELECT TO public
   USING (((profile_id = auth.uid()) OR (auth_global_role() = 'admin'::public.global_role)));
 
 -- admin_logs
-CREATE POLICY IF NOT EXISTS "admin_logs: apenas admin visualiza"
+CREATE POLICY "admin_logs: apenas admin visualiza"
   ON public.admin_logs FOR SELECT TO public
   USING ((auth_global_role() = 'admin'::public.global_role));
-CREATE POLICY IF NOT EXISTS "admin_logs: insert autenticado"
+CREATE POLICY "admin_logs: insert autenticado"
   ON public.admin_logs FOR INSERT TO public WITH CHECK (auth_is_active());
 
 -- announcements
-CREATE POLICY IF NOT EXISTS "announcements: admin e manager criam"
+CREATE POLICY "announcements: admin e manager criam"
   ON public.announcements FOR INSERT TO public
   WITH CHECK ((auth_global_role() = ANY (ARRAY['admin'::public.global_role, 'manager'::public.global_role])));
-CREATE POLICY IF NOT EXISTS "announcements: admin e manager editam"
+CREATE POLICY "announcements: admin e manager editam"
   ON public.announcements FOR UPDATE TO public
   USING ((auth_global_role() = ANY (ARRAY['admin'::public.global_role, 'manager'::public.global_role])));
-CREATE POLICY IF NOT EXISTS "announcements: ver da empresa, ativos e não expirados"
+CREATE POLICY "announcements: ver da empresa, ativos e não expirados"
   ON public.announcements FOR SELECT TO public
   USING ((company_id = auth_company_id()) AND auth_is_active() AND (active = true)
     AND ((expires_at IS NULL) OR (expires_at > now()))
     AND ((sector_id IS NULL) OR is_sector_member(sector_id)));
 
 -- cargo_permissions
-CREATE POLICY IF NOT EXISTS "cargo_permissions: admin gerencia"
+CREATE POLICY "cargo_permissions: admin gerencia"
   ON public.cargo_permissions FOR ALL TO authenticated
   USING ((auth_global_role() = 'admin'::public.global_role))
   WITH CHECK ((auth_global_role() = 'admin'::public.global_role));
-CREATE POLICY IF NOT EXISTS "cargo_permissions: leitura"
+CREATE POLICY "cargo_permissions: leitura"
   ON public.cargo_permissions FOR SELECT TO authenticated
   USING (auth_is_active() AND EXISTS (
     SELECT 1 FROM cargos c WHERE c.id = cargo_permissions.cargo_id AND c.company_id = auth_company_id()
   ));
 
 -- cargo_sectors
-CREATE POLICY IF NOT EXISTS admin_manages_cargo_sectors
+CREATE POLICY admin_manages_cargo_sectors
   ON public.cargo_sectors FOR ALL TO authenticated
   USING ((auth_global_role() = 'admin'::public.global_role))
   WITH CHECK ((auth_global_role() = 'admin'::public.global_role));
-CREATE POLICY IF NOT EXISTS authenticated_reads_cargo_sectors
+CREATE POLICY authenticated_reads_cargo_sectors
   ON public.cargo_sectors FOR SELECT TO authenticated USING (true);
 
 -- cargos
-CREATE POLICY IF NOT EXISTS "cargos: admin gerencia"
+CREATE POLICY "cargos: admin gerencia"
   ON public.cargos FOR ALL TO authenticated
   USING ((auth_global_role() = 'admin'::public.global_role))
   WITH CHECK ((auth_global_role() = 'admin'::public.global_role));
-CREATE POLICY IF NOT EXISTS "cargos: leitura da empresa"
+CREATE POLICY "cargos: leitura da empresa"
   ON public.cargos FOR SELECT TO authenticated
   USING ((company_id = auth_company_id()) OR (auth_company_id() IS NULL));
 
 -- companies
-CREATE POLICY IF NOT EXISTS "companies: apenas admin edita"
+CREATE POLICY "companies: apenas admin edita"
   ON public.companies FOR UPDATE TO public
   USING ((auth_global_role() = 'admin'::public.global_role));
-CREATE POLICY IF NOT EXISTS "companies: ver apenas a própria empresa"
+CREATE POLICY "companies: ver apenas a própria empresa"
   ON public.companies FOR SELECT TO public USING ((id = auth_company_id()));
-CREATE POLICY IF NOT EXISTS authenticated_can_read_active_companies
+CREATE POLICY authenticated_can_read_active_companies
   ON public.companies FOR SELECT TO authenticated USING ((active = true));
 
 -- folders
-CREATE POLICY IF NOT EXISTS "folders: manager do setor e admin gerenciam"
+CREATE POLICY "folders: manager do setor e admin gerenciam"
   ON public.folders FOR ALL TO public
   USING ((auth_global_role() = 'admin'::public.global_role) OR EXISTS (
     SELECT 1 FROM sector_members sm
     WHERE sm.profile_id = auth.uid() AND sm.sector_id = folders.sector_id AND sm.role = 'manager'::public.sector_role
   ));
-CREATE POLICY IF NOT EXISTS "folders: ver se é membro do setor"
+CREATE POLICY "folders: ver se é membro do setor"
   ON public.folders FOR SELECT TO public
   USING ((is_sector_member(sector_id) AND auth_is_active()));
-CREATE POLICY IF NOT EXISTS admin_manager_can_read_all_folders
+CREATE POLICY admin_manager_can_read_all_folders
   ON public.folders FOR SELECT TO authenticated
   USING ((auth_global_role() = ANY (ARRAY['admin'::public.global_role, 'manager'::public.global_role])));
 
 -- integrations
-CREATE POLICY IF NOT EXISTS "integrations: apenas admin gerencia"
+CREATE POLICY "integrations: apenas admin gerencia"
   ON public.integrations FOR ALL TO public
   USING ((auth_global_role() = 'admin'::public.global_role));
-CREATE POLICY IF NOT EXISTS "integrations: ver da própria empresa"
+CREATE POLICY "integrations: ver da própria empresa"
   ON public.integrations FOR SELECT TO public
   USING ((company_id = auth_company_id()) AND auth_is_active());
 
 -- profile_cargos
-CREATE POLICY IF NOT EXISTS "profile_cargos: admin gerencia"
+CREATE POLICY "profile_cargos: admin gerencia"
   ON public.profile_cargos FOR ALL TO authenticated
   USING ((auth_global_role() = 'admin'::public.global_role))
   WITH CHECK ((auth_global_role() = 'admin'::public.global_role));
-CREATE POLICY IF NOT EXISTS "profile_cargos: usuário vê os próprios"
+CREATE POLICY "profile_cargos: usuário vê os próprios"
   ON public.profile_cargos FOR SELECT TO authenticated USING ((profile_id = auth.uid()));
 
 -- profile_sector_requests
-CREATE POLICY IF NOT EXISTS "Admins can manage sector requests"
+CREATE POLICY "Admins can manage sector requests"
   ON public.profile_sector_requests FOR ALL TO authenticated
   USING (EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.global_role = 'admin'::public.global_role));
-CREATE POLICY IF NOT EXISTS "Users and admins can view sector requests"
+CREATE POLICY "Users and admins can view sector requests"
   ON public.profile_sector_requests FOR SELECT TO authenticated
   USING ((profile_id = auth.uid()) OR EXISTS (
     SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.global_role = 'admin'::public.global_role
   ));
-CREATE POLICY IF NOT EXISTS "Users can insert own sector requests"
+CREATE POLICY "Users can insert own sector requests"
   ON public.profile_sector_requests FOR INSERT TO authenticated WITH CHECK ((profile_id = auth.uid()));
 
 -- profiles
-CREATE POLICY IF NOT EXISTS "Google: auto-registro pendente"
+CREATE POLICY "Google: auto-registro pendente"
   ON public.profiles FOR INSERT TO authenticated
   WITH CHECK ((id = auth.uid()) AND (auth_type = 'google'::public.auth_type) AND (active = false) AND (global_role = 'member'::public.global_role));
-CREATE POLICY IF NOT EXISTS "profiles: admin insere novos usuários"
+CREATE POLICY "profiles: admin insere novos usuários"
   ON public.profiles FOR INSERT TO public WITH CHECK ((auth_global_role() = 'admin'::public.global_role));
-CREATE POLICY IF NOT EXISTS "profiles: atualizar o próprio perfil"
+CREATE POLICY "profiles: atualizar o próprio perfil"
   ON public.profiles FOR UPDATE TO public
   USING ((id = auth.uid()) OR (auth_global_role() = 'admin'::public.global_role));
-CREATE POLICY IF NOT EXISTS "profiles: ver perfis da própria empresa"
+CREATE POLICY "profiles: ver perfis da própria empresa"
   ON public.profiles FOR SELECT TO public USING ((company_id = auth_company_id()));
 
 -- resource_permissions
-CREATE POLICY IF NOT EXISTS "resource_permissions: admin manager gerencia"
+CREATE POLICY "resource_permissions: admin manager gerencia"
   ON public.resource_permissions FOR ALL TO authenticated
   USING ((auth_global_role() = ANY (ARRAY['admin'::public.global_role, 'manager'::public.global_role])))
   WITH CHECK ((auth_global_role() = ANY (ARRAY['admin'::public.global_role, 'manager'::public.global_role])));
-CREATE POLICY IF NOT EXISTS "resource_permissions: usuário vê os próprios"
+CREATE POLICY "resource_permissions: usuário vê os próprios"
   ON public.resource_permissions FOR SELECT TO authenticated
   USING (auth_is_active() AND ((profile_id = auth.uid()) OR ((sector_id IS NOT NULL) AND is_sector_member(sector_id))));
 
 -- resources
-CREATE POLICY IF NOT EXISTS "resources: leitura com escopo"
+CREATE POLICY "resources: leitura com escopo"
   ON public.resources FOR SELECT TO authenticated
   USING ((deleted_at IS NULL) AND (resolve_resource_permission(id) <> 'none'::public.permission_level));
-CREATE POLICY IF NOT EXISTS "resources: manager e admin gerenciam"
+CREATE POLICY "resources: manager e admin gerenciam"
   ON public.resources FOR ALL TO public
   USING ((auth_global_role() = 'admin'::public.global_role) OR EXISTS (
     SELECT 1 FROM folders f
@@ -750,23 +756,23 @@ CREATE POLICY IF NOT EXISTS "resources: manager e admin gerenciam"
   ));
 
 -- sector_members
-CREATE POLICY IF NOT EXISTS "sector_members: admin gerencia membros"
+CREATE POLICY "sector_members: admin gerencia membros"
   ON public.sector_members FOR ALL TO public
   USING ((auth_global_role() = 'admin'::public.global_role));
-CREATE POLICY IF NOT EXISTS "sector_members: sector admin gerencia"
+CREATE POLICY "sector_members: sector admin gerencia"
   ON public.sector_members FOR ALL TO authenticated
   USING ((auth_global_role() = 'admin'::public.global_role) OR (auth_sector_role(sector_id) = 'admin'::public.sector_role))
   WITH CHECK ((auth_global_role() = 'admin'::public.global_role) OR (auth_sector_role(sector_id) = 'admin'::public.sector_role));
-CREATE POLICY IF NOT EXISTS "sector_members: ver da própria empresa"
+CREATE POLICY "sector_members: ver da própria empresa"
   ON public.sector_members FOR SELECT TO public
   USING (EXISTS (SELECT 1 FROM sectors s WHERE s.id = sector_members.sector_id AND s.company_id = auth_company_id()));
 
 -- sectors
-CREATE POLICY IF NOT EXISTS "sectors: admin e manager gerenciam"
+CREATE POLICY "sectors: admin e manager gerenciam"
   ON public.sectors FOR ALL TO public
   USING ((auth_global_role() = ANY (ARRAY['admin'::public.global_role, 'manager'::public.global_role])));
-CREATE POLICY IF NOT EXISTS "sectors: ver da própria empresa"
+CREATE POLICY "sectors: ver da própria empresa"
   ON public.sectors FOR SELECT TO public
   USING ((company_id = auth_company_id()) AND auth_is_active());
-CREATE POLICY IF NOT EXISTS authenticated_can_read_active_sectors
+CREATE POLICY authenticated_can_read_active_sectors
   ON public.sectors FOR SELECT TO authenticated USING ((active = true));
