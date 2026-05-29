@@ -1,10 +1,17 @@
 import { supabase } from "@/integrations/supabase/client";
 
-export const ALLOWED_GOOGLE_DOMAINS: string[] = [
-  "mowig.com.br",
-  "hubmkt.com.br",
-  "moveria.com.br",
-];
+export async function isGoogleDomainAllowed(domain: string): Promise<boolean> {
+  const slug = import.meta.env.VITE_COMPANY_SLUG as string | undefined;
+  if (!slug) return false;
+  const { data } = await supabase
+    .from("companies")
+    .select("allowed_domains")
+    .eq("slug", slug)
+    .maybeSingle();
+  const allowed: string[] = data?.allowed_domains ?? [];
+  if (allowed.includes("*")) return true;
+  return allowed.map((d: string) => d.toLowerCase()).includes(domain.toLowerCase());
+}
 
 export const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
 
@@ -57,14 +64,12 @@ export function isValidCpf(cpf: string): boolean {
   if (d.length !== 11) return false;
   if (INVALID_CPF_SEQUENCES.has(d)) return false;
 
-  // First check digit (weights 10..2)
   let sum = 0;
   for (let i = 0; i < 9; i++) sum += parseInt(d[i], 10) * (10 - i);
   let rest = (sum * 10) % 11;
   if (rest === 10) rest = 0;
   if (rest !== parseInt(d[9], 10)) return false;
 
-  // Second check digit (weights 11..2)
   sum = 0;
   for (let i = 0; i < 10; i++) sum += parseInt(d[i], 10) * (11 - i);
   rest = (sum * 10) % 11;

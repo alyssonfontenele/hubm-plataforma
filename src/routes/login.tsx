@@ -3,7 +3,7 @@ import { createFileRoute, useNavigate, useRouterState } from "@tanstack/react-ro
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { cpfToDigits, isValidCpf, maskCpf, signInWithCpf, signInWithGoogle, ALLOWED_GOOGLE_DOMAINS } from "@/lib/auth";
+import { cpfToDigits, isGoogleDomainAllowed, isValidCpf, maskCpf, signInWithCpf, signInWithGoogle } from "@/lib/auth";
 import { COMPANY_SLUG } from "@/lib/company";
 
 export const Route = createFileRoute("/login")({
@@ -25,7 +25,7 @@ async function enforceLoginRules(): Promise<boolean | "request-access"> {
 
   const isGoogleUser = user.app_metadata?.provider === "google";
   const userDomain = (user.email ?? "").split("@")[1]?.toLowerCase() ?? "";
-  const isDomainAllowed = ALLOWED_GOOGLE_DOMAINS.includes(userDomain);
+  const isDomainAllowed = await isGoogleDomainAllowed(userDomain);
 
   const { data: prof, error } = await supabase
     .from("profiles")

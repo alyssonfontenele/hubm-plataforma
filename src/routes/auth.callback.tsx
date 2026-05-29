@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { ALLOWED_GOOGLE_DOMAINS } from "@/lib/auth";
+import { isGoogleDomainAllowed } from "@/lib/auth";
 import type { Session } from "@supabase/supabase-js";
 
 export const Route = createFileRoute("/auth/callback")({
@@ -21,7 +21,7 @@ async function handleSession(session: Session) {
   if (!profile) {
     const isGoogle = session.user.app_metadata?.provider === "google";
     const domain = (session.user.email ?? "").split("@")[1]?.toLowerCase() ?? "";
-    if (isGoogle && ALLOWED_GOOGLE_DOMAINS.includes(domain)) {
+    if (isGoogle && await isGoogleDomainAllowed(domain)) {
       window.location.replace("/request-access");
       return;
     }

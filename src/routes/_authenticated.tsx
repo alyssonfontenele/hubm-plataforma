@@ -1,11 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopbar } from "@/components/app-topbar";
 import { useAuth } from "@/contexts/AuthContext";
-import { ALLOWED_GOOGLE_DOMAINS } from "@/lib/auth";
+import { isGoogleDomainAllowed } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -16,6 +16,7 @@ function AuthenticatedLayout() {
   const { session, loading, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const href = useRouterState({ select: (r) => r.location.href });
+  const [googleDomainAllowed, setGoogleDomainAllowed] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!loading && !session) {
@@ -37,10 +38,15 @@ function AuthenticatedLayout() {
   useEffect(() => {
     if (loading || !session || profile) return;
     const isGoogle = session.user.app_metadata?.provider === "google";
-    const domain = (session.user.email ?? "").split("@")[1]?.toLowerCase() ?? "";
-    if (isGoogle && ALLOWED_GOOGLE_DOMAINS.includes(domain)) {
-      void navigate({ to: "/request-access" });
+    if (!isGoogle) {
+      setGoogleDomainAllowed(false);
+      return;
     }
+    const domain = (session.user.email ?? "").split("@")[1]?.toLowerCase() ?? "";
+    void isGoogleDomainAllowed(domain).then((allowed) => {
+      setGoogleDomainAllowed(allowed);
+      if (allowed) void navigate({ to: "/request-access" });
+    });
   }, [loading, session, profile, navigate]);
 
   if (loading || !session) {
@@ -53,8 +59,7 @@ function AuthenticatedLayout() {
 
   if (!profile) {
     const isGoogle = session.user.app_metadata?.provider === "google";
-    const domain = (session.user.email ?? "").split("@")[1]?.toLowerCase() ?? "";
-    if (isGoogle && ALLOWED_GOOGLE_DOMAINS.includes(domain)) {
+    if (isGoogle && googleDomainAllowed !== false) {
       return (
         <div className="min-h-screen flex items-center justify-center bg-background">
           <div className="h-3 w-24 bg-accent-light rounded animate-pulse" />

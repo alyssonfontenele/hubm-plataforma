@@ -1,14 +1,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const ALLOWED_ORIGINS = [
-  'https://0b4d1d38-4694-42e7-a64f-93f49bb14bbe.lovableproject.com',
-  'https://hubm.mowig.ind.br',
-]
+const rawOrigins = Deno.env.get('ALLOWED_ORIGINS') ?? '';
+const ALLOWED_ORIGINS = rawOrigins.split(',').map(o => o.trim()).filter(Boolean);
 
 const corsHeaders = (origin: string) => ({
-  'Access-Control-Allow-Origin': ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
+  'Access-Control-Allow-Origin': ALLOWED_ORIGINS.includes(origin) ? origin : (ALLOWED_ORIGINS[0] ?? '*'),
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-internal-secret',
-})
+});
 
 Deno.serve(async (req) => {
   const origin = req.headers.get('origin') || ''
@@ -48,8 +46,8 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         sender: {
-          name: sender_name ?? 'HubMowig',
-          email: sender_email ?? 'noreply@mowig.ind.br',
+          name: sender_name ?? 'HubM',
+          email: sender_email ?? Deno.env.get('SITE_SENDER_EMAIL') ?? 'noreply@hubm.internal',
         },
         to: toFormatted,
         subject,
