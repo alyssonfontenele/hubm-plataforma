@@ -14,6 +14,21 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   },
 });
 
+// Cliente exclusivo do SuperAdmin — aponta para o banco central hubm-core.
+// Sem fallback: requer VITE_SUPABASE_CORE_URL e VITE_SUPABASE_CORE_ANON_KEY.
+const _CORE_URL = import.meta.env.VITE_SUPABASE_CORE_URL as string | undefined;
+const _CORE_KEY = import.meta.env.VITE_SUPABASE_CORE_ANON_KEY as string | undefined;
+
+export const supabaseCore = _CORE_URL && _CORE_KEY
+  ? createClient(_CORE_URL, _CORE_KEY, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    })
+  : null;
+
 export type GlobalRole = "admin" | "manager" | "member" | "viewer" | "operational" | "superadmin";
 export type SectorRole = "admin" | "manager" | "member" | "viewer";
 export type ResourceType =

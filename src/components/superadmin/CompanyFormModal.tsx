@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Company } from "@/integrations/supabase/client";
+import { companyClient } from "@/lib/company";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -54,7 +55,7 @@ export function CompanyFormModal({ open, onClose, onSaved, editTarget }: Props) 
   useEffect(() => {
     if (!open) return;
     if (editTarget) {
-      void supabase
+      void companyClient
         .from("company_features")
         .select("feature_slug, enabled")
         .eq("company_id", editTarget.id)
@@ -101,7 +102,7 @@ export function CompanyFormModal({ open, onClose, onSaved, editTarget }: Props) 
         .filter(Boolean);
 
       if (editTarget) {
-        const { error } = await supabase
+        const { error } = await companyClient
           .from("companies")
           .update({
             name: form.name.trim(),
@@ -121,7 +122,7 @@ export function CompanyFormModal({ open, onClose, onSaved, editTarget }: Props) 
           feature_slug: slug,
           enabled: featureToggles[slug] ?? false,
         }));
-        const { error: featErr } = await supabase
+        const { error: featErr } = await companyClient
           .from("company_features")
           .upsert(featureUpserts, { onConflict: "company_id,feature_slug" });
         if (featErr) throw featErr;
@@ -129,7 +130,7 @@ export function CompanyFormModal({ open, onClose, onSaved, editTarget }: Props) 
         toast.success("Empresa atualizada.");
       } else {
 
-        const { data: newCompany, error: compErr } = await supabase
+        const { data: newCompany, error: compErr } = await companyClient
           .from("companies")
           .insert({
             name: form.name.trim(),
@@ -181,7 +182,7 @@ export function CompanyFormModal({ open, onClose, onSaved, editTarget }: Props) 
           .filter(({ slug }) => featureToggles[slug])
           .map(({ slug }) => ({ company_id: companyId, feature_slug: slug, enabled: true }));
         if (enabledFeatures.length > 0) {
-          const { error: featErr } = await supabase
+          const { error: featErr } = await companyClient
             .from("company_features")
             .insert(enabledFeatures);
           if (featErr) throw featErr;
