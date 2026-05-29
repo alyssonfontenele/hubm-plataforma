@@ -72,10 +72,10 @@ MIGRATION_OUTPUT=""
 APPLIED_REMOTE=""
 
 if MIGRATION_OUTPUT=$(npx supabase migration list --linked 2>&1); then
-  # Extrai versões da coluna REMOTE (coluna 2, separada por │)
-  # Linhas de dados têm NR>2 (pula cabeçalho + separador)
+  # Separador real é pipe ASCII "|"; coluna 3 = Remote (1=Local, 2=Remote, 3=Time)
+  # Pula cabeçalho (NR==1) e separador de traços (NR==2)
   APPLIED_REMOTE=$(echo "$MIGRATION_OUTPUT" \
-    | awk -F'│' 'NR>2 { gsub(/[[:space:]]/, "", $2); if (length($2)>0) print $2 }')
+    | awk -F'|' 'NR>2 { gsub(/[[:space:]]/, "", $2); if (length($2)>0) print $2 }')
   ok "Estado remoto obtido."
 else
   warn "Não foi possível obter o estado remoto. Todas as migrations serão consideradas pendentes."
