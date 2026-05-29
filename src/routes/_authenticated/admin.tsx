@@ -8,6 +8,7 @@ import { SectorsTab } from "@/components/admin/sectors-tab";
 import { CargosTab } from "@/components/admin/CargosTab";
 import { HistoryTab } from "@/components/admin/HistoryTab";
 import { SettingsTab } from "@/components/admin/SettingsTab";
+import { ImportTab } from "@/components/admin/ImportTab";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   ssr: false,
@@ -43,6 +44,7 @@ function AdminPage() {
           <TabsTrigger value="users">Usuários</TabsTrigger>
           <TabsTrigger value="sectors">Setores</TabsTrigger>
           <TabsTrigger value="cargos">Cargos</TabsTrigger>
+          <TabsTrigger value="import">Importar</TabsTrigger>
           <TabsTrigger value="history">Histórico de ações</TabsTrigger>
           <TabsTrigger value="settings">Configurações</TabsTrigger>
         </TabsList>
@@ -57,6 +59,10 @@ function AdminPage() {
 
         <TabsContent value="cargos" className="mt-0">
           <CargosTab companyId={company.id} />
+        </TabsContent>
+
+        <TabsContent value="import" className="mt-0">
+          <ImportTab companyId={company.id} />
         </TabsContent>
 
         <TabsContent value="history" className="mt-0">
