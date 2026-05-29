@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { ALLOWED_GOOGLE_DOMAINS } from "@/lib/auth";
+import { isGoogleDomainAllowed } from "@/lib/auth";
 
 export const Route = createFileRoute("/request-access")({
   ssr: false,
@@ -43,7 +43,7 @@ function RequestAccessPage() {
       }
 
       const domain = (user.email ?? "").split("@")[1]?.toLowerCase() ?? "";
-      if (!ALLOWED_GOOGLE_DOMAINS.includes(domain)) {
+      if (!(await isGoogleDomainAllowed(domain))) {
         await supabase.auth.signOut();
         void navigate({ to: "/login" });
         return;
