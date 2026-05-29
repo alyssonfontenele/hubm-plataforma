@@ -5,6 +5,7 @@ import { Plus, Pencil, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Company } from "@/integrations/supabase/client";
+import { companyClient } from "@/lib/company";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CompanyFormModal } from "@/components/superadmin/CompanyFormModal";
@@ -28,7 +29,7 @@ function SuperadminDashboard() {
     queryFn: async (): Promise<CompanyWithCount[]> => {
       const [{ data: cos, error: cosErr }, { data: counts, error: cntErr }] =
         await Promise.all([
-          supabase
+          companyClient
             .from("companies")
             .select(
               "id,slug,name,domain,logo_url,favicon_url,primary_color,email_sender,active",
@@ -54,7 +55,7 @@ function SuperadminDashboard() {
   });
 
   const toggleActive = async (company: Company) => {
-    const { error } = await supabase
+    const { error } = await companyClient
       .from("companies")
       .update({ active: !company.active })
       .eq("id", company.id);
