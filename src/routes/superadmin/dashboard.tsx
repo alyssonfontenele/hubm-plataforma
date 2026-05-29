@@ -27,6 +27,12 @@ function SuperadminDashboard() {
   const { data: companies, isLoading } = useQuery({
     queryKey: ["superadmin-companies"],
     queryFn: async (): Promise<CompanyWithCount[]> => {
+      console.log('[superadmin:dashboard] client diagnostics', {
+        VITE_IS_SUPERADMIN: import.meta.env.VITE_IS_SUPERADMIN,
+        VITE_SUPABASE_CORE_URL: import.meta.env.VITE_SUPABASE_CORE_URL ?? '(não definida)',
+        VITE_SUPABASE_CORE_ANON_KEY: import.meta.env.VITE_SUPABASE_CORE_ANON_KEY ? '(definida)' : '(não definida)',
+        usingCoreDB: import.meta.env.VITE_IS_SUPERADMIN === 'true' && !!import.meta.env.VITE_SUPABASE_CORE_URL,
+      });
       const [{ data: cos, error: cosErr }, { data: counts, error: cntErr }] =
         await Promise.all([
           companyClient
