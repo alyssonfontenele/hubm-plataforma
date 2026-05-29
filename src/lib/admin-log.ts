@@ -32,15 +32,15 @@ export const ADMIN_ACTION_LABEL: Record<AdminAction, string> = {
 };
 
 export const ADMIN_ACTION_COLOR: Partial<Record<AdminAction, string>> = {
-  approve_user:    "border-emerald-200 bg-emerald-50 text-emerald-800",
-  reject_user:     "border-red-200 bg-red-50 text-red-800",
-  delete_user:     "border-red-200 bg-red-50 text-red-800",
+  approve_user:    "border-success/30 bg-success-light text-success-text",
+  reject_user:     "border-danger/30 bg-danger-light text-danger-text",
+  delete_user:     "border-danger/30 bg-danger-light text-danger-text",
   suspend_user:    "border-amber-200 bg-amber-50 text-amber-800",
   inactivate_user: "border-amber-200 bg-amber-50 text-amber-800",
-  reactivate_user: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  create_user:     "border-blue-200 bg-blue-50 text-blue-800",
-  delete_sector:   "border-red-200 bg-red-50 text-red-800",
-  delete_resource: "border-red-200 bg-red-50 text-red-800",
+  reactivate_user: "border-success/30 bg-success-light text-success-text",
+  create_user:     "border-info/30 bg-info-light text-info-text",
+  delete_sector:   "border-danger/30 bg-danger-light text-danger-text",
+  delete_resource: "border-danger/30 bg-danger-light text-danger-text",
 };
 
 export interface AdminLogRow {

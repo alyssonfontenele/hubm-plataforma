@@ -169,7 +169,7 @@ function SuperadminDashboard() {
                       variant="outline"
                       className={`cursor-pointer select-none ${
                         company.active
-                          ? "border-green-500 text-green-600 hover:bg-green-50"
+                          ? "border-success text-success-text hover:bg-success-light"
                           : "border-border text-text-muted hover:bg-accent-light"
                       }`}
                       onClick={() => void toggleActive(company)}

@@ -83,8 +83,8 @@ function PermToggle({
               ? opt.value === "none"
                 ? "bg-text-primary/10 text-text-primary"
                 : opt.value === "view"
-                  ? "bg-blue-500 text-white"
-                  : "bg-emerald-500 text-white"
+                  ? "bg-info text-white"
+                  : "bg-success text-white"
               : "bg-background text-text-muted hover:bg-accent-light"
           }`}
         >
@@ -499,7 +499,7 @@ export function CargosTab({ companyId }: CargosTabProps) {
                           );
                           toast.success("Link copiado!");
                         }}
-                        className="text-text-muted hover:text-blue-500 transition-colors"
+                        className="text-text-muted hover:text-info transition-colors"
                         title="Copiar link de convite"
                       >
                         <Link2 className="w-3.5 h-3.5" />
@@ -507,7 +507,7 @@ export function CargosTab({ companyId }: CargosTabProps) {
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setDeleteTarget(cargo); }}
-                        className="text-text-muted hover:text-red-500 transition-colors"
+                        className="text-text-muted hover:text-danger transition-colors"
                         title="Excluir cargo"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -623,11 +623,11 @@ export function CargosTab({ companyId }: CargosTabProps) {
                     Sem acesso
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <span className="inline-flex h-5 px-2 rounded bg-blue-500 text-white text-xs items-center">Ver</span>
+                    <span className="inline-flex h-5 px-2 rounded bg-info text-white text-xs items-center">Ver</span>
                     Visualizar
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <span className="inline-flex h-5 px-2 rounded bg-emerald-500 text-white text-xs items-center">Editar</span>
+                    <span className="inline-flex h-5 px-2 rounded bg-success text-white text-xs items-center">Editar</span>
                     Editar e visualizar
                   </span>
                 </div>
@@ -667,10 +667,10 @@ export function CargosTab({ companyId }: CargosTabProps) {
                                     <span className="w-1.5 h-1.5 rounded-full bg-text-muted/40 shrink-0" />
                                   )}
                                   {perm === "view" && (
-                                    <Eye className="w-3 h-3 text-blue-500 shrink-0" />
+                                    <Eye className="w-3 h-3 text-info shrink-0" />
                                   )}
                                   {perm === "edit" && (
-                                    <Pencil className="w-3 h-3 text-emerald-500 shrink-0" />
+                                    <Pencil className="w-3 h-3 text-success shrink-0" />
                                   )}
                                   <p className={`text-sm truncate ${perm === "none" ? "text-text-muted" : "text-text-primary"}`}>
                                     {resource.name}
@@ -726,7 +726,7 @@ export function CargosTab({ companyId }: CargosTabProps) {
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => void handleDelete()}
-              className="bg-red-600 hover:bg-red-700 text-white border-0"
+              className="bg-danger hover:bg-danger/90 text-white border-0"
             >
               Excluir
             </AlertDialogAction>
