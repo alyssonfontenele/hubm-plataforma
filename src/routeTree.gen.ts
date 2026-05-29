@@ -20,9 +20,12 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SuperadminDashboardRouteImport } from './routes/superadmin/dashboard'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as AuthenticatedContratosRouteImport } from './routes/_authenticated/contratos'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedSectorsSlugRouteImport } from './routes/_authenticated/sectors.$slug'
+import { Route as AuthenticatedContratosLotesRouteImport } from './routes/_authenticated/contratos/lotes'
+import { Route as AuthenticatedContratosBacklogRouteImport } from './routes/_authenticated/contratos/backlog'
 
 const SuperadminRoute = SuperadminRouteImport.update({
   id: '/superadmin',
@@ -78,6 +81,11 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedContratosRoute = AuthenticatedContratosRouteImport.update({
+  id: '/contratos',
+  path: '/contratos',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
   id: '/app',
   path: '/app',
@@ -94,6 +102,18 @@ const AuthenticatedSectorsSlugRoute =
     path: '/sectors/$slug',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedContratosLotesRoute =
+  AuthenticatedContratosLotesRouteImport.update({
+    id: '/lotes',
+    path: '/lotes',
+    getParentRoute: () => AuthenticatedContratosRoute,
+  } as any)
+const AuthenticatedContratosBacklogRoute =
+  AuthenticatedContratosBacklogRouteImport.update({
+    id: '/backlog',
+    path: '/backlog',
+    getParentRoute: () => AuthenticatedContratosRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -106,8 +126,11 @@ export interface FileRoutesByFullPath {
   '/superadmin': typeof SuperadminRouteWithChildren
   '/admin': typeof AuthenticatedAdminRoute
   '/app': typeof AuthenticatedAppRoute
+  '/contratos': typeof AuthenticatedContratosRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/superadmin/dashboard': typeof SuperadminDashboardRoute
+  '/contratos/backlog': typeof AuthenticatedContratosBacklogRoute
+  '/contratos/lotes': typeof AuthenticatedContratosLotesRoute
   '/sectors/$slug': typeof AuthenticatedSectorsSlugRoute
 }
 export interface FileRoutesByTo {
@@ -121,8 +144,11 @@ export interface FileRoutesByTo {
   '/superadmin': typeof SuperadminRouteWithChildren
   '/admin': typeof AuthenticatedAdminRoute
   '/app': typeof AuthenticatedAppRoute
+  '/contratos': typeof AuthenticatedContratosRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/superadmin/dashboard': typeof SuperadminDashboardRoute
+  '/contratos/backlog': typeof AuthenticatedContratosBacklogRoute
+  '/contratos/lotes': typeof AuthenticatedContratosLotesRoute
   '/sectors/$slug': typeof AuthenticatedSectorsSlugRoute
 }
 export interface FileRoutesById {
@@ -138,8 +164,11 @@ export interface FileRoutesById {
   '/superadmin': typeof SuperadminRouteWithChildren
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/app': typeof AuthenticatedAppRoute
+  '/_authenticated/contratos': typeof AuthenticatedContratosRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/superadmin/dashboard': typeof SuperadminDashboardRoute
+  '/_authenticated/contratos/backlog': typeof AuthenticatedContratosBacklogRoute
+  '/_authenticated/contratos/lotes': typeof AuthenticatedContratosLotesRoute
   '/_authenticated/sectors/$slug': typeof AuthenticatedSectorsSlugRoute
 }
 export interface FileRouteTypes {
@@ -155,8 +184,11 @@ export interface FileRouteTypes {
     | '/superadmin'
     | '/admin'
     | '/app'
+    | '/contratos'
     | '/auth/callback'
     | '/superadmin/dashboard'
+    | '/contratos/backlog'
+    | '/contratos/lotes'
     | '/sectors/$slug'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -170,8 +202,11 @@ export interface FileRouteTypes {
     | '/superadmin'
     | '/admin'
     | '/app'
+    | '/contratos'
     | '/auth/callback'
     | '/superadmin/dashboard'
+    | '/contratos/backlog'
+    | '/contratos/lotes'
     | '/sectors/$slug'
   id:
     | '__root__'
@@ -186,8 +221,11 @@ export interface FileRouteTypes {
     | '/superadmin'
     | '/_authenticated/admin'
     | '/_authenticated/app'
+    | '/_authenticated/contratos'
     | '/auth/callback'
     | '/superadmin/dashboard'
+    | '/_authenticated/contratos/backlog'
+    | '/_authenticated/contratos/lotes'
     | '/_authenticated/sectors/$slug'
   fileRoutesById: FileRoutesById
 }
@@ -283,6 +321,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/contratos': {
+      id: '/_authenticated/contratos'
+      path: '/contratos'
+      fullPath: '/contratos'
+      preLoaderRoute: typeof AuthenticatedContratosRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/app': {
       id: '/_authenticated/app'
       path: '/app'
@@ -304,18 +349,50 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSectorsSlugRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/contratos/lotes': {
+      id: '/_authenticated/contratos/lotes'
+      path: '/lotes'
+      fullPath: '/contratos/lotes'
+      preLoaderRoute: typeof AuthenticatedContratosLotesRouteImport
+      parentRoute: typeof AuthenticatedContratosRoute
+    }
+    '/_authenticated/contratos/backlog': {
+      id: '/_authenticated/contratos/backlog'
+      path: '/backlog'
+      fullPath: '/contratos/backlog'
+      preLoaderRoute: typeof AuthenticatedContratosBacklogRouteImport
+      parentRoute: typeof AuthenticatedContratosRoute
+    }
   }
 }
+
+interface AuthenticatedContratosRouteChildren {
+  AuthenticatedContratosBacklogRoute: typeof AuthenticatedContratosBacklogRoute
+  AuthenticatedContratosLotesRoute: typeof AuthenticatedContratosLotesRoute
+}
+
+const AuthenticatedContratosRouteChildren: AuthenticatedContratosRouteChildren =
+  {
+    AuthenticatedContratosBacklogRoute: AuthenticatedContratosBacklogRoute,
+    AuthenticatedContratosLotesRoute: AuthenticatedContratosLotesRoute,
+  }
+
+const AuthenticatedContratosRouteWithChildren =
+  AuthenticatedContratosRoute._addFileChildren(
+    AuthenticatedContratosRouteChildren,
+  )
 
 interface AuthenticatedRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedAppRoute: typeof AuthenticatedAppRoute
+  AuthenticatedContratosRoute: typeof AuthenticatedContratosRouteWithChildren
   AuthenticatedSectorsSlugRoute: typeof AuthenticatedSectorsSlugRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedAppRoute: AuthenticatedAppRoute,
+  AuthenticatedContratosRoute: AuthenticatedContratosRouteWithChildren,
   AuthenticatedSectorsSlugRoute: AuthenticatedSectorsSlugRoute,
 }
 

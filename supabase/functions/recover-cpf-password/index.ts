@@ -131,7 +131,8 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+        "Authorization": `Bearer ${Deno.env.get("ANON_KEY_JWT") ?? ""}`,
+        "apikey": Deno.env.get("ANON_KEY_JWT") ?? "",
         "x-internal-secret": INTERNAL_SECRET,
       },
       body: JSON.stringify({

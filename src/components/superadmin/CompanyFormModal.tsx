@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Company } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,10 @@ const DEFAULT_FORM = {
   active: true,
 };
 
+const AVAILABLE_FEATURES = [
+  { slug: "moveria-contratos", label: "Sistema de Contratos (Moveria)" },
+] as const;
+
 const inputCls =
   "w-full h-9 rounded-md border border-border bg-surface px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-ring/30";
 
@@ -44,10 +49,23 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 export function CompanyFormModal({ open, onClose, onSaved, editTarget }: Props) {
   const [form, setForm] = useState(DEFAULT_FORM);
   const [saving, setSaving] = useState(false);
+  const [featureToggles, setFeatureToggles] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!open) return;
     if (editTarget) {
+      void supabase
+        .from("company_features")
+        .select("feature_slug, enabled")
+        .eq("company_id", editTarget.id)
+        .then(({ data }) => {
+          const toggles: Record<string, boolean> = {};
+          for (const f of data ?? []) {
+            toggles[(f as { feature_slug: string; enabled: boolean }).feature_slug] =
+              (f as { feature_slug: string; enabled: boolean }).enabled;
+          }
+          setFeatureToggles(toggles);
+        });
       setForm({
         name: editTarget.name,
         slug: editTarget.slug,
@@ -59,6 +77,7 @@ export function CompanyFormModal({ open, onClose, onSaved, editTarget }: Props) 
       });
     } else {
       setForm(DEFAULT_FORM);
+      setFeatureToggles({});
     }
   }, [open, editTarget]);
 
@@ -95,6 +114,18 @@ export function CompanyFormModal({ open, onClose, onSaved, editTarget }: Props) 
           })
           .eq("id", editTarget.id);
         if (error) throw error;
+
+        // Upsert all features for this company
+        const featureUpserts = AVAILABLE_FEATURES.map(({ slug }) => ({
+          company_id: editTarget.id,
+          feature_slug: slug,
+          enabled: featureToggles[slug] ?? false,
+        }));
+        const { error: featErr } = await supabase
+          .from("company_features")
+          .upsert(featureUpserts, { onConflict: "company_id,feature_slug" });
+        if (featErr) throw featErr;
+
         toast.success("Empresa atualizada.");
       } else {
 
@@ -144,6 +175,17 @@ export function CompanyFormModal({ open, onClose, onSaved, editTarget }: Props) 
           .from("cargo_sectors")
           .insert({ cargo_id: (cargo as { id: string }).id, sector_id: (sector as { id: string }).id });
         if (csErr) throw csErr;
+
+        // Insert enabled features for the new company
+        const enabledFeatures = AVAILABLE_FEATURES
+          .filter(({ slug }) => featureToggles[slug])
+          .map(({ slug }) => ({ company_id: companyId, feature_slug: slug, enabled: true }));
+        if (enabledFeatures.length > 0) {
+          const { error: featErr } = await supabase
+            .from("company_features")
+            .insert(enabledFeatures);
+          if (featErr) throw featErr;
+        }
 
         toast.success("Empresa criada com sucesso.");
       }
@@ -237,6 +279,23 @@ export function CompanyFormModal({ open, onClose, onSaved, editTarget }: Props) 
               <span className="text-sm text-text-secondary font-mono">{form.primary_color}</span>
             </div>
           </Field>
+
+          <div>
+            <p className="text-xs font-medium text-text-secondary mb-2">Funcionalidades</p>
+            <div className="rounded-md border border-border bg-background px-3 py-1">
+              {AVAILABLE_FEATURES.map(({ slug, label }) => (
+                <div key={slug} className="flex items-center justify-between py-2">
+                  <span className="text-sm text-text-primary">{label}</span>
+                  <Switch
+                    checked={featureToggles[slug] ?? false}
+                    onCheckedChange={(v) =>
+                      setFeatureToggles((prev) => ({ ...prev, [slug]: v }))
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
 
           <Field label="Status">
             <div className="flex items-center gap-2">

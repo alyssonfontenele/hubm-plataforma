@@ -17,6 +17,8 @@ import {
   Wallet,
   ChevronDown,
   ChevronRight,
+  Layers,
+  ClipboardList,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -41,6 +43,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useHasFeature } from "@/hooks/useCompanyFeatures";
 
 const ICONS: Record<string, LucideIcon> = {
   folder: Folder,
@@ -108,6 +111,7 @@ export function AppSidebar() {
 
   const isAdmin = globalRole === "admin";
   const companyId = company?.id;
+  const hasContratos = useHasFeature("moveria-contratos");
 
   const sectorIds = useMemo(
     () => sectorMemberships.map((m) => m.sector.id).sort(),
@@ -236,6 +240,43 @@ export function AppSidebar() {
             </CollapsibleSectorGroup>
           );
         })}
+
+        {hasContratos && (
+          <CollapsibleSectorGroup
+            groupKey="contratos"
+            label="Contratos"
+            collapsedSidebar={collapsed}
+            hasActive={isActive("/contratos")}
+            defaultCollapsed={isMobile}
+          >
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname === "/contratos"}>
+                  <Link to="/contratos" className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    {!collapsed && <span>Contratos</span>}
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActive("/contratos/lotes")}>
+                  <Link to="/contratos/lotes" className="flex items-center gap-2">
+                    <Layers className="h-4 w-4" />
+                    {!collapsed && <span>Lotes</span>}
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActive("/contratos/backlog")}>
+                  <Link to="/contratos/backlog" className="flex items-center gap-2">
+                    <ClipboardList className="h-4 w-4" />
+                    {!collapsed && <span>Meu Backlog</span>}
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </CollapsibleSectorGroup>
+        )}
 
         {(globalRole === "admin" || globalRole === "superadmin") && (
           <SidebarGroup>

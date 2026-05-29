@@ -90,14 +90,15 @@ Deno.serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const serviceKey = Deno.env.get('SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const internalSecret = Deno.env.get('INTERNAL_SECRET')!
 
     await fetch(`${supabaseUrl}/functions/v1/send-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${serviceKey}`,
+        'Authorization': `Bearer ${Deno.env.get('ANON_KEY_JWT') ?? ''}`,
+        'apikey': Deno.env.get('ANON_KEY_JWT') ?? '',
         'x-internal-secret': internalSecret,
       },
       body: JSON.stringify({
@@ -116,7 +117,7 @@ Deno.serve(async (req) => {
             <p style="color: #444; line-height: 1.6;">
               No primeiro acesso você será solicitado a definir uma nova senha pessoal.
             </p>
-            <a href="https://hubm.mowig.ind.br/login"
+            <a href="${Deno.env.get('SITE_URL') ?? 'https://hubm.mowig.ind.br'}/login"
                style="display: inline-block; margin-top: 16px; padding: 12px 24px; background: #111; color: #fff; border-radius: 8px; text-decoration: none; font-weight: 500;">
               Acessar o HubM
             </a>
