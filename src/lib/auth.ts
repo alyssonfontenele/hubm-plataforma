@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, getAuthClient } from "@/integrations/supabase/client";
 
 export async function isGoogleDomainAllowed(domain: string): Promise<boolean> {
   const slug = import.meta.env.VITE_COMPANY_SLUG as string | undefined;
@@ -16,7 +16,7 @@ export async function isGoogleDomainAllowed(domain: string): Promise<boolean> {
 export const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
 
 export async function signInWithGoogle(redirectTo: string) {
-  const { error } = await supabase.auth.signInWithOAuth({
+  const { error } = await getAuthClient().auth.signInWithOAuth({
     provider: "google",
     options: {
       redirectTo,
@@ -110,7 +110,7 @@ export function isValidCellphone(value: string): boolean {
 
 export async function signInWithCpf(cpf: string, password: string) {
   const email = cpfToEmail(cpf);
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error } = await getAuthClient().auth.signInWithPassword({ email, password });
   if (error) throw error;
 }
 

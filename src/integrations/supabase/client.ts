@@ -14,20 +14,33 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   },
 });
 
-// Cliente exclusivo do SuperAdmin — aponta para o banco central hubm-core.
-// Sem fallback: requer VITE_SUPABASE_CORE_URL e VITE_SUPABASE_CORE_ANON_KEY.
+// Cliente do banco central hubm-core — usado para auth e dados do SuperAdmin.
+// Requer VITE_SUPABASE_CORE_URL e VITE_SUPABASE_CORE_ANON_KEY no projeto superadmin.
 const _CORE_URL = import.meta.env.VITE_SUPABASE_CORE_URL as string | undefined;
 const _CORE_KEY = import.meta.env.VITE_SUPABASE_CORE_ANON_KEY as string | undefined;
 
 export const supabaseCore = _CORE_URL && _CORE_KEY
   ? createClient(_CORE_URL, _CORE_KEY, {
       auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storage: typeof window !== "undefined" ? window.localStorage : undefined,
       },
     })
   : null;
+
+/**
+ * Retorna o cliente Supabase correto para operações de autenticação.
+ * - SuperAdmin (VITE_IS_SUPERADMIN=true): usa supabaseCore (hubm-core)
+ * - Empresa (Mowig, Moveria): usa supabase
+ */
+export function getAuthClient() {
+  if (import.meta.env.VITE_IS_SUPERADMIN === 'true' && supabaseCore !== null) {
+    return supabaseCore;
+  }
+  return supabase;
+}
 
 export type GlobalRole = "admin" | "manager" | "member" | "viewer" | "operational" | "superadmin";
 export type SectorRole = "admin" | "manager" | "member" | "viewer";

@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import type { Session } from "@supabase/supabase-js";
 import {
   supabase,
+  getAuthClient,
   type Company,
   type GlobalRole,
   type Profile,
@@ -55,7 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
 
   const loadProfile = useCallback(async (userId: string) => {
-    const { data: prof, error: profErr } = await supabase
+    const authClient = getAuthClient();
+    const { data: prof, error: profErr } = await authClient
       .from("profiles")
       .select("*")
       .eq("id", userId)
@@ -68,6 +70,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     setProfile(prof as Profile);
+
+    // No SuperAdmin não há company nem sector_members no hubm-core.
+    if (import.meta.env.VITE_IS_SUPERADMIN === 'true') return;
 
     const [{ data: comp }, { data: members }] = await Promise.all([
       supabase.from("companies").select("id,slug,name,domain,logo_url,favicon_url,primary_color,email_sender,active").eq("id", prof.company_id).maybeSingle(),
@@ -85,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
 
-    const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
+    const { data: sub } = getAuthClient().auth.onAuthStateChange((event, newSession) => {
       if (!active) return;
       setSession(newSession);
       const pt = newSession?.provider_token ?? null;
@@ -110,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    supabase.auth.getSession().then(async ({ data }) => {
+    getAuthClient().auth.getSession().then(async ({ data }) => {
       if (!active) return;
       const s = data.session;
       setSession(s);
@@ -135,7 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     setMfaState("unknown");
-    await supabase.auth.signOut();
+    await getAuthClient().auth.signOut();
   }, []);
 
   const clearPasswordRecovery = useCallback(() => {
@@ -152,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      const { data: factors, error: factorsErr } = await supabase.auth.mfa.listFactors();
+      const { data: factors, error: factorsErr } = await getAuthClient().auth.mfa.listFactors();
       if (factorsErr) throw factorsErr;
       const verifiedTotp = factors?.totp?.find((f) => f.status === "verified");
       if (!verifiedTotp) {
@@ -160,7 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       const { data: aal, error: aalErr } =
-        await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        await getAuthClient().auth.mfa.getAuthenticatorAssuranceLevel();
       if (aalErr) throw aalErr;
       if (aal?.nextLevel === "aal2" && aal?.currentLevel !== "aal2") {
         setMfaState("needs_challenge");
