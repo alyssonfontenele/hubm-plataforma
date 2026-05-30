@@ -110,6 +110,14 @@ export function isValidCellphone(value: string): boolean {
 
 export async function signInWithCpf(cpf: string, password: string) {
   const email = cpfToEmail(cpf);
+  const isSuperadmin = import.meta.env.VITE_IS_SUPERADMIN === 'true';
+  const coreUrl = import.meta.env.VITE_SUPABASE_CORE_URL as string | undefined;
+  console.log('[auth:signInWithCpf]', {
+    email,
+    isSuperadmin,
+    coreUrl: coreUrl ?? '(não definida)',
+    usingCore: isSuperadmin && !!coreUrl,
+  });
   const { error } = await getAuthClient().auth.signInWithPassword({ email, password });
   if (error) throw error;
 }
