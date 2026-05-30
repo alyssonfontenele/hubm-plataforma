@@ -15,20 +15,21 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
 });
 
 // Cliente do banco central hubm-core — usado para auth e dados do SuperAdmin.
-// Requer VITE_SUPABASE_CORE_URL e VITE_SUPABASE_CORE_ANON_KEY no projeto superadmin.
-const _CORE_URL = import.meta.env.VITE_SUPABASE_CORE_URL as string | undefined;
-const _CORE_KEY = import.meta.env.VITE_SUPABASE_CORE_ANON_KEY as string | undefined;
+// Fallback hardcoded garante inicialização mesmo sem env vars no build
+// (mesmo padrão do cliente principal).
+const CORE_URL = (import.meta.env.VITE_SUPABASE_CORE_URL as string | undefined)
+  ?? "https://vtirfoafpmolffzgszhp.supabase.co";
+const CORE_KEY = (import.meta.env.VITE_SUPABASE_CORE_ANON_KEY as string | undefined)
+  ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0aXJmb2FmcG1vbGZmemdzemhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODk5MDYsImV4cCI6MjA5NTY2NTkwNn0.P3d1N8YMX3UfM7QOllhZXW6hq1VzYLG5HZV1mrX1ODM";
 
-export const supabaseCore = _CORE_URL && _CORE_KEY
-  ? createClient(_CORE_URL, _CORE_KEY, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-        storage: typeof window !== "undefined" ? window.localStorage : undefined,
-      },
-    })
-  : null;
+export const supabaseCore = createClient(CORE_URL, CORE_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storage: typeof window !== "undefined" ? window.localStorage : undefined,
+  },
+});
 
 /**
  * Retorna o cliente Supabase correto para operações de autenticação.
@@ -36,7 +37,7 @@ export const supabaseCore = _CORE_URL && _CORE_KEY
  * - Empresa (Mowig, Moveria): usa supabase
  */
 export function getAuthClient() {
-  if (import.meta.env.VITE_IS_SUPERADMIN === 'true' && supabaseCore !== null) {
+  if (import.meta.env.VITE_IS_SUPERADMIN === 'true') {
     return supabaseCore;
   }
   return supabase;

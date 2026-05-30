@@ -10,6 +10,6 @@ export const COMPANY_SLUG = detectCompanySlug();
 
 // Cliente de companies/company_features: hubm-core no SuperAdmin, banco da empresa nos demais.
 export const companyClient =
-  import.meta.env.VITE_IS_SUPERADMIN === 'true' && supabaseCore !== null
+  import.meta.env.VITE_IS_SUPERADMIN === 'true'
     ? supabaseCore
     : supabase;
