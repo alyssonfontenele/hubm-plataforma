@@ -21,6 +21,11 @@ function AuthenticatedLayout() {
   useEffect(() => {
     if (!loading && !session) {
       void navigate({ to: "/login", search: { redirect: href } as never });
+      return;
+    }
+    // No modo SuperAdmin, rotas _authenticated não devem ser acessadas.
+    if (!loading && session && import.meta.env.VITE_IS_SUPERADMIN === 'true') {
+      void navigate({ to: "/superadmin/dashboard" });
     }
   }, [loading, session, href, navigate]);
 

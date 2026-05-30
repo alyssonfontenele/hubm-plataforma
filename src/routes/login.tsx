@@ -83,6 +83,14 @@ function LoginPage() {
   useEffect(() => {
     if (loading || pathname !== "/login" || !session || enforced) return;
     setEnforced(true);
+
+    // No modo SuperAdmin ignoramos as regras de domínio/perfil da empresa;
+    // o guard em superadmin.tsx se encarrega de verificar o global_role.
+    if (import.meta.env.VITE_IS_SUPERADMIN === 'true') {
+      void navigate({ to: "/superadmin/dashboard" });
+      return;
+    }
+
     void enforceLoginRules().then((result) => {
       if (result === true) void navigate({ to: "/app" });
       else if (result === "request-access") void navigate({ to: "/request-access", search: { cargo: undefined } });
