@@ -121,6 +121,12 @@ function LoginPage() {
         <p className="mt-6 text-center text-xs text-text-muted">
           Acesso restrito. Solicite cadastro a um administrador.
         </p>
+
+        {/* DEBUG TEMPORÁRIO — remover após diagnóstico */}
+        <p style={{ fontSize: '10px', color: 'red', marginTop: '8px', wordBreak: 'break-all' }}>
+          IS_SUPERADMIN: {import.meta.env.VITE_IS_SUPERADMIN ?? 'undefined'} |
+          CORE_URL: {import.meta.env.VITE_SUPABASE_CORE_URL ?? 'undefined'}
+        </p>
       </div>
     </main>
   );
