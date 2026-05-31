@@ -57,6 +57,36 @@ Para reportar uma vulnerabilidade de segurança, envie um e-mail para **alysson@
 
 ---
 
+## Garantia de isolamento entre empresas
+
+Cada empresa tem seu próprio banco de dados Postgres completamente separado, hospedado no Supabase como um projeto independente. Não existe acesso cruzado: uma credencial da empresa Mowig não pode, em nenhuma circunstância, ler ou escrever dados da empresa Moveria.
+
+### Como o isolamento funciona
+
+1. **Banco separado por empresa** — infraestrutura completamente distinta; impossível acesso via SQL direto
+2. **RLS por `company_id`** — todas as tabelas filtram dados pelo `company_id` do usuário autenticado via `auth_company_id()`
+3. **Secrets únicos** — cada projeto tem `INTERNAL_SECRET` próprio; comprometer um não compromete os outros
+4. **JWT não portável entre projetos** — um token gerado pelo Supabase da empresa A é inválido no Supabase da empresa B
+
+### Project IDs auditáveis
+
+| Empresa | Slug | Supabase Project Ref |
+|---|---|---|
+| HubM Core (SuperAdmin) | — | `vtirfoafpmolffzgszhp` |
+| Mowig | `mowig` | `xpoqiclaqkudznmshzal` |
+| Moveria | `moveria` | `fzgasvcfxufhrbrdakow` |
+
+### Teste automatizado de isolamento
+
+O arquivo `supabase/functions/__tests__/isolation.test.ts` contém a prova de isolamento:
+- Verifica que um JWT da empresa A não acessa dados do banco da empresa B
+- Confirma que cada banco retorna apenas dados da empresa correta
+- Documenta que os project IDs são todos distintos
+
+Para rodar: configure as variáveis de ambiente descritas no arquivo e execute `npx vitest run supabase/functions/__tests__/isolation.test.ts`.
+
+---
+
 ## Variáveis de ambiente obrigatórias por projeto
 
 Para verificar ou setar via CLI: `export SUPABASE_ACCESS_TOKEN=<token>` e então `npx supabase secrets list --project-ref <ref>`.

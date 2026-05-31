@@ -7,6 +7,7 @@ import { UsersTab } from "@/components/admin/UsersTab";
 import { SectorsTab } from "@/components/admin/sectors-tab";
 import { CargosTab } from "@/components/admin/CargosTab";
 import { HistoryTab } from "@/components/admin/HistoryTab";
+import { AuditLogTab } from "@/components/admin/AuditLogTab";
 import { SettingsTab } from "@/components/admin/SettingsTab";
 import { ImportTab } from "@/components/admin/ImportTab";
 
@@ -46,6 +47,7 @@ function AdminPage() {
           <TabsTrigger value="cargos">Cargos</TabsTrigger>
           <TabsTrigger value="import">Importar</TabsTrigger>
           <TabsTrigger value="history">Histórico de ações</TabsTrigger>
+          <TabsTrigger value="audit">Auditoria</TabsTrigger>
           <TabsTrigger value="settings">Configurações</TabsTrigger>
         </TabsList>
 
@@ -67,6 +69,10 @@ function AdminPage() {
 
         <TabsContent value="history" className="mt-0">
           <HistoryTab companyId={company.id} />
+        </TabsContent>
+
+        <TabsContent value="audit" className="mt-0">
+          <AuditLogTab companyId={company.id} />
         </TabsContent>
 
         <TabsContent value="settings" className="mt-0">
