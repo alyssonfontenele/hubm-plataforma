@@ -92,10 +92,12 @@ Deno.serve(async (req) => {
     const { error } = await admin.from("profiles").update(patch).eq("id", userId);
     if (error) return json({ error: "update_failed" }, 500);
 
-    await admin.from("audit_log").insert({
-      actor_id: userId, event: "profile_corrected", resource_type: "profile",
-      resource_id: userId, metadata: { fields: Object.keys(patch).filter(k => k !== "updated_at") },
-    }).catch(() => {});
+    try {
+      await admin.from("audit_log").insert({
+        actor_id: userId, event: "profile_corrected", resource_type: "profile",
+        resource_id: userId, metadata: { fields: Object.keys(patch).filter(k => k !== "updated_at") },
+      });
+    } catch { /* silently ignore logging errors */ }
 
     return json({ ok: true });
   }
@@ -123,10 +125,12 @@ Deno.serve(async (req) => {
 
     if (error) return json({ error: "anonymization_failed" }, 500);
 
-    await admin.from("audit_log").insert({
-      actor_id: userId, event: "profile_anonymized", resource_type: "profile",
-      resource_id: userId, metadata: { reason: "lgpd_delete_request" },
-    }).catch(() => {});
+    try {
+      await admin.from("audit_log").insert({
+        actor_id: userId, event: "profile_anonymized", resource_type: "profile",
+        resource_id: userId, metadata: { reason: "lgpd_delete_request" },
+      });
+    } catch { /* silently ignore logging errors */ }
 
     return json({ ok: true });
   }

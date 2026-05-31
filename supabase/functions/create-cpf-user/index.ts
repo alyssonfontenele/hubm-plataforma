@@ -165,15 +165,17 @@ Deno.serve(async (req) => {
       }),
     })
 
-    await supabase.from('admin_logs').insert({
-      admin_id:    null,
-      action:      'user_created',
-      target_type: 'security_event',
-      target_id:   authUser.user.id,
-      target_name: full_name ?? null,
-      event_type:  'user_created',
-      metadata:    { company_id, global_role: global_role || 'member' },
-    }).catch(() => {});
+    try {
+      await supabase.from('admin_logs').insert({
+        admin_id:    null,
+        action:      'user_created',
+        target_type: 'security_event',
+        target_id:   authUser.user.id,
+        target_name: full_name ?? null,
+        event_type:  'user_created',
+        metadata:    { company_id, global_role: global_role || 'member' },
+      });
+    } catch { /* silently ignore logging errors */ }
 
     return new Response(
       JSON.stringify({ success: true, user_id: authUser.user.id }),

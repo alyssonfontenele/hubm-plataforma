@@ -109,13 +109,15 @@ Deno.serve(async (req) => {
   );
 
   if (newLockedUntil) {
-    await admin.from("admin_logs").insert({
-      admin_id:    null,
-      action:      'lockout_triggered',
-      target_type: 'security_event',
-      event_type:  'lockout_triggered',
-      metadata:    { attempts: newAttempts, locked_until: newLockedUntil },
-    }).catch(() => {});
+    try {
+      await admin.from("admin_logs").insert({
+        admin_id:    null,
+        action:      'lockout_triggered',
+        target_type: 'security_event',
+        event_type:  'lockout_triggered',
+        metadata:    { attempts: newAttempts, locked_until: newLockedUntil },
+      });
+    } catch { /* silently ignore logging errors */ }
   }
   // ──────────────────────────────────────────────────────────────────────────
 
