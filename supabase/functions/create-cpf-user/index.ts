@@ -1,5 +1,20 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+function isValidCpf(digits: string): boolean {
+  if (/^(\d)\1{10}$/.test(digits)) return false;
+  const d = digits.split("").map(Number);
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += d[i] * (10 - i);
+  const r1 = sum % 11;
+  const v1 = r1 < 2 ? 0 : 11 - r1;
+  if (d[9] !== v1) return false;
+  sum = 0;
+  for (let i = 0; i < 10; i++) sum += d[i] * (11 - i);
+  const r2 = sum % 11;
+  const v2 = r2 < 2 ? 0 : 11 - r2;
+  return d[10] === v2;
+}
+
 const rawOrigins = Deno.env.get("ALLOWED_ORIGINS") ?? "";
 const allowedOrigins = rawOrigins.split(",").map(o => o.trim()).filter(Boolean);
 
@@ -33,6 +48,9 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Requisição inválida" }), { status: 400, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } })
     }
     if (/^(\d)\1{10}$/.test(cpf_digits)) {
+      return new Response(JSON.stringify({ error: "Requisição inválida" }), { status: 400, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } })
+    }
+    if (!isValidCpf(cpf_digits)) {
       return new Response(JSON.stringify({ error: "Requisição inválida" }), { status: 400, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } })
     }
     const email = `${cpf_digits}@hubm.internal`
@@ -146,6 +164,16 @@ Deno.serve(async (req) => {
         `
       }),
     })
+
+    await supabase.from('admin_logs').insert({
+      admin_id:    null,
+      action:      'user_created',
+      target_type: 'security_event',
+      target_id:   authUser.user.id,
+      target_name: full_name ?? null,
+      event_type:  'user_created',
+      metadata:    { company_id, global_role: global_role || 'member' },
+    }).catch(() => {});
 
     return new Response(
       JSON.stringify({ success: true, user_id: authUser.user.id }),

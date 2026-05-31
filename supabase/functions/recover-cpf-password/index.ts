@@ -6,6 +6,21 @@
 // Always returns { ok: true } — never reveals whether the CPF exists.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+function isValidCpf(digits: string): boolean {
+  if (/^(\d)\1{10}$/.test(digits)) return false;
+  const d = digits.split("").map(Number);
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += d[i] * (10 - i);
+  const r1 = sum % 11;
+  const v1 = r1 < 2 ? 0 : 11 - r1;
+  if (d[9] !== v1) return false;
+  sum = 0;
+  for (let i = 0; i < 10; i++) sum += d[i] * (11 - i);
+  const r2 = sum % 11;
+  const v2 = r2 < 2 ? 0 : 11 - r2;
+  return d[10] === v2;
+}
+
 const rawOrigins = Deno.env.get("ALLOWED_ORIGINS") ?? "";
 const allowedOrigins = rawOrigins.split(",").map(o => o.trim()).filter(Boolean);
 
@@ -56,6 +71,7 @@ Deno.serve(async (req) => {
   const cpfDigits = String(body.cpf ?? "").replace(/\D/g, "");
   if (!/^\d{11}$/.test(cpfDigits)) return json({ ok: true });
   if (/^(\d)\1{10}$/.test(cpfDigits)) return json({ ok: true });
+  if (!isValidCpf(cpfDigits)) return json({ ok: true });
 
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -91,6 +107,16 @@ Deno.serve(async (req) => {
     },
     { onConflict: "cpf_hash" }
   );
+
+  if (newLockedUntil) {
+    await admin.from("admin_logs").insert({
+      admin_id:    null,
+      action:      'lockout_triggered',
+      target_type: 'security_event',
+      event_type:  'lockout_triggered',
+      metadata:    { attempts: newAttempts, locked_until: newLockedUntil },
+    }).catch(() => {});
+  }
   // ──────────────────────────────────────────────────────────────────────────
 
   let emailSent = false;

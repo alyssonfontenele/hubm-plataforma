@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cpfToDigits, isGoogleDomainAllowed, isValidCpf, maskCpf, signInWithCpf, signInWithGoogle } from "@/lib/auth";
 import { COMPANY_SLUG } from "@/lib/company";
+import { logSecurityEvent } from "@/lib/security-log";
 
 export const Route = createFileRoute("/login")({
   ssr: false,
@@ -223,6 +224,7 @@ function CpfSection() {
       loginAttempts.count = 0;
       loginAttempts.firstAt = 0;
       loginAttempts.lockedUntil = 0;
+      void logSecurityEvent("login_success", { method: "cpf" });
       // post-login enforcement handled in LoginPage effect once session updates.
     } catch (err) {
       const now = Date.now();
@@ -238,9 +240,11 @@ function CpfSection() {
         const msg = "Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.";
         setError(msg);
         toast.error(msg);
+        void logSecurityEvent("lockout_triggered", { method: "cpf", attempts: loginAttempts.count });
       } else {
         void err;
         setError("CPF ou senha incorretos.");
+        void logSecurityEvent("login_failure", { method: "cpf", attempt: loginAttempts.count });
       }
     } finally {
       setLoading(false);

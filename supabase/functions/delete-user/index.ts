@@ -39,6 +39,15 @@ Deno.serve(async (req) => {
     { status: 400, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
   )
 
+  await supabase.from('admin_logs').insert({
+    admin_id:    null,
+    action:      'user_deleted',
+    target_type: 'security_event',
+    target_id:   user_id,
+    event_type:  'user_deleted',
+    metadata:    {},
+  }).catch(() => {});
+
   return new Response(
     JSON.stringify({ success: true }),
     { status: 200, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
