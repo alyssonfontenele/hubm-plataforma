@@ -31,8 +31,26 @@ Deno.serve(async (req) => {
     )
   }
 
+  let body: { to?: unknown; subject?: unknown; html?: unknown; sender_name?: unknown; sender_email?: unknown };
   try {
-    const { to, subject, html, sender_name, sender_email } = await req.json()
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: "Requisição inválida" }), { status: 400, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } });
+  }
+
+  try {
+    const { to, subject, html, sender_name, sender_email } = body;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const toList = Array.isArray(to) ? to : (typeof to === 'string' ? [to] : []);
+    const toValid = toList.length > 0 && toList.every(r =>
+      (typeof r === 'string' && emailRegex.test(r)) ||
+      (r !== null && typeof r === 'object' && typeof (r as { email?: unknown }).email === 'string' && emailRegex.test((r as { email: string }).email))
+    );
+    if (!toValid || typeof subject !== 'string' || !subject.trim() || typeof html !== 'string' || !html.trim()) {
+      return new Response(JSON.stringify({ error: "Requisição inválida" }), { status: 400, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } });
+    }
+
     const brevoKey = Deno.env.get('BREVO_API_KEY')
 
     const toFormatted: { email: string; name: string }[] =

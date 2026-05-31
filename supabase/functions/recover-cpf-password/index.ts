@@ -6,22 +6,26 @@
 // Always returns { ok: true } — never reveals whether the CPF exists.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+const rawOrigins = Deno.env.get("ALLOWED_ORIGINS") ?? "";
+const allowedOrigins = rawOrigins.split(",").map(o => o.trim()).filter(Boolean);
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+function corsHeaders(origin: string) {
+  return {
+    "Access-Control-Allow-Origin": allowedOrigins.includes(origin) ? origin : (allowedOrigins[0] ?? ""),
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const origin = req.headers.get("origin") ?? "";
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders(origin), "Content-Type": "application/json" },
+    });
+
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders(origin) });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
   const SUPABASE_URL      = Deno.env.get("SUPABASE_URL");
@@ -45,7 +49,8 @@ Deno.serve(async (req) => {
 
   // Normalise: strip all non-digits
   const cpfDigits = String(body.cpf ?? "").replace(/\D/g, "");
-  if (cpfDigits.length !== 11) return json({ ok: true });
+  if (!/^\d{11}$/.test(cpfDigits)) return json({ ok: true });
+  if (/^(\d)\1{10}$/.test(cpfDigits)) return json({ ok: true });
 
   let profile: { full_name: string | null; recovery_email: string | null; company_id: string | null } | null = null;
   let linkErr: { message?: string } | null = null;

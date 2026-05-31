@@ -1,13 +1,20 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const rawOrigins = Deno.env.get("ALLOWED_ORIGINS") ?? "";
+const allowedOrigins = rawOrigins.split(",").map(o => o.trim()).filter(Boolean);
+
+function corsHeaders(origin: string) {
+  return {
+    "Access-Control-Allow-Origin": allowedOrigins.includes(origin) ? origin : (allowedOrigins[0] ?? ""),
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get("origin") ?? "";
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: corsHeaders(origin) })
   }
 
   try {
@@ -18,7 +25,16 @@ Deno.serve(async (req) => {
 
     const { full_name, cpf, recovery_email, cellphone, company_id, global_role, initial_password } = await req.json()
 
+    if (typeof cpf !== 'string') {
+      return new Response(JSON.stringify({ error: "Requisição inválida" }), { status: 400, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } })
+    }
     const cpf_digits = cpf.replace(/\D/g, '')
+    if (!/^\d{11}$/.test(cpf_digits)) {
+      return new Response(JSON.stringify({ error: "Requisição inválida" }), { status: 400, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } })
+    }
+    if (/^(\d)\1{10}$/.test(cpf_digits)) {
+      return new Response(JSON.stringify({ error: "Requisição inválida" }), { status: 400, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } })
+    }
     const email = `${cpf_digits}@hubm.internal`
     const _pwBuf = new Uint8Array(6);
     crypto.getRandomValues(_pwBuf);
@@ -39,14 +55,14 @@ Deno.serve(async (req) => {
     if (existingProfile && !existingProfile.deleted_at) {
       return new Response(
         JSON.stringify({ error: 'already registered' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
       )
     }
 
     if (existingProfile && existingProfile.deleted_at) {
       return new Response(
         JSON.stringify({ error: 'user inactive', user_id: existingProfile.id }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
       )
     }
 
@@ -61,7 +77,7 @@ Deno.serve(async (req) => {
     if (authError) {
       return new Response(
         JSON.stringify({ error: authError.message }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
       )
     }
 
@@ -87,7 +103,7 @@ Deno.serve(async (req) => {
       await supabase.auth.admin.deleteUser(authUser.user.id);
       return new Response(
         JSON.stringify({ error: profileError.message, details: profileError.details, hint: profileError.hint, code: profileError.code }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
       )
     }
 
@@ -133,13 +149,13 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ success: true, user_id: authUser.user.id }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
     )
 
   } catch (err) {
     return new Response(
       JSON.stringify({ error: err.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
     )
   }
 })

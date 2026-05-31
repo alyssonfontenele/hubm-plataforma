@@ -4,22 +4,26 @@
 // with x-internal-secret so the secret never reaches the browser.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+const rawOrigins = Deno.env.get("ALLOWED_ORIGINS") ?? "";
+const allowedOrigins = rawOrigins.split(",").map(o => o.trim()).filter(Boolean);
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+function corsHeaders(origin: string) {
+  return {
+    "Access-Control-Allow-Origin": allowedOrigins.includes(origin) ? origin : (allowedOrigins[0] ?? ""),
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const origin = req.headers.get("origin") ?? "";
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders(origin), "Content-Type": "application/json" },
+    });
+
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders(origin) });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
   const SUPABASE_URL     = Deno.env.get("SUPABASE_URL");
@@ -66,7 +70,12 @@ Deno.serve(async (req) => {
   }
 
   const { to, subject, html, sender_name, sender_email } = body;
-  if (!to || !subject || !html) return json({ error: "invalid_body" }, 400);
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const toList = Array.isArray(to) ? to : (typeof to === "string" ? [to] : []);
+  const toValid = toList.length > 0 && toList.every(r => typeof r === "string" && emailRegex.test(r));
+  if (!toValid || typeof subject !== "string" || !subject.trim() || typeof html !== "string" || !html.trim()) {
+    return json({ error: "Requisição inválida" }, 400);
+  }
 
   // 4) Forward to send-email with the secret (server-side only)
   const sendRes = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
