@@ -9,12 +9,20 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const rawOrigins = Deno.env.get("ALLOWED_ORIGINS") ?? "";
 const allowedOrigins = rawOrigins.split(",").map(o => o.trim()).filter(Boolean);
 
+const RATE_LIMIT_MAX      = 5;
+const RATE_LIMIT_LOCKOUT  = 15; // minutes
+
 function corsHeaders(origin: string) {
   return {
     "Access-Control-Allow-Origin": allowedOrigins.includes(origin) ? origin : (allowedOrigins[0] ?? ""),
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
+}
+
+async function sha256hex(text: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
 Deno.serve(async (req) => {
@@ -31,13 +39,11 @@ Deno.serve(async (req) => {
   const SUPABASE_URL      = Deno.env.get("SUPABASE_URL");
   const SERVICE_ROLE_KEY  = Deno.env.get("SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const INTERNAL_SECRET   = Deno.env.get("INTERNAL_SECRET");
-  // SITE_URL must be set in Supabase project Edge Function env vars
-  // e.g. https://hubm.mowig.com.br
   const SITE_URL          = Deno.env.get("SITE_URL") ?? "";
 
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !INTERNAL_SECRET || !SITE_URL) {
     console.error("recover-cpf-password: missing env vars");
-    return json({ ok: true }); // never expose server errors to caller
+    return json({ ok: true });
   }
 
   let body: { cpf?: unknown };
@@ -47,26 +53,55 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
 
-  // Normalise: strip all non-digits
   const cpfDigits = String(body.cpf ?? "").replace(/\D/g, "");
   if (!/^\d{11}$/.test(cpfDigits)) return json({ ok: true });
   if (/^(\d)\1{10}$/.test(cpfDigits)) return json({ ok: true });
 
-  let profile: { full_name: string | null; recovery_email: string | null; company_id: string | null } | null = null;
-  let linkErr: { message?: string } | null = null;
-  let sendRes: Response | null = null;
+  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  // ── Rate limiting ──────────────────────────────────────────────────────────
+  // Use SHA-256 of cpfDigits as the key — never stores the raw CPF.
+  const cpfKey = await sha256hex(cpfDigits);
+
+  // 1. Check active lockout
+  const { data: lockRow } = await admin
+    .from("auth_rate_limits")
+    .select("locked_until, attempts")
+    .eq("cpf_hash", cpfKey)
+    .maybeSingle();
+
+  if (lockRow?.locked_until && new Date(lockRow.locked_until) > new Date()) {
+    return json({ ok: true }); // silently blocked — never reveal lockout to caller
+  }
+
+  // 2. Increment attempt counter (upsert)
+  const newAttempts = (lockRow?.attempts ?? 0) + 1;
+  const newLockedUntil = newAttempts >= RATE_LIMIT_MAX
+    ? new Date(Date.now() + RATE_LIMIT_LOCKOUT * 60 * 1000).toISOString()
+    : null;
+
+  await admin.from("auth_rate_limits").upsert(
+    {
+      cpf_hash:        cpfKey,
+      attempts:        newAttempts,
+      last_attempt_at: new Date().toISOString(),
+      locked_until:    newLockedUntil,
+    },
+    { onConflict: "cpf_hash" }
+  );
+  // ──────────────────────────────────────────────────────────────────────────
+
+  let emailSent = false;
 
   try {
-    const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-
     // 1. Look up profile by CPF (bcrypt comparison via RPC)
     const { data: profileData } = await admin
       .rpc("find_profile_by_cpf", { cpf_digits: cpfDigits })
       .maybeSingle();
 
-    profile = profileData;
+    const profile = profileData as { full_name: string | null; recovery_email: string | null; company_id: string | null } | null;
     console.log("recover-cpf-password: profile lookup", JSON.stringify({ found: !!profile, hasEmail: !!profile?.recovery_email }));
 
     if (!profile?.recovery_email) return json({ ok: true });
@@ -86,22 +121,19 @@ Deno.serve(async (req) => {
 
     // 3. Generate recovery link
     const authEmail = `${cpfDigits}@hubm.internal`;
-    const { data: linkData, error: linkErrData } = await admin.auth.admin.generateLink({
+    const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
       type: "recovery",
       email: authEmail,
       options: { redirectTo: `${SITE_URL}/auth/callback` },
     });
 
-    linkErr = linkErrData;
     console.log("recover-cpf-password: generateLink", JSON.stringify({ ok: !linkErr, error: linkErr?.message }));
-
     if (linkErr || !linkData?.properties?.action_link) return json({ ok: true });
 
     const recoveryUrl = linkData.properties.action_link;
     const firstName   = (profile.full_name ?? "").split(" ")[0] || null;
     const greeting    = firstName ? `Olá, ${firstName}!` : "Olá!";
 
-    // 3. Send the link to the recovery email
     const html = `
 <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111111;">
   <h1 style="font-size:22px;font-weight:600;margin:0 0 16px;">Redefinição de senha — HubM</h1>
@@ -124,7 +156,7 @@ Deno.serve(async (req) => {
   </p>
 </div>`;
 
-    sendRes = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+    const sendRes = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -143,8 +175,17 @@ Deno.serve(async (req) => {
 
     await sendRes.body?.cancel().catch(() => {});
     console.log("recover-cpf-password: send-email status", sendRes.status);
+    emailSent = sendRes.ok;
   } catch (err) {
     console.error("recover-cpf-password: unexpected error", err);
+  }
+
+  // 4. Reset counter on success — prevents lockout for legitimate users
+  if (emailSent) {
+    await admin.from("auth_rate_limits").upsert(
+      { cpf_hash: cpfKey, attempts: 0, last_attempt_at: new Date().toISOString(), locked_until: null },
+      { onConflict: "cpf_hash" }
+    );
   }
 
   return json({ ok: true });
