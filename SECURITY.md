@@ -57,6 +57,48 @@ Para reportar uma vulnerabilidade de segurança, envie um e-mail para **alysson@
 
 ---
 
+## Variáveis de ambiente obrigatórias por projeto
+
+Para verificar ou setar via CLI: `export SUPABASE_ACCESS_TOKEN=<token>` e então `npx supabase secrets list --project-ref <ref>`.
+
+### hubm-core (`vtirfoafpmolffzgszhp`)
+
+| Secret | Valor esperado |
+|---|---|
+| `SUPABASE_URL` | URL do projeto hubm-core |
+| `SUPABASE_SERVICE_ROLE_KEY` / `SERVICE_ROLE_KEY` | Service role key do hubm-core |
+| `INTERNAL_SECRET` | Segredo interno de autenticação entre Edge Functions |
+| `ALLOWED_ORIGINS` | `https://admin.mowig.ind.br` |
+| `ANON_KEY_JWT` | Anon key do hubm-core |
+
+### hubm-mowig (`xpoqiclaqkudznmshzal`)
+
+| Secret | Valor esperado |
+|---|---|
+| `SUPABASE_URL` | URL do projeto hubm-mowig |
+| `SUPABASE_SERVICE_ROLE_KEY` / `SERVICE_ROLE_KEY` | Service role key do hubm-mowig |
+| `INTERNAL_SECRET` | Segredo interno (diferente do core) |
+| `ALLOWED_ORIGINS` | `https://hubm.mowig.ind.br` |
+| `ANON_KEY_JWT` | Anon key do hubm-mowig |
+| `SITE_URL` | `https://hubm.mowig.ind.br` |
+| `BREVO_API_KEY` | Chave da API Brevo para envio de emails |
+
+### hubm-moveria (`fzgasvcfxufhrbrdakow`)
+
+| Secret | Valor esperado |
+|---|---|
+| `SUPABASE_URL` | URL do projeto hubm-moveria |
+| `SUPABASE_SERVICE_ROLE_KEY` / `SERVICE_ROLE_KEY` | Service role key do hubm-moveria |
+| `INTERNAL_SECRET` | Segredo interno (diferente dos outros projetos) |
+| `ALLOWED_ORIGINS` | `https://moveria.app.br` |
+| `ANON_KEY_JWT` | Anon key do hubm-moveria |
+| `SITE_URL` | `https://moveria.app.br` |
+| `BREVO_API_KEY` | Chave da API Brevo para envio de emails |
+
+> **Nota:** cada projeto deve ter seu próprio `INTERNAL_SECRET` único. Nunca reutilizar o mesmo segredo entre projetos. Rotacionar imediatamente em caso de suspeita de exposição.
+
+---
+
 ## Em caso de incidente operacional
 
 Ver **docs/hubm-runbook.md** para procedimentos de resposta, rollback de migrations e rotação de chaves.

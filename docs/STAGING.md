@@ -76,3 +76,14 @@ aprovação + merge → deploy em produção
 
 Copie `.env.staging` da raiz e preencha com os valores reais do projeto staging.
 O arquivo `.env.staging` é ignorado pelo git (`.env.*` no `.gitignore`).
+
+## 8. Uso do staging para testes de Disaster Recovery
+
+O ambiente de staging é o local ideal para validar o processo de DR antes de precisar usá-lo em produção:
+
+1. **Restore de banco:** execute um restore de snapshot no projeto Supabase staging e verifique que os dados e funções estão íntegros
+2. **Re-deploy de Edge Functions:** teste o deploy de todas as funções no projeto staging a partir do git
+3. **Recriação de secrets:** verifique que os secrets documentados em `SECURITY.md` são suficientes para recriar o ambiente do zero
+4. **Smoke test:** após o restore, execute o checklist de smoke test da seção 5 desta documentação
+
+Ver procedimento completo em **docs/disaster-recovery.md**.

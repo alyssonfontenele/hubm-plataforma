@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { MoreHorizontal, Trash2 } from "lucide-react";
+import { LogOut, MoreHorizontal, Trash2 } from "lucide-react";
+import { OffboardingModal } from "@/components/admin/OffboardingModal";
 import { toast } from "sonner";
 import { supabase, type Profile } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,7 @@ export function UserActionsMenu({
   const [deleting, setDeleting] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmDef | null>(null);
   const [simpleDeleteOpen, setSimpleDeleteOpen] = useState(false);
+  const [offboardingOpen, setOffboardingOpen] = useState(false);
 
   const updateProfile = async (
     patch: Record<string, unknown>,
@@ -208,6 +210,14 @@ export function UserActionsMenu({
             </>
           )}
           <DropdownMenuSeparator />
+          {!isInactive && !isSelf && (
+            <DropdownMenuItem
+              onSelect={() => setOffboardingOpen(true)}
+              className="text-destructive focus:text-destructive focus:bg-destructive/10"
+            >
+              <LogOut className="w-4 h-4 mr-2" /> Desligar colaborador
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             disabled={isSelf}
             onSelect={() => setSimpleDeleteOpen(true)}
@@ -225,6 +235,14 @@ export function UserActionsMenu({
         companyId={companyId}
         adminId={adminId}
         onDeleted={onChanged}
+      />
+
+      <OffboardingModal
+        open={offboardingOpen}
+        onOpenChange={setOffboardingOpen}
+        profile={profile}
+        adminId={adminId}
+        onDone={onChanged}
       />
 
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
