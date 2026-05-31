@@ -31,14 +31,6 @@ Deno.serve(async (req) => {
   // e.g. https://hubm.mowig.com.br
   const SITE_URL          = Deno.env.get("SITE_URL") ?? "";
 
-  console.log("env check", JSON.stringify({
-    hasUrl: !!SUPABASE_URL,
-    hasServiceKey: !!SERVICE_ROLE_KEY,
-    serviceKeyPrefix: SERVICE_ROLE_KEY?.substring(0, 15),
-    hasInternal: !!INTERNAL_SECRET,
-    hasSiteUrl: !!SITE_URL,
-  }));
-
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !INTERNAL_SECRET || !SITE_URL) {
     console.error("recover-cpf-password: missing env vars");
     return json({ ok: true }); // never expose server errors to caller
@@ -72,7 +64,7 @@ Deno.serve(async (req) => {
     profile = profileData;
     console.log("recover-cpf-password: profile lookup", JSON.stringify({ found: !!profile, hasEmail: !!profile?.recovery_email }));
 
-    if (!profile?.recovery_email) return json({ ok: true, debug: { profileFound: false, hasEmail: false, linkGenerated: false, sendStatus: null } });
+    if (!profile?.recovery_email) return json({ ok: true });
 
     // 2. Fetch company sender info
     let senderName: string | undefined;
@@ -98,7 +90,7 @@ Deno.serve(async (req) => {
     linkErr = linkErrData;
     console.log("recover-cpf-password: generateLink", JSON.stringify({ ok: !linkErr, error: linkErr?.message }));
 
-    if (linkErr || !linkData?.properties?.action_link) return json({ ok: true, debug: { profileFound: true, hasEmail: true, linkGenerated: false, sendStatus: null } });
+    if (linkErr || !linkData?.properties?.action_link) return json({ ok: true });
 
     const recoveryUrl = linkData.properties.action_link;
     const firstName   = (profile.full_name ?? "").split(" ")[0] || null;
@@ -144,8 +136,8 @@ Deno.serve(async (req) => {
       }),
     });
 
-    const sendText = await sendRes.text().catch(() => "");
-    console.log("recover-cpf-password: send-email status", sendRes.status, sendText);
+    await sendRes.body?.cancel().catch(() => {});
+    console.log("recover-cpf-password: send-email status", sendRes.status);
   } catch (err) {
     console.error("recover-cpf-password: unexpected error", err);
   }

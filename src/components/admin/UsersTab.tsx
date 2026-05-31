@@ -13,9 +13,6 @@ import { GLOBAL_ROLES, ROLE_LABEL, type Sector } from "@/components/admin/shared
 import { logAdminAction } from "@/lib/admin-log";
 import { useAuth } from "@/contexts/AuthContext";
 
-const INTERNAL_SECRET = import.meta.env.VITE_INTERNAL_SECRET;
-const SUPABASE_FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_URL + "/functions/v1";
-
 async function sendNotificationEmail(
   to: string | null,
   subject: string,
@@ -25,19 +22,14 @@ async function sendNotificationEmail(
 ) {
   if (!to) return;
   try {
-    await fetch(`${SUPABASE_FUNCTIONS_URL}/send-email`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-internal-secret": INTERNAL_SECRET,
-      },
-      body: JSON.stringify({
+    await supabase.functions.invoke("admin-notify", {
+      body: {
         to: [to],
         subject,
         html,
         ...(senderName && { sender_name: senderName }),
         ...(senderEmail && { sender_email: senderEmail }),
-      }),
+      },
     });
   } catch {
     // silencia erro de email — não bloqueia o fluxo principal

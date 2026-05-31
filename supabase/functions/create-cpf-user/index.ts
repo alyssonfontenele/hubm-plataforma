@@ -20,7 +20,9 @@ Deno.serve(async (req) => {
 
     const cpf_digits = cpf.replace(/\D/g, '')
     const email = `${cpf_digits}@hubm.internal`
-    const temp_password = initial_password || (Math.random().toString(36).slice(-8) + 'A1b2')
+    const _pwBuf = new Uint8Array(6);
+    crypto.getRandomValues(_pwBuf);
+    const temp_password = initial_password || (Array.from(_pwBuf).map(b => b.toString(36)).join('').slice(0, 8) + 'A1b2')
 
     const { data: profiles } = await supabase
       .from('profiles')
