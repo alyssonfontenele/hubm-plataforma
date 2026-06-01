@@ -28,6 +28,7 @@ ALTER TABLE public.auth_rate_limits ENABLE ROW LEVEL SECURITY;
 
 -- Apenas service_role (Edge Functions com service key) acessa esta tabela.
 -- Usuários autenticados não têm acesso.
+DROP POLICY IF EXISTS "auth_rate_limits_service_only" ON public.auth_rate_limits;
 CREATE POLICY "auth_rate_limits_service_only"
   ON public.auth_rate_limits FOR ALL
   USING      (auth.role() = 'service_role')

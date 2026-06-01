@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS public.companies (
 
 ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "companies_superadmin_all" ON public.companies;
 CREATE POLICY "companies_superadmin_all"
   ON public.companies FOR ALL TO public
   USING     (auth_global_role() = 'superadmin')
@@ -79,6 +80,7 @@ CREATE TABLE IF NOT EXISTS public.company_features (
 
 ALTER TABLE public.company_features ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "company_features_superadmin_all" ON public.company_features;
 CREATE POLICY "company_features_superadmin_all"
   ON public.company_features FOR ALL TO public
   USING     (auth_global_role() = 'superadmin')

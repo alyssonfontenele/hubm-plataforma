@@ -63,19 +63,23 @@ $$;
 -- =============================================================================
 -- 3. Policies granulares — companies
 -- =============================================================================
+DROP POLICY IF EXISTS "companies_superadmin_select" ON public.companies;
 CREATE POLICY "companies_superadmin_select"
   ON public.companies FOR SELECT
   USING (auth_is_superadmin());
 
+DROP POLICY IF EXISTS "companies_superadmin_insert" ON public.companies;
 CREATE POLICY "companies_superadmin_insert"
   ON public.companies FOR INSERT
   WITH CHECK (auth_is_superadmin());
 
+DROP POLICY IF EXISTS "companies_superadmin_update" ON public.companies;
 CREATE POLICY "companies_superadmin_update"
   ON public.companies FOR UPDATE
   USING      (auth_is_superadmin())
   WITH CHECK (auth_is_superadmin());
 
+DROP POLICY IF EXISTS "companies_superadmin_delete" ON public.companies;
 CREATE POLICY "companies_superadmin_delete"
   ON public.companies FOR DELETE
   USING (auth_is_superadmin());
@@ -83,19 +87,23 @@ CREATE POLICY "companies_superadmin_delete"
 -- =============================================================================
 -- 4. Policies granulares — company_features
 -- =============================================================================
+DROP POLICY IF EXISTS "company_features_superadmin_select" ON public.company_features;
 CREATE POLICY "company_features_superadmin_select"
   ON public.company_features FOR SELECT
   USING (auth_is_superadmin());
 
+DROP POLICY IF EXISTS "company_features_superadmin_insert" ON public.company_features;
 CREATE POLICY "company_features_superadmin_insert"
   ON public.company_features FOR INSERT
   WITH CHECK (auth_is_superadmin());
 
+DROP POLICY IF EXISTS "company_features_superadmin_update" ON public.company_features;
 CREATE POLICY "company_features_superadmin_update"
   ON public.company_features FOR UPDATE
   USING      (auth_is_superadmin())
   WITH CHECK (auth_is_superadmin());
 
+DROP POLICY IF EXISTS "company_features_superadmin_delete" ON public.company_features;
 CREATE POLICY "company_features_superadmin_delete"
   ON public.company_features FOR DELETE
   USING (auth_is_superadmin());
@@ -105,19 +113,23 @@ CREATE POLICY "company_features_superadmin_delete"
 --    SELECT/UPDATE: superadmin OU próprio usuário (owner access)
 --    INSERT/DELETE: apenas superadmin
 -- =============================================================================
+DROP POLICY IF EXISTS "profiles_superadmin_select" ON public.profiles;
 CREATE POLICY "profiles_superadmin_select"
   ON public.profiles FOR SELECT
   USING (auth_is_superadmin() OR id = auth.uid());
 
+DROP POLICY IF EXISTS "profiles_superadmin_insert" ON public.profiles;
 CREATE POLICY "profiles_superadmin_insert"
   ON public.profiles FOR INSERT
   WITH CHECK (auth_is_superadmin());
 
+DROP POLICY IF EXISTS "profiles_superadmin_update" ON public.profiles;
 CREATE POLICY "profiles_superadmin_update"
   ON public.profiles FOR UPDATE
   USING      (auth_is_superadmin() OR id = auth.uid())
   WITH CHECK (auth_is_superadmin() OR id = auth.uid());
 
+DROP POLICY IF EXISTS "profiles_superadmin_delete" ON public.profiles;
 CREATE POLICY "profiles_superadmin_delete"
   ON public.profiles FOR DELETE
   USING (auth_is_superadmin());

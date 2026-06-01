@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- O próprio usuário pode ler seu perfil; service_role tem acesso total.
+DROP POLICY IF EXISTS "profiles_core_access" ON public.profiles;
 CREATE POLICY "profiles_core_access"
   ON public.profiles FOR ALL TO public
   USING (

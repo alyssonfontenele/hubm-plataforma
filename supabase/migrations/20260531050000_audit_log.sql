@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS public.audit_log (
 ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
 
 -- Admin da empresa vê apenas os registros da sua empresa
+DROP POLICY IF EXISTS "audit_log_company_select" ON public.audit_log;
 CREATE POLICY "audit_log_company_select"
   ON public.audit_log FOR SELECT
   USING (
@@ -35,6 +36,7 @@ CREATE POLICY "audit_log_company_select"
   );
 
 -- Usuários autenticados e ativos podem inserir
+DROP POLICY IF EXISTS "audit_log_insert" ON public.audit_log;
 CREATE POLICY "audit_log_insert"
   ON public.audit_log FOR INSERT
   WITH CHECK (auth_is_active());
