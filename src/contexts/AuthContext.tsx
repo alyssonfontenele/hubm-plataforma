@@ -18,6 +18,7 @@ import {
   type Profile,
   type SectorMembership,
 } from "@/integrations/supabase/client";
+import { classifyError } from "@/lib/errors";
 
 export type MfaState =
   | "unknown"
@@ -172,7 +173,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setMfaState("verified");
       }
-    } catch {
+    } catch (e) {
+      console.error('[HubM] MFA refresh error:', classifyError(e).message, e);
       setMfaState("needs_challenge");
     }
   }, [session, profile]);

@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/dialog";
 import { logAdminAction } from "@/lib/admin-log";
 import { logSecurityEvent } from "@/lib/security-log";
+import { classifyError } from "@/lib/errors";
+import { handleError } from "@/lib/error-handler";
 
 interface OffboardingModalProps {
   profile: Profile;
@@ -71,8 +73,10 @@ export function OffboardingModal({
       toast.success(`Acesso de ${profile.full_name} revogado com sucesso.`);
       onOpenChange(false);
       await onDone();
-    } catch {
-      toast.error("Erro ao realizar o offboarding. Tente novamente.");
+    } catch (e) {
+      handleError(classifyError(e), {
+        onUnauthorized: () => onOpenChange(false),
+      });
     } finally {
       setLoading(false);
     }

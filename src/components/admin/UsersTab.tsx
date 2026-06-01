@@ -11,6 +11,8 @@ import { UserFormModal, EditUserModal } from "@/components/admin/UserFormModal";
 import { adminProfilesQueryKey, useAdminUsers } from "@/hooks/useAdminUsers";
 import { GLOBAL_ROLES, ROLE_LABEL, type Sector } from "@/components/admin/shared";
 import { logAdminAction } from "@/lib/admin-log";
+import { classifyError } from "@/lib/errors";
+import { handleError } from "@/lib/error-handler";
 import { useAuth } from "@/contexts/AuthContext";
 
 async function sendNotificationEmail(
@@ -234,7 +236,7 @@ export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
       .update({ active: true, global_role: approveRole })
       .eq("id", approveTarget.id);
     if (profileError) {
-      toast.error("Erro ao aprovar usuário.");
+      handleError(classifyError(profileError));
       return;
     }
 
@@ -303,7 +305,7 @@ export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
     });
     const { error } = await supabase.from("profiles").delete().eq("id", id);
     if (error) {
-      toast.error("Erro ao rejeitar solicitação.");
+      handleError(classifyError(error));
       return;
     }
     await sendNotificationEmail(
