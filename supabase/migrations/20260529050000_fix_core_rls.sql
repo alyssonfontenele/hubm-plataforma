@@ -14,7 +14,18 @@ DROP POLICY IF EXISTS "companies_superadmin_all"       ON public.companies;
 DROP POLICY IF EXISTS "company_features_superadmin_all" ON public.company_features;
 
 -- 2. Remove função que dependia de profiles
-DROP FUNCTION IF EXISTS public.auth_global_role();
+-- Guard: em dev local (mowig/moveria), global_role enum existe — não dropar.
+-- Em produção core (vtirfoafpmolffzgszhp): enum não existe → executa normalmente.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE n.nspname = 'public' AND t.typname = 'global_role'
+  ) THEN
+    DROP FUNCTION IF EXISTS public.auth_global_role();
+  END IF;
+END $$;
 
 -- 3. Novas policies — sem dependência de tabelas externas
 CREATE POLICY "companies_core_access"

@@ -8,17 +8,33 @@
 -- auth_global_role — versão simplificada sem profiles
 -- Quando chamado com service_role key → retorna 'superadmin'.
 -- Quando chamado com JWT autenticado → lê app_metadata.global_role.
+--
+-- Guard: em dev local todas as migrations rodam no mesmo banco.
+-- baseline_schema já criou auth_global_role() retornando public.global_role.
+-- Pulamos aqui para não gerar conflito de tipo de retorno.
+-- Em produção (banco core) a função não existe → cria normalmente.
 -- ---------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.auth_global_role()
-  RETURNS text LANGUAGE sql STABLE SECURITY DEFINER AS $$
-  SELECT CASE
-    WHEN auth.role() = 'service_role' THEN 'superadmin'
-    ELSE coalesce(
-      (auth.jwt() -> 'app_metadata' ->> 'global_role'),
-      ''
-    )
-  END;
-$$;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.proname = 'auth_global_role'
+  ) THEN
+    EXECUTE $f$
+      CREATE FUNCTION public.auth_global_role()
+        RETURNS text LANGUAGE sql STABLE SECURITY DEFINER AS $body$
+        SELECT CASE
+          WHEN auth.role() = 'service_role' THEN 'superadmin'
+          ELSE coalesce(
+            (auth.jwt() -> 'app_metadata' ->> 'global_role'),
+            ''
+          )
+        END;
+        $body$;
+    $f$;
+  END IF;
+END $$;
 
 -- ---------------------------------------------------------------------------
 -- TABLE: companies
