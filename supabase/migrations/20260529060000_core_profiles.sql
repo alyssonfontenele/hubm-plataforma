@@ -42,14 +42,27 @@ CREATE POLICY "profiles_core_access"
 
 -- ---------------------------------------------------------------------------
 -- Registro inicial: SuperAdmin
+-- Guard: em dev local, profiles.company_id é NOT NULL (baseline_schema) →
+-- não inserir aqui. Em produção core, a coluna é nullable → inserir.
 -- ---------------------------------------------------------------------------
-INSERT INTO public.profiles (id, full_name, display_name, global_role, active, auth_type)
-VALUES (
-  '49b6bb17-6c08-4568-afd7-61bf52978dda',
-  'Super Admin',
-  'Alysson',
-  'superadmin',
-  true,
-  'cpf'
-)
-ON CONFLICT (id) DO NOTHING;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name   = 'profiles'
+      AND column_name  = 'company_id'
+      AND is_nullable  = 'YES'
+  ) THEN
+    INSERT INTO public.profiles (id, full_name, display_name, global_role, active, auth_type)
+    VALUES (
+      '49b6bb17-6c08-4568-afd7-61bf52978dda',
+      'Super Admin',
+      'Alysson',
+      'superadmin',
+      true,
+      'cpf'
+    )
+    ON CONFLICT (id) DO NOTHING;
+  END IF;
+END $$;
