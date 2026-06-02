@@ -157,7 +157,7 @@ function ImportarContratoPage() {
     const errs: Record<string, string> = {};
 
     if (!form.vendedor_id)
-      errs.vendedor_id = "Vendedor obrigatório.";
+      errs.vendedor_id = "Consultor Comercial obrigatório.";
 
     const digits = form.documento_raw.replace(/\D/g, "");
     if (form.tipo_doc === "CPF" && !validarCPF(form.documento_raw))
@@ -490,7 +490,7 @@ function ImportarContratoPage() {
           <Field label="Data do contrato" error={errors.data_contrato}>
             <input type="date" className={input()} value={form.data_contrato} onChange={e => setForm(f => f ? { ...f, data_contrato: e.target.value } : f)} />
           </Field>
-          <Field label="Vendedor (RESPONSÁVEL PELA VENDA)" error={errors.vendedor_id}>
+          <Field label="Consultor Comercial (RESPONSÁVEL PELA VENDA)" error={errors.vendedor_id}>
             <div className="text-xs text-text-muted mb-1">Extraído do PDF: <em>{form.vendedor_nome || "—"}</em></div>
             <select
               className={input()}
