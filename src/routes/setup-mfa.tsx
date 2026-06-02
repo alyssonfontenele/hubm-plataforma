@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { getAuthClient } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 export const Route = createFileRoute("/setup-mfa")({
@@ -20,21 +20,24 @@ function SetupMfaPage() {
   const [submitting, setSubmitting] = useState(false);
   const [enrolling, setEnrolling] = useState(true);
 
-  // Guards: must be authenticated admin needing enrollment
+  const authClient = getAuthClient();
+  const isAdminRole = profile?.global_role === "admin" || profile?.global_role === "superadmin";
+
+  // Guards: must be authenticated admin/superadmin needing enrollment
   useEffect(() => {
     if (loading) return;
     if (!session) {
       void navigate({ to: "/login" });
       return;
     }
-    if (profile && profile.global_role !== "admin") {
+    if (profile && !isAdminRole) {
       void navigate({ to: "/app" });
       return;
     }
     if (mfaState === "verified" || mfaState === "not_required") {
       void navigate({ to: "/app" });
     }
-  }, [loading, session, profile, mfaState, navigate]);
+  }, [loading, session, profile, isAdminRole, mfaState, navigate]);
 
   // Enroll a fresh factor on mount
   useEffect(() => {
@@ -43,12 +46,12 @@ function SetupMfaPage() {
       setEnrolling(true);
       try {
         // Clean stale unverified factors to avoid "factor already exists" errors
-        const { data: existing } = await supabase.auth.mfa.listFactors();
+        const { data: existing } = await authClient.auth.mfa.listFactors();
         const stale = existing?.totp?.filter((f) => f.status !== "verified") ?? [];
         for (const f of stale) {
-          await supabase.auth.mfa.unenroll({ factorId: f.id });
+          await authClient.auth.mfa.unenroll({ factorId: f.id });
         }
-        const { data, error: enrollErr } = await supabase.auth.mfa.enroll({
+        const { data, error: enrollErr } = await authClient.auth.mfa.enroll({
           factorType: "totp",
         });
         if (cancelled) return;
@@ -63,13 +66,13 @@ function SetupMfaPage() {
         if (!cancelled) setEnrolling(false);
       }
     }
-    if (session && profile?.global_role === "admin") {
+    if (session && isAdminRole) {
       void enroll();
     }
     return () => {
       cancelled = true;
     };
-  }, [session, profile]);
+  }, [session, isAdminRole]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -80,7 +83,7 @@ function SetupMfaPage() {
     }
     setSubmitting(true);
     setError(null);
-    const { error: verifyErr } = await supabase.auth.mfa.challengeAndVerify({
+    const { error: verifyErr } = await authClient.auth.mfa.challengeAndVerify({
       factorId,
       code,
     });

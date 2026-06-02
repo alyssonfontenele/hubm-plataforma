@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CalendarCard } from "@/components/calendar-card";
-import { SECTOR_ROLE_LABEL } from "@/components/admin/shared";
+import { SECTOR_ROLE_LABEL } from "@/lib/sector-roles";
 import type { SectorRole } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/app")({

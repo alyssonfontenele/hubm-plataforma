@@ -2,6 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+/** Slugs canônicos de feature flags — evita strings mágicas espalhadas no código. */
+export const FEATURE_SLUGS = {
+  CONTRATOS: "moveria-contratos",
+} as const;
+
 export function useCompanyFeatures(): string[] {
   const { company } = useAuth();
   const companyId = company?.id;

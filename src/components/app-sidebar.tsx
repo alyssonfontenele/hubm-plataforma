@@ -43,7 +43,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useHasFeature } from "@/hooks/useCompanyFeatures";
+import { FEATURE_SLUGS, useHasFeature } from "@/hooks/useCompanyFeatures";
 
 const ICONS: Record<string, LucideIcon> = {
   folder: Folder,
@@ -111,7 +111,7 @@ export function AppSidebar() {
 
   const isAdmin = globalRole === "admin";
   const companyId = company?.id;
-  const hasContratos = useHasFeature("moveria-contratos");
+  const hasContratos = useHasFeature(FEATURE_SLUGS.CONTRATOS);
 
   const sectorIds = useMemo(
     () => sectorMemberships.map((m) => m.sector.id).sort(),

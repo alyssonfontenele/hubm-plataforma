@@ -153,7 +153,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setMfaState("unknown");
       return;
     }
-    if ((profile?.global_role ?? null) !== "admin") {
+    const role = profile?.global_role ?? null;
+    if (role !== "admin" && role !== "superadmin") {
       setMfaState("not_required");
       return;
     }

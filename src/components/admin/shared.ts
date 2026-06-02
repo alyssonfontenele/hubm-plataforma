@@ -1,5 +1,10 @@
 import type { GlobalRole, SectorRole } from "@/integrations/supabase/client";
 
+// SECTOR_ROLES e SECTOR_ROLE_LABEL vivem em @/lib/sector-roles para que
+// componentes fora do módulo admin (ex: Home) possam importá-los sem
+// cruzar a fronteira admin → lib.
+export { SECTOR_ROLES, SECTOR_ROLE_LABEL } from "@/lib/sector-roles";
+
 export interface Sector {
   id: string;
   name: string;
@@ -22,14 +27,6 @@ export const ROLE_LABEL: Record<GlobalRole, string> = {
   operational: "Operacional",
   superadmin:  "SuperAdmin",
   cliente:     "Cliente",
-};
-export const SECTOR_ROLES: SectorRole[] = ["admin", "manager", "member", "viewer"];
-
-export const SECTOR_ROLE_LABEL: Record<SectorRole, string> = {
-  admin:   "Administrador do Setor",
-  manager: "Gerente",
-  member:  "Membro",
-  viewer:  "Visualizador",
 };
 
 export function isValidInitialPassword(pw: string): boolean {
