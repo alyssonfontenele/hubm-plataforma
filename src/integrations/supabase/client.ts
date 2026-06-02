@@ -43,7 +43,7 @@ export function getAuthClient() {
   return supabase;
 }
 
-export type GlobalRole = "admin" | "manager" | "member" | "viewer" | "operational" | "superadmin";
+export type GlobalRole = "admin" | "manager" | "member" | "viewer" | "operational" | "superadmin" | "cliente";
 export type SectorRole = "admin" | "manager" | "member" | "viewer";
 export type ResourceType =
   | "link"
@@ -53,7 +53,7 @@ export type ResourceType =
   | "slides"
   | "system"
   | "file";
-export type AuthType = "google" | "cpf";
+export type AuthType = "google" | "cpf" | "email";
 
 export interface Profile {
   id: string;

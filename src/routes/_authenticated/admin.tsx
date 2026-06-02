@@ -10,6 +10,7 @@ import { HistoryTab } from "@/components/admin/HistoryTab";
 import { AuditLogTab } from "@/components/admin/AuditLogTab";
 import { SettingsTab } from "@/components/admin/SettingsTab";
 import { ImportTab } from "@/components/admin/ImportTab";
+import { ClientsTab } from "@/components/admin/ClientsTab";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   ssr: false,
@@ -42,7 +43,8 @@ function AdminPage() {
 
       <Tabs defaultValue="users" className="space-y-6">
         <TabsList className="bg-surface border border-border">
-          <TabsTrigger value="users">Usuários</TabsTrigger>
+          <TabsTrigger value="users">Colaboradores</TabsTrigger>
+          <TabsTrigger value="clients">Clientes</TabsTrigger>
           <TabsTrigger value="sectors">Setores</TabsTrigger>
           <TabsTrigger value="cargos">Cargos</TabsTrigger>
           <TabsTrigger value="import">Importar</TabsTrigger>
@@ -53,6 +55,10 @@ function AdminPage() {
 
         <TabsContent value="users" className="mt-0">
           <UsersTab companyId={company.id} currentUserId={adminId} />
+        </TabsContent>
+
+        <TabsContent value="clients" className="mt-0">
+          <ClientsTab companyId={company.id} currentUserId={adminId} />
         </TabsContent>
 
         <TabsContent value="sectors" className="mt-0">

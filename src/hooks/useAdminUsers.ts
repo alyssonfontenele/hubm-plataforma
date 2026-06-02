@@ -12,6 +12,7 @@ export function useAdminUsers(companyId: string) {
         .from("profiles")
         .select("*")
         .eq("company_id", companyId)
+        .neq("global_role", "cliente")
         .is("deleted_at", null)
         .order("full_name", { ascending: true });
       if (error) throw error;

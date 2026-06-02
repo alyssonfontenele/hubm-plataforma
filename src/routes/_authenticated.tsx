@@ -35,6 +35,11 @@ function AuthenticatedLayout() {
       void navigate({ to: "/change-password" });
       return;
     }
+    // Clientes têm portal dedicado — sem sidebar nem setores
+    if (profile.global_role === "cliente") {
+      void navigate({ to: "/client-portal" });
+      return;
+    }
     if (!profile.cellphone || profile.cellphone.trim() === "") {
       void navigate({ to: "/complete-profile" });
     }

@@ -78,6 +78,8 @@ const ROLE_META: Record<GlobalRole, { label: string; tooltip: string }> = {
   member:      { label: ROLE_LABEL.member,      tooltip: "Acesso padrão: visualiza e interage com os setores liberados." },
   viewer:      { label: ROLE_LABEL.viewer,      tooltip: "Somente leitura — não pode criar, editar ou excluir nada." },
   operational: { label: ROLE_LABEL.operational, tooltip: "Acesso restrito a recursos operacionais específicos do setor." },
+  superadmin:  { label: ROLE_LABEL.superadmin,  tooltip: "Administrador global da plataforma HubM." },
+  cliente:     { label: ROLE_LABEL.cliente,     tooltip: "Acesso ao portal do cliente — sem visibilidade de setores internos." },
 };
 
 function RoleSelector({

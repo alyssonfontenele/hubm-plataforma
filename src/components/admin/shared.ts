@@ -11,6 +11,7 @@ export interface SectorAssignment {
   role: SectorRole;
 }
 
+/** Roles disponíveis para colaboradores — 'superadmin' e 'cliente' são gerenciados separadamente */
 export const GLOBAL_ROLES: GlobalRole[] = ["admin", "manager", "member", "viewer", "operational"];
 
 export const ROLE_LABEL: Record<GlobalRole, string> = {
@@ -19,6 +20,8 @@ export const ROLE_LABEL: Record<GlobalRole, string> = {
   member:      "Membro",
   viewer:      "Visualizador",
   operational: "Operacional",
+  superadmin:  "SuperAdmin",
+  cliente:     "Cliente",
 };
 export const SECTOR_ROLES: SectorRole[] = ["admin", "manager", "member", "viewer"];
 

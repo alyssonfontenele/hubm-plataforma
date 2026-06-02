@@ -13,7 +13,11 @@ export type AdminAction =
   | "approve_user"
   | "reject_user"
   | "delete_sector"
-  | "delete_resource";
+  | "delete_resource"
+  | "create_client"
+  | "edit_client"
+  | "suspend_client"
+  | "reactivate_client";
 
 export const ADMIN_ACTION_LABEL: Record<AdminAction, string> = {
   create_user:         "Criação de usuário",
@@ -29,6 +33,10 @@ export const ADMIN_ACTION_LABEL: Record<AdminAction, string> = {
   reject_user:         "Rejeição de acesso",
   delete_sector:       "Exclusão de setor",
   delete_resource:     "Exclusão de recurso",
+  create_client:       "Criação de cliente",
+  edit_client:         "Edição de cliente",
+  suspend_client:      "Suspensão de cliente",
+  reactivate_client:   "Reativação de cliente",
 };
 
 export const ADMIN_ACTION_COLOR: Partial<Record<AdminAction, string>> = {
