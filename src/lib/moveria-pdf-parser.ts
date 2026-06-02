@@ -194,11 +194,13 @@ export async function parseMoveriaContratoPDF(file: File): Promise<ParsedContrat
     : "";
 
   // CLIENTE label → linha abaixo tem "CODE - NOME"
+  // Bug 1 fix: rowText() contaminava com "Normal" do TIPO DE CONTRATO (x≈434).
+  // Usar apenas items com x < 400 para isolar a coluna do cliente.
   const clienteLabelY = page1.find(r =>
     rowText(r).trim() === "CLIENTE" || rowText(r).startsWith("CLIENTE ")
   )?.[0].y ?? 0;
   const clienteRow  = rowBelow(page1, clienteLabelY);
-  const clienteText = rowText(clienteRow ?? []);
+  const clienteText = (clienteRow ?? []).filter(i => i.x < 400).map(i => i.str).join(" ").trim();
   const clienteMatch = clienteText.match(/^(\d+)\s*-\s*(.+)$/);
   const cliente_codigo = clienteMatch?.[1].trim() ?? "";
   const cliente_nome   = clienteMatch?.[2].trim() ?? clienteText;
@@ -211,32 +213,46 @@ export async function parseMoveriaContratoPDF(file: File): Promise<ParsedContrat
   const documento_raw = colStr(docRow ?? [], x => x < COL_END_CIDADE);
   const tipo_doc      = detectTipoDoc(documento_raw);
 
-  // ENDEREÇO ATUAL label → rua 1 linha abaixo, bairro/cidade/uf/cep 2-3 linhas abaixo
+  // ENDEREÇO ATUAL — estrutura real: 4 linhas consecutivas
+  //   label (ENDEREÇO ATUAL) → rua → labels (BAIRRO/CIDADE/UF/CEP) → valores
+  // Bug 3 fix: rowBelow(rua_y) retornava a linha de labels, não os valores.
+  // Solução: dois rowBelow: rua → labels → valores.
   const endAtualLabelY = page1.find(r =>
     rowText(r).includes("ENDEREÇO ATUAL")
   )?.[0].y ?? 0;
-  const endAtualRuaRow = rowBelow(page1, endAtualLabelY);
-  const endAtualRuaY   = endAtualRuaRow?.[0].y ?? 0;
-  const endAtualValRow = rowBelow(page1, endAtualRuaY);
-  const end_atual_rua    = rowText(endAtualRuaRow ?? []);
+  const endAtualRuaRow  = rowBelow(page1, endAtualLabelY);
+  const endAtualRuaY    = endAtualRuaRow?.[0].y ?? 0;
+  const endAtualLabsRow = rowBelow(page1, endAtualRuaY);   // linha "BAIRRO CIDADE UF CEP"
+  const endAtualLabsY   = endAtualLabsRow?.[0].y ?? 0;
+  const endAtualValRow  = rowBelow(page1, endAtualLabsY);  // linha com valores ← correto
+  const end_atual_rua    = colStr(endAtualRuaRow ?? [], x => x < COL_END_CEP);
   const end_atual_bairro = colStr(endAtualValRow ?? [], x => x < COL_END_CIDADE);
   const end_atual_cidade = colStr(endAtualValRow ?? [], x => x >= COL_END_CIDADE && x < COL_END_UF);
   const end_atual_uf     = colStr(endAtualValRow ?? [], x => x >= COL_END_UF && x < COL_END_CEP);
   const end_atual_cep    = colStr(endAtualValRow ?? [], x => x >= COL_END_CEP);
 
-  // TELEFONE label → valores na linha abaixo
-  const telLabelY = page1.find(r => rowText(r).includes("TELEFONE"))?.[0].y ?? 0;
-  const telRow    = rowBelow(page1, telLabelY);
-  const telefone  = colStr(telRow ?? [], x => x < COL_END_CIDADE);
-  const email     = colStr(telRow ?? [], x => x >= COL_END_UF);
+  // TELEFONE / E-MAIL — Bug 2 fix:
+  // .includes("TELEFONE") batia primeiro em "TELEFONE: 8530132080 CONTRATO N.o" (y≈741,
+  // cabeçalho da empresa), fazendo rowBelow retornar a linha do número do contrato (y≈723)
+  // e o email capturar o número do contrato (x≥350).
+  // Fix: exigir também "PROFISSÃO" — identifica unicamente a linha de labels do cliente (y≈567).
+  const telLabelY = page1.find(r => {
+    const t = rowText(r);
+    return t.includes("TELEFONE") && t.includes("PROFISSÃO");
+  })?.[0].y ?? 0;
+  const telRow   = rowBelow(page1, telLabelY);
+  const telefone = colStr(telRow ?? [], x => x < COL_END_CIDADE);
+  const email    = colStr(telRow ?? [], x => x >= COL_END_UF);
 
-  // ENDEREÇO DE ENTREGA label → mesma estrutura que ATUAL
+  // ENDEREÇO DE ENTREGA — mesma estrutura de 4 linhas que ATUAL
   const endEntLabelY = page1.find(r =>
     rowText(r).includes("ENDEREÇO DE ENTREGA")
   )?.[0].y ?? 0;
-  const endEntRuaRow = rowBelow(page1, endEntLabelY);
-  const endEntRuaY   = endEntRuaRow?.[0].y ?? 0;
-  const endEntValRow = rowBelow(page1, endEntRuaY);
+  const endEntRuaRow  = rowBelow(page1, endEntLabelY);
+  const endEntRuaY    = endEntRuaRow?.[0].y ?? 0;
+  const endEntLabsRow = rowBelow(page1, endEntRuaY);   // linha "BAIRRO CIDADE UF CEP"
+  const endEntLabsY   = endEntLabsRow?.[0].y ?? 0;
+  const endEntValRow  = rowBelow(page1, endEntLabsY);  // linha com valores ← correto
   const end_entrega_rua    = colStr(endEntRuaRow ?? [], x => x < COL_END_CEP);
   const end_entrega_bairro = colStr(endEntValRow ?? [], x => x < COL_END_CIDADE);
   const end_entrega_cidade = colStr(endEntValRow ?? [], x => x >= COL_END_CIDADE && x < COL_END_UF);
