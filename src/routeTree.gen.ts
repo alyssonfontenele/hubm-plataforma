@@ -25,6 +25,7 @@ import { Route as AuthenticatedContratosRouteImport } from './routes/_authentica
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedSectorsSlugRouteImport } from './routes/_authenticated/sectors.$slug'
+import { Route as AuthenticatedContratosMedicaoRouteImport } from './routes/_authenticated/contratos/medicao'
 import { Route as AuthenticatedContratosLotesRouteImport } from './routes/_authenticated/contratos/lotes'
 import { Route as AuthenticatedContratosImportarRouteImport } from './routes/_authenticated/contratos/importar'
 import { Route as AuthenticatedContratosBacklogRouteImport } from './routes/_authenticated/contratos/backlog'
@@ -109,6 +110,12 @@ const AuthenticatedSectorsSlugRoute =
     path: '/sectors/$slug',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedContratosMedicaoRoute =
+  AuthenticatedContratosMedicaoRouteImport.update({
+    id: '/medicao',
+    path: '/medicao',
+    getParentRoute: () => AuthenticatedContratosRoute,
+  } as any)
 const AuthenticatedContratosLotesRoute =
   AuthenticatedContratosLotesRouteImport.update({
     id: '/lotes',
@@ -146,6 +153,7 @@ export interface FileRoutesByFullPath {
   '/contratos/backlog': typeof AuthenticatedContratosBacklogRoute
   '/contratos/importar': typeof AuthenticatedContratosImportarRoute
   '/contratos/lotes': typeof AuthenticatedContratosLotesRoute
+  '/contratos/medicao': typeof AuthenticatedContratosMedicaoRoute
   '/sectors/$slug': typeof AuthenticatedSectorsSlugRoute
 }
 export interface FileRoutesByTo {
@@ -166,6 +174,7 @@ export interface FileRoutesByTo {
   '/contratos/backlog': typeof AuthenticatedContratosBacklogRoute
   '/contratos/importar': typeof AuthenticatedContratosImportarRoute
   '/contratos/lotes': typeof AuthenticatedContratosLotesRoute
+  '/contratos/medicao': typeof AuthenticatedContratosMedicaoRoute
   '/sectors/$slug': typeof AuthenticatedSectorsSlugRoute
 }
 export interface FileRoutesById {
@@ -188,6 +197,7 @@ export interface FileRoutesById {
   '/_authenticated/contratos/backlog': typeof AuthenticatedContratosBacklogRoute
   '/_authenticated/contratos/importar': typeof AuthenticatedContratosImportarRoute
   '/_authenticated/contratos/lotes': typeof AuthenticatedContratosLotesRoute
+  '/_authenticated/contratos/medicao': typeof AuthenticatedContratosMedicaoRoute
   '/_authenticated/sectors/$slug': typeof AuthenticatedSectorsSlugRoute
 }
 export interface FileRouteTypes {
@@ -210,6 +220,7 @@ export interface FileRouteTypes {
     | '/contratos/backlog'
     | '/contratos/importar'
     | '/contratos/lotes'
+    | '/contratos/medicao'
     | '/sectors/$slug'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -230,6 +241,7 @@ export interface FileRouteTypes {
     | '/contratos/backlog'
     | '/contratos/importar'
     | '/contratos/lotes'
+    | '/contratos/medicao'
     | '/sectors/$slug'
   id:
     | '__root__'
@@ -251,6 +263,7 @@ export interface FileRouteTypes {
     | '/_authenticated/contratos/backlog'
     | '/_authenticated/contratos/importar'
     | '/_authenticated/contratos/lotes'
+    | '/_authenticated/contratos/medicao'
     | '/_authenticated/sectors/$slug'
   fileRoutesById: FileRoutesById
 }
@@ -382,6 +395,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSectorsSlugRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/contratos/medicao': {
+      id: '/_authenticated/contratos/medicao'
+      path: '/medicao'
+      fullPath: '/contratos/medicao'
+      preLoaderRoute: typeof AuthenticatedContratosMedicaoRouteImport
+      parentRoute: typeof AuthenticatedContratosRoute
+    }
     '/_authenticated/contratos/lotes': {
       id: '/_authenticated/contratos/lotes'
       path: '/lotes'
@@ -410,6 +430,7 @@ interface AuthenticatedContratosRouteChildren {
   AuthenticatedContratosBacklogRoute: typeof AuthenticatedContratosBacklogRoute
   AuthenticatedContratosImportarRoute: typeof AuthenticatedContratosImportarRoute
   AuthenticatedContratosLotesRoute: typeof AuthenticatedContratosLotesRoute
+  AuthenticatedContratosMedicaoRoute: typeof AuthenticatedContratosMedicaoRoute
 }
 
 const AuthenticatedContratosRouteChildren: AuthenticatedContratosRouteChildren =
@@ -417,6 +438,7 @@ const AuthenticatedContratosRouteChildren: AuthenticatedContratosRouteChildren =
     AuthenticatedContratosBacklogRoute: AuthenticatedContratosBacklogRoute,
     AuthenticatedContratosImportarRoute: AuthenticatedContratosImportarRoute,
     AuthenticatedContratosLotesRoute: AuthenticatedContratosLotesRoute,
+    AuthenticatedContratosMedicaoRoute: AuthenticatedContratosMedicaoRoute,
   }
 
 const AuthenticatedContratosRouteWithChildren =

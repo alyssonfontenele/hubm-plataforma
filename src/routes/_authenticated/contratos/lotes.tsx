@@ -40,6 +40,7 @@ type LoteRow = {
   cliente_nome: string | null;
   consultor_nome: string | null;
   qtd_itens: number;
+  tem_ressalva: boolean;
 };
 
 type ContratoOption = { id: string; numero: string };
@@ -69,6 +70,11 @@ const STATUS_LABEL: Record<string, string> = {
   aberto: "Aberto",
   conformado: "Conformado",
   em_medicao: "Em Medição",
+  medido: "Medido",
+  apresentacao_tecnica: "Apres. Técnica",
+  aprovado: "Aprovado",
+  documentacao_tecnica_completa: "Doc. Completa",
+  cancelado: "Cancelado",
   concluido: "Concluído",
 };
 

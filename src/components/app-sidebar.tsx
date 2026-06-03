@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Layers,
   ClipboardList,
+  Ruler,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -263,6 +264,14 @@ export function AppSidebar() {
                   <Link to="/contratos/lotes" className="flex items-center gap-2">
                     <Layers className="h-4 w-4" />
                     {!collapsed && <span>Lotes</span>}
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActive("/contratos/medicao")}>
+                  <Link to="/contratos/medicao" className="flex items-center gap-2">
+                    <Ruler className="h-4 w-4" />
+                    {!collapsed && <span>Medição</span>}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
