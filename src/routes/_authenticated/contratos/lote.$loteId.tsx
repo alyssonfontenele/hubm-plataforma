@@ -24,7 +24,7 @@ const M = {
 
 // Progression stages — same order as lotes.tsx / prototype
 const PROGRESS_STAGES = [
-  "medido", "apresentacao_tecnica", "aprovado", "documentacao_tecnica_completa",
+  "medido", "apresentacao_tecnica", "em_aprovacao", "aprovado", "pedidos_fornecedores", "documentacao_tecnica_completa",
 ] as const;
 
 const STATUS_CFG: Record<string, { label: string; color: string; soft: string }> = {
@@ -32,9 +32,11 @@ const STATUS_CFG: Record<string, { label: string; color: string; soft: string }>
   conformado:                   { label: "Conformado",   color: M.textFaint, soft: "#1a1d24"    },
   em_medicao:                   { label: "Em Medição",   color: M.amber,     soft: M.amberSoft  },
   medido:                       { label: "Medido",       color: M.accent,    soft: M.accentSoft },
-  apresentacao_tecnica:         { label: "Apresentação", color: M.purple,    soft: M.purpleSoft },
-  aprovado:                     { label: "Aprovado",     color: M.green,     soft: M.greenSoft  },
-  documentacao_tecnica_completa:{ label: "Doc. Técnica", color: M.amber,     soft: M.amberSoft  },
+  apresentacao_tecnica:         { label: "Apresentação",   color: M.purple,    soft: M.purpleSoft },
+  em_aprovacao:                 { label: "Em Aprovação",   color: M.purple,    soft: M.purpleSoft },
+  aprovado:                     { label: "Aprovado",       color: M.green,     soft: M.greenSoft  },
+  pedidos_fornecedores:         { label: "Ped. Fornec.",   color: M.amber,     soft: M.amberSoft  },
+  documentacao_tecnica_completa:{ label: "Doc. Técnica",   color: M.amber,     soft: M.amberSoft  },
   cancelado:                    { label: "Cancelado",    color: M.red,       soft: M.redSoft    },
   concluido:                    { label: "Concluído",    color: M.green,     soft: M.greenSoft  },
 };

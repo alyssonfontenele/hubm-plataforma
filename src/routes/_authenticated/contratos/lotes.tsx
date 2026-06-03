@@ -5,6 +5,12 @@ import { LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  MoveriaDetailPanel,
+  KanbanContratoDrawerContent,
+  KanbanLoteDrawerContent,
+  type KanbanCard,
+} from "@/components/moveria/detail-panel";
 
 // ─── Moveria Design Tokens ─────────────────────────────────────────────────────
 const M = {
@@ -26,13 +32,13 @@ const M = {
 
 // Progression stages for ProgressTrack (display order matters — never sort by enum value)
 const PROGRESS_STAGES = [
-  "medido", "apresentacao_tecnica", "aprovado", "documentacao_tecnica_completa",
+  "medido", "apresentacao_tecnica", "em_aprovacao", "aprovado", "pedidos_fornecedores", "documentacao_tecnica_completa",
 ] as const;
 
 // Full display order for kanban columns and status dropdowns
 const STATUS_DISPLAY_ORDER = [
   "aberto", "conformado", "em_medicao",
-  "medido", "apresentacao_tecnica", "aprovado", "documentacao_tecnica_completa",
+  "medido", "apresentacao_tecnica", "em_aprovacao", "aprovado", "pedidos_fornecedores", "documentacao_tecnica_completa",
   "cancelado", "concluido",
 ] as const;
 
@@ -41,9 +47,11 @@ const STATUS_CFG: Record<string, { label: string; color: string; soft: string }>
   conformado:                   { label: "Conformado",   color: M.textFaint, soft: "#1a1d24"   },
   em_medicao:                   { label: "Em Medição",   color: M.amber,     soft: M.amberSoft },
   medido:                       { label: "Medido",       color: M.accent,    soft: M.accentSoft},
-  apresentacao_tecnica:         { label: "Apresentação", color: M.purple,    soft: M.purpleSoft},
-  aprovado:                     { label: "Aprovado",     color: M.green,     soft: M.greenSoft },
-  documentacao_tecnica_completa:{ label: "Doc. Técnica", color: M.amber,     soft: M.amberSoft },
+  apresentacao_tecnica:         { label: "Apresentação",   color: M.purple,    soft: M.purpleSoft},
+  em_aprovacao:                 { label: "Em Aprovação",   color: M.purple,    soft: M.purpleSoft},
+  aprovado:                     { label: "Aprovado",       color: M.green,     soft: M.greenSoft },
+  pedidos_fornecedores:         { label: "Ped. Fornec.",   color: M.amber,     soft: M.amberSoft },
+  documentacao_tecnica_completa:{ label: "Doc. Técnica",   color: M.amber,     soft: M.amberSoft },
   cancelado:                    { label: "Cancelado",    color: M.red,       soft: M.redSoft   },
   concluido:                    { label: "Concluído",    color: M.green,     soft: M.greenSoft },
 };
@@ -332,7 +340,7 @@ function LotesTab() {
 
       {/* ── Views ── */}
       {view === "lista"  && <LotesTableView data={filtered} />}
-      {view === "kanban" && <LotesKanban data={filtered} />}
+      {view === "kanban" && <LotesKanban />}
       {view === "cards"  && <LotesCards data={filtered} />}
     </div>
   );
@@ -341,8 +349,8 @@ function LotesTab() {
 // ─── LotesTableView (lista) ───────────────────────────────────────────────────
 function LotesTableView({ data }: { data: LoteRow[] }) {
   const navigate = useNavigate();
-  const gt = "60px 1fr 1.4fr 1.1fr 108px 130px 52px 70px";
-  const cols = ["Lote", "Contrato", "Cliente", "Consultor", "Progresso", "Status", "Amb.", "Criado"];
+  const gt = "1fr 1.4fr 60px 1.1fr 150px 130px 52px 70px";
+  const cols = ["Contrato", "Cliente", "Lote", "Consultor", "Progresso", "Status", "Amb.", "Criado"];
   return (
     <div style={{ background: M.panel, border: `1px solid ${M.border}`, borderRadius: 12, overflow: "hidden" }}>
       {/* Header */}
@@ -380,15 +388,15 @@ function LotesTableView({ data }: { data: LoteRow[] }) {
             onMouseEnter={e => (e.currentTarget.style.background = M.panel2)}
             onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
           >
-            <div style={{ fontFamily: "'DM Mono', monospace", fontWeight: 600, color: M.text }}>
-              {l.numero}
-            </div>
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: M.textMute }}>
               {l.contrato_numero ?? "—"}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.cliente_nome ?? "—"}</span>
               {l.tem_ressalva && <span title="Contém ressalva" style={{ color: M.amber, flexShrink: 0 }}>⚠</span>}
+            </div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontWeight: 600, color: M.text }}>
+              {l.numero}
             </div>
             <div style={{ color: M.textMute, fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {l.consultor_nome ?? "—"}
@@ -404,75 +412,146 @@ function LotesTableView({ data }: { data: LoteRow[] }) {
   );
 }
 
-// ─── LotesKanban ──────────────────────────────────────────────────────────────
-function LotesKanban({ data }: { data: LoteRow[] }) {
-  const navigate = useNavigate();
-  // Order columns by STATUS_DISPLAY_ORDER — never by enum value
-  const columns = useMemo(() => {
-    const inData = new Set(data.map(l => l.status));
-    return STATUS_DISPLAY_ORDER.filter(s => inData.has(s));
-  }, [data]);
+// ─── Kanban columns config (Modelo 2 — 8 fixed columns, always visible) ───────
+const KANBAN_COLS = [
+  { etapa: "backlog",                       label: "Backlog",              color: "#646b7d" },
+  { etapa: "aguardando_medicao",            label: "Ag. Medição",          color: "#9aa1b1" },
+  { etapa: "medido",                        label: "Medido",               color: "#5b8cff" },
+  { etapa: "apresentacao_tecnica",          label: "Apresentação",         color: "#9a7bff" },
+  { etapa: "em_aprovacao",                  label: "Em Aprovação",         color: "#9a7bff" },
+  { etapa: "aprovado",                      label: "Aprovado",             color: "#3fb968" },
+  { etapa: "pedidos_fornecedores",          label: "Ped. Fornecedores",    color: "#e0a52b" },
+  { etapa: "documentacao_tecnica_completa", label: "Doc. Completa",        color: "#e0a52b" },
+] as const;
 
-  if (data.length === 0) return <EmptyState message="Nenhum lote com esses filtros." />;
+// ─── LotesKanban (Modelo 2) ───────────────────────────────────────────────────
+function LotesKanban() {
+  const [drawerOpen, setDrawerOpen]     = useState(false);
+  const [selectedCard, setSelectedCard] = useState<KanbanCard | null>(null);
+
+  const { data: kanbanData = [], isLoading } = useQuery<KanbanCard[]>({
+    queryKey: ["moveria_kanban_v"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("moveria_kanban_v").select("*");
+      if (error) throw error;
+      return (data ?? []) as KanbanCard[];
+    },
+  });
+
+  const openCard = (card: KanbanCard) => { setSelectedCard(card); setDrawerOpen(true); };
 
   return (
-    <div style={{ display: "flex", gap: 12, overflowX: "auto", alignItems: "flex-start" }}>
-      {columns.map(s => {
-        const st    = STATUS_CFG[s] ?? STATUS_CFG_DEFAULT;
-        const items = data.filter(l => l.status === s);
-        return (
-          <div
-            key={s}
-            style={{
-              width: 220, flexShrink: 0,
-              background: M.panel, border: `1px solid ${M.border}`,
-              borderRadius: 12, overflow: "hidden",
-            }}
-          >
-            {/* Column header */}
-            <div style={{
-              padding: "11px 14px", borderBottom: `1px solid ${M.borderSoft}`,
-              display: "flex", alignItems: "center", gap: 8,
-            }}>
-              <span style={{ width: 8, height: 8, borderRadius: 99, background: st.color, flexShrink: 0 }} />
-              <span style={{ fontSize: 12.5, fontWeight: 600, color: M.text }}>{st.label}</span>
-              <span style={{ marginLeft: "auto", fontFamily: "'DM Mono', monospace", color: M.textFaint, fontSize: 12 }}>{items.length}</span>
-            </div>
-            {/* Cards */}
-            <div style={{ padding: 8, display: "flex", flexDirection: "column", gap: 8, minHeight: 80 }}>
-              {items.map(l => {
-                const dia = new Date(l.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-                return (
-                  <div
-                    key={l.id}
-                    onClick={() => navigate({ to: "/contratos/lote/$loteId", params: { loteId: l.id } })}
-                    style={{
-                      background: M.panel2, border: `1px solid ${M.border}`,
-                      borderRadius: 9, padding: "11px 12px", cursor: "pointer",
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                      <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 600, fontSize: 13, color: M.text }}>
-                        Lote {l.numero}
-                      </span>
-                      {l.tem_ressalva && <span style={{ color: M.amber, fontSize: 13 }}>⚠</span>}
-                    </div>
-                    <div style={{ fontSize: 12.5, color: M.text, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {l.cliente_nome ?? "—"}
-                    </div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: M.textFaint, marginBottom: 7 }}>
-                      {l.contrato_numero ?? "—"} · {l.qtd_itens} amb.
-                    </div>
-                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: M.textFaint }}>
-                      criado {dia}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
+    <>
+      {isLoading ? (
+        <div style={{ display: "flex", justifyContent: "center", padding: 48 }}><Spinner /></div>
+      ) : (
+        <div style={{ display: "flex", gap: 10, overflowX: "auto", alignItems: "flex-start", paddingBottom: 8 }}>
+          {KANBAN_COLS.map(col => {
+            const cards = kanbanData.filter(c => c.etapa === col.etapa);
+            return (
+              <div
+                key={col.etapa}
+                style={{
+                  minWidth: 200, flexShrink: 0,
+                  background: M.panel, border: `1px solid ${M.border}`,
+                  borderRadius: 12, overflow: "hidden",
+                }}
+              >
+                <div style={{
+                  padding: "11px 14px", borderBottom: `1px solid ${M.borderSoft}`,
+                  display: "flex", alignItems: "center", gap: 8,
+                }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 99, background: col.color, flexShrink: 0 }} />
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: M.text }}>{col.label}</span>
+                  <span style={{ marginLeft: "auto", fontFamily: "'DM Mono', monospace", color: M.textFaint, fontSize: 12 }}>{cards.length}</span>
+                </div>
+                <div style={{ padding: 8, display: "flex", flexDirection: "column", gap: 8, minHeight: 80 }}>
+                  {cards.map((card, i) =>
+                    card.tipo_card === "contrato"
+                      ? <KanbanContratoCard key={`${card.contrato_id}-${i}`} card={card} onClick={() => openCard(card)} />
+                      : <KanbanLoteCard    key={card.lote_id ?? i}          card={card} onClick={() => openCard(card)} />
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <MoveriaDetailPanel
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        title={
+          selectedCard?.tipo_card === "contrato"
+            ? (selectedCard.contrato_numero ?? "Contrato")
+            : `Lote ${selectedCard?.lote_numero ?? ""}`
+        }
+      >
+        {selectedCard?.tipo_card === "contrato" ? (
+          <KanbanContratoDrawerContent card={selectedCard} open={drawerOpen} />
+        ) : selectedCard ? (
+          <KanbanLoteDrawerContent card={selectedCard} open={drawerOpen} />
+        ) : null}
+      </MoveriaDetailPanel>
+    </>
+  );
+}
+
+// ─── Kanban card sub-components ───────────────────────────────────────────────
+function KanbanContratoCard({ card, onClick }: { card: KanbanCard; onClick: () => void }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{ background: M.panel2, border: `1px solid ${M.border}`, borderRadius: 9, padding: "11px 12px", cursor: "pointer" }}
+      onMouseEnter={e => (e.currentTarget.style.background = "#232733")}
+      onMouseLeave={e => (e.currentTarget.style.background = M.panel2)}
+    >
+      <div style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700, fontSize: 13, color: M.text, marginBottom: 3 }}>
+        {card.contrato_numero}
+      </div>
+      <div style={{ fontSize: 12.5, color: M.textMute, marginBottom: 7, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {card.cliente_nome}
+      </div>
+      {card.qtd_ambientes_sem_lote > 0 && (
+        <span style={{
+          display: "inline-flex", alignItems: "center",
+          background: M.amberSoft, color: M.amber, border: `1px solid ${M.amber}33`,
+          padding: "2px 8px", borderRadius: 5, fontSize: 11, fontWeight: 600,
+        }}>
+          {card.qtd_ambientes_sem_lote} amb. sem lote
+        </span>
+      )}
+    </div>
+  );
+}
+
+function KanbanLoteCard({ card, onClick }: { card: KanbanCard; onClick: () => void }) {
+  const st = STATUS_CFG[card.status ?? ""] ?? STATUS_CFG_DEFAULT;
+  return (
+    <div
+      onClick={onClick}
+      style={{ background: M.panel2, border: `1px solid ${M.border}`, borderRadius: 9, padding: "11px 12px", cursor: "pointer" }}
+      onMouseEnter={e => (e.currentTarget.style.background = "#232733")}
+      onMouseLeave={e => (e.currentTarget.style.background = M.panel2)}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+        <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700, fontSize: 13, color: M.text }}>
+          Lote {card.lote_numero}
+        </span>
+        {card.tem_ressalva && <span style={{ color: M.amber, fontSize: 13 }}>⚠</span>}
+      </div>
+      <div style={{ fontSize: 12.5, color: M.text, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {card.cliente_nome}
+      </div>
+      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: M.textFaint, marginBottom: 7 }}>
+        {card.contrato_numero} · {card.qtd_itens} amb.
+      </div>
+      {card.consultor_nome && (
+        <div style={{ fontSize: 11.5, color: M.textMute, marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {card.consultor_nome}
+        </div>
+      )}
+      <MBadge color={st.color} soft={st.soft} dot>{st.label}</MBadge>
     </div>
   );
 }

@@ -1,9 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Fragment, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { Fragment, useEffect, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { LoaderCircle } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
 
 // ─── Moveria Design Tokens ─────────────────────────────────────────────────────
 const M = {
@@ -24,7 +28,7 @@ const M = {
 } as const;
 
 const PROGRESS_STAGES = [
-  "medido", "apresentacao_tecnica", "aprovado", "documentacao_tecnica_completa",
+  "medido", "apresentacao_tecnica", "em_aprovacao", "aprovado", "pedidos_fornecedores", "documentacao_tecnica_completa",
 ] as const;
 
 const STATUS_CFG: Record<string, { label: string; color: string; soft: string }> = {
@@ -32,9 +36,11 @@ const STATUS_CFG: Record<string, { label: string; color: string; soft: string }>
   conformado:                   { label: "Conformado",   color: M.textFaint, soft: "#1a1d24"    },
   em_medicao:                   { label: "Em Medição",   color: M.amber,     soft: M.amberSoft  },
   medido:                       { label: "Medido",       color: M.accent,    soft: M.accentSoft },
-  apresentacao_tecnica:         { label: "Apresentação", color: M.purple,    soft: M.purpleSoft },
-  aprovado:                     { label: "Aprovado",     color: M.green,     soft: M.greenSoft  },
-  documentacao_tecnica_completa:{ label: "Doc. Técnica", color: M.amber,     soft: M.amberSoft  },
+  apresentacao_tecnica:         { label: "Apresentação",   color: M.purple,    soft: M.purpleSoft },
+  em_aprovacao:                 { label: "Em Aprovação",   color: M.purple,    soft: M.purpleSoft },
+  aprovado:                     { label: "Aprovado",       color: M.green,     soft: M.greenSoft  },
+  pedidos_fornecedores:         { label: "Ped. Fornec.",   color: M.amber,     soft: M.amberSoft  },
+  documentacao_tecnica_completa:{ label: "Doc. Técnica",   color: M.amber,     soft: M.amberSoft  },
   cancelado:                    { label: "Cancelado",    color: M.red,       soft: M.redSoft    },
   concluido:                    { label: "Concluído",    color: M.green,     soft: M.greenSoft  },
 };
@@ -116,12 +122,180 @@ function ProgressTrack({ status }: { status: string }) {
   );
 }
 
+// ─── DesignacaoEmMassaBlock ───────────────────────────────────────────────────
+function DesignacaoEmMassaBlock({ contratoId }: { contratoId: string }) {
+  const queryClient                         = useQueryClient();
+  const [consultorId, setConsultorId]       = useState("");
+  const [dataPrevista, setDataPrevista]     = useState("");
+  const [confirmOpen, setConfirmOpen]       = useState(false);
+
+  const selectCss: React.CSSProperties = {
+    background: M.panel2, color: M.text,
+    border: `1px solid ${M.border}`, borderRadius: 7,
+    padding: "7px 10px", fontSize: 12.5, outline: "none",
+    fontFamily: "'DM Sans', system-ui, sans-serif", cursor: "pointer",
+    width: "100%",
+  };
+
+  const { data: consultores = [] } = useQuery<{ id: string; full_name: string | null }[]>({
+    queryKey: ["moveria_consultores_massa"],
+    queryFn: async () => {
+      const { data: membros } = await supabase
+        .from("moveria_membros")
+        .select("id, profile_id")
+        .eq("papel", "consultor_tecnico")
+        .eq("ativo", true);
+      const ids = (membros ?? []).map((m: any) => m.profile_id as string);
+      if (!ids.length) return [];
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", ids);
+      return (membros ?? []).map((m: any) => ({
+        id: m.id as string,
+        full_name: (profs ?? []).find((p: any) => p.id === m.profile_id)?.full_name ?? null,
+      }));
+    },
+  });
+
+  const { data: qtdAmbientes = 0 } = useQuery<number>({
+    queryKey: ["moveria_ambientes_count_massa", contratoId],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("moveria_itens_contrato")
+        .select("id", { count: "exact", head: true })
+        .eq("contrato_id", contratoId)
+        .is("deletado_em", null);
+      return count ?? 0;
+    },
+  });
+
+  const consultorNome = consultores.find(c => c.id === consultorId)?.full_name ?? "";
+
+  const designar = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc("moveria_fn_designar_contrato", {
+        p_contrato_id:   contratoId,
+        p_consultor_id:  consultorId,
+        p_data_prevista: dataPrevista || null,
+      });
+      if (error) throw error;
+      return data as number;
+    },
+    onSuccess: (qtd) => {
+      const dataStr = dataPrevista
+        ? new Date(dataPrevista + "T12:00:00").toLocaleDateString("pt-BR")
+        : "sem previsão";
+      toast.success(
+        `${qtd} ambiente${qtd !== 1 ? "s" : ""} designado${qtd !== 1 ? "s" : ""} para ${consultorNome} — previsão de medição: ${dataStr}`
+      );
+      queryClient.invalidateQueries({ queryKey: ["moveria_designacoes_ativas"] });
+      setConfirmOpen(false);
+    },
+    onError: (err: any) => toast.error(err.message ?? "Erro ao designar"),
+  });
+
+  return (
+    <div style={{
+      marginTop: 24, background: M.panel, border: `1px solid ${M.border}`,
+      borderRadius: 12, padding: "18px 20px",
+    }}>
+      <div style={{ fontSize: 11, color: M.textFaint, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600, marginBottom: 14 }}>
+        Designação em Massa
+      </div>
+      <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 5, flex: "1 1 220px" }}>
+          <label style={{ fontSize: 11.5, color: M.textMute }}>Consultor Técnico</label>
+          <select value={consultorId} onChange={e => setConsultorId(e.target.value)} style={selectCss}>
+            <option value="">Selecionar…</option>
+            {consultores.map(c => (
+              <option key={c.id} value={c.id}>{c.full_name ?? c.id}</option>
+            ))}
+          </select>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 5, flex: "0 0 auto" }}>
+          <label style={{ fontSize: 11.5, color: M.textMute }}>Previsão de medição (opcional)</label>
+          <input
+            type="date"
+            value={dataPrevista}
+            onChange={e => setDataPrevista(e.target.value)}
+            style={{ ...selectCss, width: "auto", cursor: "default" }}
+          />
+        </div>
+        <button
+          disabled={!consultorId}
+          onClick={() => setConfirmOpen(true)}
+          style={{
+            flexShrink: 0, padding: "8px 16px", borderRadius: 8, fontSize: 12.5, fontWeight: 600,
+            background: consultorId ? M.accent : M.panel2,
+            color: consultorId ? "#fff" : M.textFaint,
+            border: `1px solid ${consultorId ? M.accent : M.border}`,
+            cursor: consultorId ? "pointer" : "not-allowed",
+            transition: "all .1s",
+          }}
+        >
+          Atribuir a todos os ambientes
+        </button>
+      </div>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent
+          className="border-none"
+          style={{ background: M.panel, border: `1px solid ${M.border}`, color: M.text,
+                   fontFamily: "'DM Sans', system-ui, sans-serif" }}
+        >
+          <DialogHeader>
+            <DialogTitle style={{ color: M.text }}>Confirmar designação em massa</DialogTitle>
+            <DialogDescription style={{ color: M.textMute }}>
+              {qtdAmbientes} ambiente{qtdAmbientes !== 1 ? "s" : ""} serão designados para{" "}
+              <strong style={{ color: M.text }}>{consultorNome || "—"}</strong>
+              {dataPrevista && (
+                <> com previsão de medição em{" "}
+                  <strong style={{ color: M.text }}>
+                    {new Date(dataPrevista + "T12:00:00").toLocaleDateString("pt-BR")}
+                  </strong>
+                </>
+              )}.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              onClick={() => setConfirmOpen(false)}
+              style={{
+                padding: "8px 16px", borderRadius: 8, fontSize: 12.5, fontWeight: 600,
+                background: "transparent", color: M.textMute,
+                border: `1px solid ${M.border}`, cursor: "pointer",
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={() => designar.mutate()}
+              disabled={designar.isPending}
+              style={{
+                padding: "8px 16px", borderRadius: 8, fontSize: 12.5, fontWeight: 600,
+                background: M.accent, color: "#fff",
+                border: `1px solid ${M.accent}`,
+                cursor: designar.isPending ? "not-allowed" : "pointer",
+                opacity: designar.isPending ? 0.7 : 1,
+              }}
+            >
+              {designar.isPending ? "Aguarde…" : "Confirmar"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 // ─── ContratoDetalhePage ──────────────────────────────────────────────────────
 function ContratoDetalhePage() {
   useMoveria();
   const navigate      = useNavigate();
   const { contratoId } = Route.useParams();
-  const { profile }   = useAuth();
+  const { profile, globalRole } = useAuth();
+  const isAdmin = globalRole === "admin" || globalRole === "superadmin";
 
   // ── Contrato ──
   const { data: contrato, isLoading: loadingContrato } = useQuery<ContratoRow | null>({
@@ -323,7 +497,7 @@ function ContratoDetalhePage() {
           <div style={{ background: M.panel, border: `1px solid ${M.border}`, borderRadius: 12, overflow: "hidden" }}>
             {/* Table header */}
             <div style={{
-              display: "grid", gridTemplateColumns: "56px 1fr 110px 44px 72px",
+              display: "grid", gridTemplateColumns: "56px 1fr 150px 44px 72px",
               padding: "10px 18px", background: M.panel2,
               borderBottom: `1px solid ${M.border}`,
               fontSize: 10.5, color: M.textFaint, textTransform: "uppercase", letterSpacing: 0.4, fontWeight: 600,
@@ -343,7 +517,7 @@ function ContratoDetalhePage() {
                   key={l.id}
                   onClick={() => navigate({ to: "/contratos/lote/$loteId", params: { loteId: l.id } })}
                   style={{
-                    display: "grid", gridTemplateColumns: "56px 1fr 110px 44px 72px",
+                    display: "grid", gridTemplateColumns: "56px 1fr 150px 44px 72px",
                     padding: "12px 18px", borderBottom: `1px solid ${M.borderSoft}`,
                     alignItems: "center", fontSize: 13, cursor: "pointer",
                     transition: "background .1s",
@@ -366,6 +540,8 @@ function ContratoDetalhePage() {
             })}
           </div>
         )}
+
+        {isAdmin && <DesignacaoEmMassaBlock contratoId={contratoId} />}
       </div>
     </div>
   );
