@@ -17,9 +17,7 @@ import {
   Wallet,
   ChevronDown,
   ChevronRight,
-  Layers,
-  ClipboardList,
-  Ruler,
+
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -243,48 +241,21 @@ export function AppSidebar() {
         })}
 
         {hasContratos && (
-          <CollapsibleSectorGroup
-            groupKey="contratos"
-            label="Contratos"
-            collapsedSidebar={collapsed}
-            hasActive={isActive("/contratos")}
-            defaultCollapsed={isMobile}
-          >
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname === "/contratos"}>
-                  <Link to="/contratos" className="flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    {!collapsed && <span>Contratos</span>}
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/contratos/lotes")}>
-                  <Link to="/contratos/lotes" className="flex items-center gap-2">
-                    <Layers className="h-4 w-4" />
-                    {!collapsed && <span>Lotes</span>}
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/contratos/medicao")}>
-                  <Link to="/contratos/medicao" className="flex items-center gap-2">
-                    <Ruler className="h-4 w-4" />
-                    {!collapsed && <span>Medição</span>}
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive("/contratos/backlog")}>
-                  <Link to="/contratos/backlog" className="flex items-center gap-2">
-                    <ClipboardList className="h-4 w-4" />
-                    {!collapsed && <span>Meu Backlog</span>}
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </CollapsibleSectorGroup>
+          <SidebarGroup>
+            <SidebarGroupLabel>Contratos</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive("/contratos")}>
+                    <Link to="/contratos" className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      {!collapsed && <span>Contratos</span>}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
         )}
 
         {(globalRole === "admin" || globalRole === "superadmin") && (

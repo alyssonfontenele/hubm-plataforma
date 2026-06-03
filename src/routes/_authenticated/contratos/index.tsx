@@ -1,260 +1,328 @@
+import { useState, useCallback } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, LayoutList, LayoutGrid, Plus, FileText } from "lucide-react";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
-
-// ─── Moveria Design Tokens ─────────────────────────────────────────────────────
-const M = {
-  bg: "#0f1115",
-  panel: "#171a21",
-  panel2: "#1d212a",
-  border: "#272c38",
-  borderSoft: "#1f2530",
-  text: "#e7e9ee",
-  textMute: "#9aa1b1",
-  textFaint: "#646b7d",
-  accent: "#5b8cff",
-  accentSoft: "#1e2942",
-  green: "#3fb968",  greenSoft: "#16301f",
-  amber: "#e0a52b",  amberSoft: "#332811",
-  red:   "#e0573f",  redSoft:   "#331813",
-} as const;
-
-const CONTRATO_STATUS_CFG: Record<string, { label: string; color: string; soft: string }> = {
-  importado:    { label: "Importado",    color: M.textFaint, soft: "#1a1d24"    },
-  em_andamento: { label: "Em andamento", color: M.accent,    soft: M.accentSoft },
-  concluido:    { label: "Concluído",    color: M.green,     soft: M.greenSoft  },
-  cancelado:    { label: "Cancelado",    color: M.red,       soft: M.redSoft    },
-};
-
-function useMoveria() {
-  useEffect(() => {
-    if (!document.getElementById("moveria-fonts")) {
-      const link = Object.assign(document.createElement("link"), {
-        id: "moveria-fonts", rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap",
-      });
-      document.head.appendChild(link);
-    }
-  }, []);
-}
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
+import { Button } from "@/components/ui/button";
+import { ContratoPanel } from "@/components/moveria/contrato-panel";
+import { EtapaBadge, SubEstadoBadge, AtrasoBadge } from "@/components/moveria/status-badge";
 
 // ─── Route ────────────────────────────────────────────────────────────────────
+const searchSchema = z.object({ id: z.string().optional() });
+
 export const Route = createFileRoute("/_authenticated/contratos/")({
   ssr: false,
-  component: ContratosIndexPage,
+  validateSearch: searchSchema,
+  component: ContratosWorkspace,
 });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type EnrichedContrato = {
-  id: string;
-  numero: string;
-  status: string;
-  data_contrato: string | null;
-  clienteNome: string;
-  clienteTipo: "PF" | "PJ" | "—";
-  vendedorNome: string;
-  qtdAmbientes: number;
+type KanbanCard = {
+  tipo_card: "contrato" | "lote";
+  etapa: string;
+  contrato_id: string;
+  contrato_numero: string;
+  cliente_nome: string;
+  lote_id: string | null;
+  lote_numero: string | null;
+  consultor_id: string | null;
+  consultor_nome: string | null;
+  status: string | null;
+  conformado_em: string | null;
+  tem_ressalva: boolean;
+  qtd_itens: number;
+  qtd_ambientes_sem_lote: number;
+  sub_estado: "designado" | "em_rodadas" | null;
+  data_prevista_max: string | null;
+  tem_atraso: boolean;
 };
 
-// ─── Primitives ───────────────────────────────────────────────────────────────
-function MBadge({ children, color, soft, dot }: { children: React.ReactNode; color: string; soft: string; dot?: boolean }) {
+type ViewMode = "lista" | "kanban";
+
+const KANBAN_COLUNAS = [
+  { etapa: "backlog",            label: "Backlog" },
+  { etapa: "aguardando_medicao", label: "Aguardando Medição" },
+  { etapa: "medido",             label: "Medido" },
+  { etapa: "apresentacao_tecnica", label: "Apresentação" },
+  { etapa: "em_aprovacao",       label: "Em Aprovação" },
+  { etapa: "aprovado",           label: "Aprovado" },
+  { etapa: "pedidos_fornecedores", label: "Ped. Fornec." },
+  { etapa: "documentacao_tecnica_completa", label: "Doc. Técnica" },
+];
+
+function getViewMode(): ViewMode {
+  try { return (localStorage.getItem("moveria.viewMode") as ViewMode) ?? "lista"; } catch { return "lista"; }
+}
+function setViewMode(v: ViewMode) {
+  try { localStorage.setItem("moveria.viewMode", v); } catch { /* ignore */ }
+}
+
+// ─── Card de contrato (kanban) ────────────────────────────────────────────────
+function KanbanContratoCard({
+  card, isActive, onClick,
+}: { card: KanbanCard; isActive: boolean; onClick: () => void }) {
   return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
-      background: soft, color, border: `1px solid ${color}33`,
-      padding: "2px 9px", borderRadius: 6, fontSize: 12, fontWeight: 600,
-      whiteSpace: "nowrap",
-    }}>
-      {dot && <span style={{ width: 6, height: 6, borderRadius: 99, background: color, flexShrink: 0 }} />}
-      {children}
-    </span>
+    <button
+      onClick={onClick}
+      className={`w-full text-left rounded-lg border p-3 transition-all ${
+        isActive
+          ? "border-foreground bg-accent-light shadow-sm"
+          : "border-border bg-surface hover:border-text-muted hover:shadow-sm"
+      }`}
+    >
+      <div className="font-mono font-bold text-sm text-text-primary mb-1">
+        {card.contrato_numero}
+      </div>
+      <div className="text-xs text-text-secondary truncate mb-2">{card.cliente_nome}</div>
+      <div className="flex flex-wrap gap-1 items-center">
+        {card.qtd_ambientes_sem_lote > 0 && (
+          <span className="text-[10px] font-medium text-text-muted bg-accent-light border border-border px-1.5 py-0.5 rounded">
+            {card.qtd_ambientes_sem_lote} s/ lote
+          </span>
+        )}
+        {card.sub_estado && <SubEstadoBadge sub={card.sub_estado} />}
+        {card.tem_atraso && <AtrasoBadge />}
+        {card.consultor_nome && (
+          <span className="text-[10px] text-text-muted truncate">{card.consultor_nome}</span>
+        )}
+      </div>
+    </button>
   );
 }
 
-// ─── ContratosIndexPage ───────────────────────────────────────────────────────
-function ContratosIndexPage() {
-  useMoveria();
+// ─── Card de lote (kanban) ────────────────────────────────────────────────────
+function KanbanLoteCard({ card, isActive, onClick }: { card: KanbanCard; isActive: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full text-left rounded-lg border p-3 transition-all ${
+        isActive
+          ? "border-foreground bg-accent-light shadow-sm"
+          : "border-border bg-surface hover:border-text-muted hover:shadow-sm"
+      }`}
+    >
+      <div className="flex items-center gap-1.5 mb-1">
+        <span className="font-mono font-bold text-sm text-text-primary">{card.lote_numero}</span>
+        {card.tem_ressalva && <span className="text-[10px] text-[var(--color-warning)] font-semibold">⚠</span>}
+      </div>
+      <div className="text-xs text-text-muted truncate">{card.contrato_numero} · {card.cliente_nome}</div>
+      {card.consultor_nome && (
+        <div className="text-[10px] text-text-muted mt-1 truncate">{card.consultor_nome}</div>
+      )}
+    </button>
+  );
+}
+
+// ─── Workspace ────────────────────────────────────────────────────────────────
+function ContratosWorkspace() {
+  const { id: selectedId } = Route.useSearch();
   const navigate = useNavigate();
+  const { globalRole } = useAuth();
+  const isAdmin = globalRole === "admin" || globalRole === "superadmin";
 
-  const { data: contratos = [], isLoading } = useQuery<EnrichedContrato[]>({
-    queryKey: ["moveria_contratos_enriquecidos"],
-    queryFn: async (): Promise<EnrichedContrato[]> => {
-      // 1. Contracts
-      const { data: rawContratos, error: ce } = await supabase
-        .from("moveria_contratos_v")
-        .select("id, numero, status, cliente_id, vendedor_id, data_contrato")
-        .order("numero");
-      if (ce) throw ce;
-      if (!rawContratos?.length) return [];
+  const [viewMode, setViewModeState] = useState<ViewMode>(getViewMode);
 
-      const contratoList = rawContratos as {
-        id: string; numero: string; status: string;
-        cliente_id: string | null; vendedor_id: string | null; data_contrato: string | null;
-      }[];
-
-      const clienteIds  = [...new Set(contratoList.map(c => c.cliente_id).filter(Boolean) as string[])];
-      const vendedorIds = [...new Set(contratoList.map(c => c.vendedor_id).filter(Boolean) as string[])];
-
-      // 2. Parallel: clients + vendedor members + item counts
-      const [
-        { data: clientes },
-        { data: membros },
-        { data: allItems },
-      ] = await Promise.all([
-        clienteIds.length > 0
-          ? supabase.from("moveria_clientes_v").select("id, nome_completo, cpf_mascarado, cnpj_hash").in("id", clienteIds)
-          : Promise.resolve({ data: [] as any[] }),
-        vendedorIds.length > 0
-          ? supabase.from("moveria_membros").select("id, profile_id").in("id", vendedorIds)
-          : Promise.resolve({ data: [] as any[] }),
-        supabase.from("moveria_itens_contrato").select("contrato_id").is("deletado_em", null),
-      ]);
-
-      // 3. Profile names for vendedores
-      const profileIds = (membros ?? []).map((m: any) => m.profile_id as string);
-      const { data: profs } = profileIds.length > 0
-        ? await supabase.from("profiles").select("id, full_name").in("id", profileIds)
-        : { data: [] as any[] };
-
-      // 4. Build item count map
-      const itemCountMap = new Map<string, number>();
-      (allItems ?? []).forEach((item: any) => {
-        if (item.contrato_id) {
-          itemCountMap.set(item.contrato_id, (itemCountMap.get(item.contrato_id) ?? 0) + 1);
-        }
-      });
-
-      // 5. Enrich
-      return contratoList.map(c => {
-        const cl   = (clientes ?? []).find((x: any) => x.id === c.cliente_id);
-        const mb   = (membros  ?? []).find((x: any) => x.id === c.vendedor_id);
-        const prof = mb ? (profs ?? []).find((x: any) => x.id === mb.profile_id) : null;
-        return {
-          id:            c.id,
-          numero:        c.numero,
-          status:        c.status,
-          data_contrato: c.data_contrato,
-          clienteNome:  (cl   as any)?.nome_completo ?? "—",
-          clienteTipo:  (cl   as any)?.cnpj_hash ? "PJ" : (cl as any)?.cpf_mascarado ? "PF" : "—",
-          vendedorNome: (prof as any)?.full_name ?? "—",
-          qtdAmbientes: itemCountMap.get(c.id) ?? 0,
-        } as EnrichedContrato;
-      });
+  const { data: cards = [], isLoading } = useQuery<KanbanCard[]>({
+    queryKey: ["moveria_kanban"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("moveria_kanban_v")
+        .select("tipo_card, etapa, contrato_id, contrato_numero, cliente_nome, lote_id, lote_numero, consultor_id, consultor_nome, status, conformado_em, tem_ressalva, qtd_itens, qtd_ambientes_sem_lote, sub_estado, data_prevista_max, tem_atraso");
+      if (error) throw error;
+      return (data ?? []) as KanbanCard[];
     },
   });
 
-  return (
-    <div
-      className="-m-6 md:-m-8"
-      style={{ background: M.bg, minHeight: "calc(100vh - 4rem)", fontFamily: "'DM Sans', system-ui, sans-serif" }}
-    >
-      <div style={{ padding: "24px 32px" }}>
-        {/* ── Page header ── */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: M.text, margin: 0 }}>Contratos</h2>
-          {!isLoading && (
-            <span style={{ fontSize: 12.5, color: M.textFaint }}>
-              {contratos.length} contrato{contratos.length !== 1 ? "s" : ""}
-            </span>
+  function selectContrato(id: string) {
+    if (id === selectedId) {
+      navigate({ to: "/contratos", search: {} });
+    } else {
+      navigate({ to: "/contratos", search: { id } });
+    }
+  }
+
+  function toggleView(v: ViewMode) {
+    setViewModeState(v);
+    setViewMode(v);
+  }
+
+  const contratos = cards.filter((c) => c.tipo_card === "contrato");
+  const lotes     = cards.filter((c) => c.tipo_card === "lote");
+
+  // ─── Painel esquerdo — lista ──
+  const ListaPanel = useCallback(() => (
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Toolbar */}
+      <div className="flex-shrink-0 flex items-center gap-2 px-4 py-3 border-b border-border bg-surface">
+        <span className="text-xs text-text-muted font-medium flex-1">
+          {cards.length} card{cards.length !== 1 ? "s" : ""}
+        </span>
+        {/* Toggle view */}
+        <div className="flex items-center gap-1 border border-border rounded-md p-0.5">
+          <button
+            onClick={() => toggleView("lista")}
+            className={`p-1 rounded transition-colors ${viewMode === "lista" ? "bg-foreground text-background" : "text-text-muted hover:text-text-primary"}`}
+          >
+            <LayoutList className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => toggleView("kanban")}
+            className={`p-1 rounded transition-colors ${viewMode === "kanban" ? "bg-foreground text-background" : "text-text-muted hover:text-text-primary"}`}
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        {isAdmin && (
+          <Button size="sm" variant="default" asChild>
+            <a href="/contratos/importar" className="flex items-center gap-1.5">
+              <Plus className="w-3.5 h-3.5" />
+              Importar
+            </a>
+          </Button>
+        )}
+      </div>
+
+      {isLoading && (
+        <div className="flex-1 flex items-center justify-center">
+          <LoaderCircle className="w-5 h-5 animate-spin text-text-muted" />
+        </div>
+      )}
+
+      {!isLoading && cards.length === 0 && (
+        <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
+          <FileText className="w-8 h-8 text-text-muted mb-3" />
+          <p className="text-sm font-medium text-text-secondary mb-1">Nenhum contrato ainda</p>
+          {isAdmin && (
+            <p className="text-xs text-text-muted">Use "Importar" para adicionar o primeiro contrato.</p>
           )}
         </div>
+      )}
 
-        {/* ── Loading ── */}
-        {isLoading && (
-          <div style={{ display: "flex", justifyContent: "center", padding: 48 }}>
-            <LoaderCircle style={{ color: M.textMute }} className="w-5 h-5 animate-spin" />
+      {!isLoading && viewMode === "lista" && cards.length > 0 && (
+        <div className="flex-1 overflow-y-auto">
+          {/* Header */}
+          <div className="sticky top-0 grid bg-accent-light px-4 py-2 border-b border-border text-[10px] font-semibold uppercase tracking-wider text-text-muted z-10"
+            style={{ gridTemplateColumns: "1fr 72px 80px" }}>
+            <div>Contrato / Lote</div>
+            <div>Ambientes</div>
+            <div>Etapa</div>
           </div>
-        )}
+          {cards.map((c) => {
+            const isContr = c.tipo_card === "contrato";
+            const id = isContr ? c.contrato_id : c.contrato_id;
+            const isActive = selectedId === id;
+            return (
+              <button
+                key={isContr ? c.contrato_id : c.lote_id}
+                onClick={() => selectContrato(id)}
+                className={`w-full text-left grid px-4 py-3 border-b border-border items-center transition-colors ${
+                  isActive ? "bg-accent-light" : "bg-surface hover:bg-accent-light/60"
+                }`}
+                style={{ gridTemplateColumns: "1fr 72px 80px" }}
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-sm text-text-primary">
+                      {isContr ? c.contrato_numero : c.lote_numero}
+                    </span>
+                    {!isContr && c.tem_ressalva && <span className="text-[10px] text-[var(--color-warning)]">⚠</span>}
+                  </div>
+                  <div className="text-xs text-text-secondary truncate">{c.cliente_nome}</div>
+                  <div className="flex gap-1 mt-0.5 flex-wrap">
+                    {isContr && c.sub_estado && <SubEstadoBadge sub={c.sub_estado} />}
+                    {isContr && c.tem_atraso && <AtrasoBadge />}
+                  </div>
+                </div>
+                <div className="font-mono text-xs text-text-muted">
+                  {isContr && c.qtd_ambientes_sem_lote > 0 ? `${c.qtd_ambientes_sem_lote} s/lote` : isContr ? "—" : c.qtd_itens}
+                </div>
+                <div><EtapaBadge etapa={c.etapa} /></div>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
-        {/* ── Empty state ── */}
-        {!isLoading && contratos.length === 0 && (
-          <div style={{ borderRadius: 12, border: `1px solid ${M.border}`, background: M.panel, padding: "40px 24px", textAlign: "center", fontSize: 13, color: M.textFaint }}>
-            Nenhum contrato encontrado.
-          </div>
-        )}
-
-        {/* ── Table ── */}
-        {!isLoading && contratos.length > 0 && (
-          <div style={{ background: M.panel, border: `1px solid ${M.border}`, borderRadius: 12, overflow: "hidden" }}>
-            {/* Header */}
-            <div style={{
-              display: "grid", gridTemplateColumns: "140px 1.4fr 64px 68px 1fr 100px",
-              padding: "10px 18px", background: M.panel2,
-              borderBottom: `1px solid ${M.border}`,
-              fontSize: 10.5, color: M.textFaint, textTransform: "uppercase", letterSpacing: 0.4, fontWeight: 600,
-            }}>
-              <div>Número</div>
-              <div>Cliente</div>
-              <div>Tipo</div>
-              <div>Ambientes</div>
-              <div>Consultor</div>
-              <div>Status</div>
-            </div>
-
-            {/* Rows */}
-            {contratos.map(c => {
-              const st = CONTRATO_STATUS_CFG[c.status] ?? { label: c.status, color: M.textFaint, soft: "#1a1d24" };
-              const dataFmt = c.data_contrato
-                ? new Date(c.data_contrato).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" })
-                : null;
+      {!isLoading && viewMode === "kanban" && cards.length > 0 && (
+        <div className="flex-1 overflow-x-auto overflow-y-hidden">
+          <div className="flex h-full gap-0 min-w-max">
+            {KANBAN_COLUNAS.map((col) => {
+              const colCards = cards.filter((c) => c.etapa === col.etapa);
+              if (colCards.length === 0 && !["backlog", "aguardando_medicao"].includes(col.etapa)) return null;
               return (
-                <div
-                  key={c.id}
-                  onClick={() => navigate({ to: "/contratos/contrato/$contratoId", params: { contratoId: c.id } })}
-                  style={{
-                    display: "grid", gridTemplateColumns: "140px 1.4fr 64px 68px 1fr 100px",
-                    padding: "13px 18px", borderBottom: `1px solid ${M.borderSoft}`,
-                    alignItems: "center", fontSize: 13, cursor: "pointer",
-                    transition: "background .1s",
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = M.panel2)}
-                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                >
-                  {/* Número */}
-                  <div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontWeight: 700, fontSize: 13, color: M.text }}>
-                      {c.numero}
-                    </div>
-                    {dataFmt && (
-                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10.5, color: M.textFaint, marginTop: 1 }}>
-                        {dataFmt}
+                <div key={col.etapa} className="flex flex-col h-full border-r border-border last:border-r-0" style={{ width: 220 }}>
+                  <div className="flex-shrink-0 px-3 py-2.5 border-b border-border bg-accent-light">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">{col.label}</p>
+                    <p className="text-xs text-text-secondary font-medium">{colCards.length}</p>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-2">
+                    {colCards.length === 0 && (
+                      <div className="text-xs text-text-muted text-center py-6 px-2">
+                        {col.etapa === "backlog" ? "Nenhum contrato no backlog." :
+                         col.etapa === "aguardando_medicao" ? "Nenhum aguardando medição." : "Vazio"}
                       </div>
                     )}
-                  </div>
-                  {/* Cliente */}
-                  <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: M.text }}>
-                    {c.clienteNome}
-                  </div>
-                  {/* Tipo PF/PJ */}
-                  <div>
-                    {c.clienteTipo !== "—" && (
-                      <span style={{
-                        display: "inline-flex", background: M.panel2, color: M.textMute,
-                        border: `1px solid ${M.border}`, padding: "1px 8px",
-                        borderRadius: 5, fontSize: 11, fontWeight: 600,
-                      }}>{c.clienteTipo}</span>
-                    )}
-                  </div>
-                  {/* Nº ambientes */}
-                  <div style={{ fontFamily: "'DM Mono', monospace", color: M.textMute }}>
-                    {c.qtdAmbientes > 0 ? c.qtdAmbientes : <span style={{ color: M.textFaint }}>—</span>}
-                  </div>
-                  {/* Consultor */}
-                  <div style={{ color: M.textMute, fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {c.vendedorNome}
-                  </div>
-                  {/* Status */}
-                  <div>
-                    <MBadge color={st.color} soft={st.soft} dot>{st.label}</MBadge>
+                    {colCards.map((c) => {
+                      const id = c.contrato_id;
+                      const isActive = selectedId === id;
+                      return c.tipo_card === "contrato" ? (
+                        <KanbanContratoCard
+                          key={c.contrato_id}
+                          card={c}
+                          isActive={isActive}
+                          onClick={() => selectContrato(id)}
+                        />
+                      ) : (
+                        <KanbanLoteCard
+                          key={c.lote_id}
+                          card={c}
+                          isActive={isActive}
+                          onClick={() => selectContrato(id)}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
               );
             })}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+    </div>
+  ), [cards, isLoading, viewMode, selectedId, isAdmin]);
+
+  return (
+    <div className="-m-6 md:-m-8 h-[calc(100vh-4rem)]">
+      {selectedId ? (
+        <ResizablePanelGroup direction="horizontal" className="h-full">
+          <ResizablePanel defaultSize={35} minSize={25} maxSize={55}>
+            <div className="h-full bg-background border-r border-border">
+              <ListaPanel />
+            </div>
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          <ResizablePanel defaultSize={65}>
+            <div className="h-full bg-surface overflow-hidden">
+              <ContratoPanel
+                key={selectedId}
+                contratoId={selectedId}
+                onClose={() => navigate({ to: "/contratos", search: {} })}
+              />
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      ) : (
+        <div className="h-full bg-background">
+          <ListaPanel />
+        </div>
+      )}
     </div>
   );
 }
