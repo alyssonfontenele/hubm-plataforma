@@ -24,11 +24,14 @@ import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedContratosRouteImport } from './routes/_authenticated/contratos'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedContratosIndexRouteImport } from './routes/_authenticated/contratos/index'
 import { Route as AuthenticatedSectorsSlugRouteImport } from './routes/_authenticated/sectors.$slug'
 import { Route as AuthenticatedContratosMedicaoRouteImport } from './routes/_authenticated/contratos/medicao'
 import { Route as AuthenticatedContratosLotesRouteImport } from './routes/_authenticated/contratos/lotes'
 import { Route as AuthenticatedContratosImportarRouteImport } from './routes/_authenticated/contratos/importar'
 import { Route as AuthenticatedContratosBacklogRouteImport } from './routes/_authenticated/contratos/backlog'
+import { Route as AuthenticatedContratosLoteLoteIdRouteImport } from './routes/_authenticated/contratos/lote.$loteId'
+import { Route as AuthenticatedContratosContratoContratoIdRouteImport } from './routes/_authenticated/contratos/contrato.$contratoId'
 
 const SuperadminRoute = SuperadminRouteImport.update({
   id: '/superadmin',
@@ -104,6 +107,12 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedContratosIndexRoute =
+  AuthenticatedContratosIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedContratosRoute,
+  } as any)
 const AuthenticatedSectorsSlugRoute =
   AuthenticatedSectorsSlugRouteImport.update({
     id: '/sectors/$slug',
@@ -134,6 +143,18 @@ const AuthenticatedContratosBacklogRoute =
     path: '/backlog',
     getParentRoute: () => AuthenticatedContratosRoute,
   } as any)
+const AuthenticatedContratosLoteLoteIdRoute =
+  AuthenticatedContratosLoteLoteIdRouteImport.update({
+    id: '/lote/$loteId',
+    path: '/lote/$loteId',
+    getParentRoute: () => AuthenticatedContratosRoute,
+  } as any)
+const AuthenticatedContratosContratoContratoIdRoute =
+  AuthenticatedContratosContratoContratoIdRouteImport.update({
+    id: '/contrato/$contratoId',
+    path: '/contrato/$contratoId',
+    getParentRoute: () => AuthenticatedContratosRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -155,6 +176,9 @@ export interface FileRoutesByFullPath {
   '/contratos/lotes': typeof AuthenticatedContratosLotesRoute
   '/contratos/medicao': typeof AuthenticatedContratosMedicaoRoute
   '/sectors/$slug': typeof AuthenticatedSectorsSlugRoute
+  '/contratos/': typeof AuthenticatedContratosIndexRoute
+  '/contratos/contrato/$contratoId': typeof AuthenticatedContratosContratoContratoIdRoute
+  '/contratos/lote/$loteId': typeof AuthenticatedContratosLoteLoteIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -168,7 +192,6 @@ export interface FileRoutesByTo {
   '/superadmin': typeof SuperadminRouteWithChildren
   '/admin': typeof AuthenticatedAdminRoute
   '/app': typeof AuthenticatedAppRoute
-  '/contratos': typeof AuthenticatedContratosRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/superadmin/dashboard': typeof SuperadminDashboardRoute
   '/contratos/backlog': typeof AuthenticatedContratosBacklogRoute
@@ -176,6 +199,9 @@ export interface FileRoutesByTo {
   '/contratos/lotes': typeof AuthenticatedContratosLotesRoute
   '/contratos/medicao': typeof AuthenticatedContratosMedicaoRoute
   '/sectors/$slug': typeof AuthenticatedSectorsSlugRoute
+  '/contratos': typeof AuthenticatedContratosIndexRoute
+  '/contratos/contrato/$contratoId': typeof AuthenticatedContratosContratoContratoIdRoute
+  '/contratos/lote/$loteId': typeof AuthenticatedContratosLoteLoteIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -199,6 +225,9 @@ export interface FileRoutesById {
   '/_authenticated/contratos/lotes': typeof AuthenticatedContratosLotesRoute
   '/_authenticated/contratos/medicao': typeof AuthenticatedContratosMedicaoRoute
   '/_authenticated/sectors/$slug': typeof AuthenticatedSectorsSlugRoute
+  '/_authenticated/contratos/': typeof AuthenticatedContratosIndexRoute
+  '/_authenticated/contratos/contrato/$contratoId': typeof AuthenticatedContratosContratoContratoIdRoute
+  '/_authenticated/contratos/lote/$loteId': typeof AuthenticatedContratosLoteLoteIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -222,6 +251,9 @@ export interface FileRouteTypes {
     | '/contratos/lotes'
     | '/contratos/medicao'
     | '/sectors/$slug'
+    | '/contratos/'
+    | '/contratos/contrato/$contratoId'
+    | '/contratos/lote/$loteId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -235,7 +267,6 @@ export interface FileRouteTypes {
     | '/superadmin'
     | '/admin'
     | '/app'
-    | '/contratos'
     | '/auth/callback'
     | '/superadmin/dashboard'
     | '/contratos/backlog'
@@ -243,6 +274,9 @@ export interface FileRouteTypes {
     | '/contratos/lotes'
     | '/contratos/medicao'
     | '/sectors/$slug'
+    | '/contratos'
+    | '/contratos/contrato/$contratoId'
+    | '/contratos/lote/$loteId'
   id:
     | '__root__'
     | '/'
@@ -265,6 +299,9 @@ export interface FileRouteTypes {
     | '/_authenticated/contratos/lotes'
     | '/_authenticated/contratos/medicao'
     | '/_authenticated/sectors/$slug'
+    | '/_authenticated/contratos/'
+    | '/_authenticated/contratos/contrato/$contratoId'
+    | '/_authenticated/contratos/lote/$loteId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -388,6 +425,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/contratos/': {
+      id: '/_authenticated/contratos/'
+      path: '/'
+      fullPath: '/contratos/'
+      preLoaderRoute: typeof AuthenticatedContratosIndexRouteImport
+      parentRoute: typeof AuthenticatedContratosRoute
+    }
     '/_authenticated/sectors/$slug': {
       id: '/_authenticated/sectors/$slug'
       path: '/sectors/$slug'
@@ -423,6 +467,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedContratosBacklogRouteImport
       parentRoute: typeof AuthenticatedContratosRoute
     }
+    '/_authenticated/contratos/lote/$loteId': {
+      id: '/_authenticated/contratos/lote/$loteId'
+      path: '/lote/$loteId'
+      fullPath: '/contratos/lote/$loteId'
+      preLoaderRoute: typeof AuthenticatedContratosLoteLoteIdRouteImport
+      parentRoute: typeof AuthenticatedContratosRoute
+    }
+    '/_authenticated/contratos/contrato/$contratoId': {
+      id: '/_authenticated/contratos/contrato/$contratoId'
+      path: '/contrato/$contratoId'
+      fullPath: '/contratos/contrato/$contratoId'
+      preLoaderRoute: typeof AuthenticatedContratosContratoContratoIdRouteImport
+      parentRoute: typeof AuthenticatedContratosRoute
+    }
   }
 }
 
@@ -431,6 +489,9 @@ interface AuthenticatedContratosRouteChildren {
   AuthenticatedContratosImportarRoute: typeof AuthenticatedContratosImportarRoute
   AuthenticatedContratosLotesRoute: typeof AuthenticatedContratosLotesRoute
   AuthenticatedContratosMedicaoRoute: typeof AuthenticatedContratosMedicaoRoute
+  AuthenticatedContratosIndexRoute: typeof AuthenticatedContratosIndexRoute
+  AuthenticatedContratosContratoContratoIdRoute: typeof AuthenticatedContratosContratoContratoIdRoute
+  AuthenticatedContratosLoteLoteIdRoute: typeof AuthenticatedContratosLoteLoteIdRoute
 }
 
 const AuthenticatedContratosRouteChildren: AuthenticatedContratosRouteChildren =
@@ -439,6 +500,11 @@ const AuthenticatedContratosRouteChildren: AuthenticatedContratosRouteChildren =
     AuthenticatedContratosImportarRoute: AuthenticatedContratosImportarRoute,
     AuthenticatedContratosLotesRoute: AuthenticatedContratosLotesRoute,
     AuthenticatedContratosMedicaoRoute: AuthenticatedContratosMedicaoRoute,
+    AuthenticatedContratosIndexRoute: AuthenticatedContratosIndexRoute,
+    AuthenticatedContratosContratoContratoIdRoute:
+      AuthenticatedContratosContratoContratoIdRoute,
+    AuthenticatedContratosLoteLoteIdRoute:
+      AuthenticatedContratosLoteLoteIdRoute,
   }
 
 const AuthenticatedContratosRouteWithChildren =
