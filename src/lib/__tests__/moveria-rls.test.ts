@@ -387,6 +387,7 @@ describe.skipIf(SKIP)("Moveria RLS — testes por papel (integração local)", (
       // Cria lote de teste
       const { error: loteErr } = await admin.from("moveria_lotes").upsert({
         id: IDS.loteInapto,
+        contrato_id: IDS.contrato,
         numero: "LOTE-2026-INAPTO-TEST",
         consultor_id: IDS.consultorMembro,
         status: "aberto",
@@ -506,6 +507,7 @@ describe.skipIf(SKIP)("Moveria RLS — testes por papel (integração local)", (
       // Cria segundo lote (retry)
       const { error: loteErr } = await admin.from("moveria_lotes").upsert({
         id: IDS.loteRetry,
+        contrato_id: IDS.contrato,
         numero: "LOTE-2026-RETRY-TEST",
         consultor_id: IDS.consultorMembro,
         status: "aberto",
