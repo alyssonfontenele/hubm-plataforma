@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { LoaderCircle, LayoutList, LayoutGrid, Plus, FileText } from "lucide-react";
+import { LoaderCircle, LayoutList, LayoutGrid, Plus, FileText, User } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ContratoPanel } from "@/components/moveria/contrato-panel";
 import { EtapaBadge, SubEstadoBadge, AtrasoBadge } from "@/components/moveria/status-badge";
+import { formatCodigoCliente } from "@/lib/moveria";
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 const searchSchema = z.object({ id: z.string().optional() });
@@ -30,6 +31,7 @@ type KanbanCard = {
   contrato_id: string;
   contrato_numero: string;
   cliente_nome: string;
+  cliente_codigo: string | null;
   lote_id: string | null;
   lote_numero: string | null;
   consultor_id: string | null;
@@ -64,57 +66,102 @@ function setViewMode(v: ViewMode) {
   try { localStorage.setItem("moveria.viewMode", v); } catch { /* ignore */ }
 }
 
-// ─── Card de contrato (kanban) ────────────────────────────────────────────────
+// ─── Sub-estado compacto ──────────────────────────────────────────────────────
+function SubEstadoMini({ sub }: { sub: "designado" | "em_rodadas" }) {
+  return sub === "em_rodadas" ? (
+    <span className="flex-shrink-0 text-[9px] font-semibold px-1 py-px rounded bg-[var(--color-warning-light)] text-[var(--color-warning-text)] border border-[var(--color-warning)] leading-none">
+      rodadas
+    </span>
+  ) : (
+    <span className="flex-shrink-0 text-[9px] font-semibold px-1 py-px rounded bg-[var(--color-info-light)] text-[var(--color-info-text)] border border-[var(--color-info)] leading-none">
+      desig.
+    </span>
+  );
+}
+
+// ─── Card de contrato — layout compacto ───────────────────────────────────────
 function KanbanContratoCard({
   card, isActive, onClick,
 }: { card: KanbanCard; isActive: boolean; onClick: () => void }) {
+  const codigo = formatCodigoCliente(card.cliente_codigo);
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left rounded-lg border p-3 transition-all ${
+      className={`w-full text-left rounded border transition-all min-w-0 ${
         isActive
           ? "border-foreground bg-accent-light shadow-sm"
-          : "border-border bg-surface hover:border-text-muted hover:shadow-sm"
+          : "border-border bg-surface hover:border-text-muted"
       }`}
     >
-      <div className="font-mono font-bold text-sm text-text-primary mb-1">
-        {card.contrato_numero}
+      {/* Topo: código · cliente + sub-estado */}
+      <div className="flex items-start gap-1 px-2 pt-2 pb-1 min-w-0">
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <div className="flex items-baseline gap-1 min-w-0 overflow-hidden">
+            {codigo && (
+              <span className="font-mono font-bold text-[11px] text-text-primary flex-shrink-0">{codigo}</span>
+            )}
+            {codigo && <span className="text-text-muted text-[10px] flex-shrink-0">·</span>}
+            <span className="text-[11px] text-text-secondary truncate leading-tight">{card.cliente_nome}</span>
+          </div>
+          {card.tem_atraso && (
+            <div className="flex items-center gap-0.5 mt-0.5">
+              <span className="text-[9px] font-semibold text-[var(--color-danger-text)]">⚠ atrasado</span>
+            </div>
+          )}
+        </div>
+        {card.sub_estado && <SubEstadoMini sub={card.sub_estado} />}
       </div>
-      <div className="text-xs text-text-secondary truncate mb-2">{card.cliente_nome}</div>
-      <div className="flex flex-wrap gap-1 items-center">
-        {card.qtd_ambientes_sem_lote > 0 && (
-          <span className="text-[10px] font-medium text-text-muted bg-accent-light border border-border px-1.5 py-0.5 rounded">
-            {card.qtd_ambientes_sem_lote} s/ lote
+      {/* Rodapé: consultor + s/lote */}
+      {(card.consultor_nome || card.qtd_ambientes_sem_lote > 0) && (
+        <div className="flex items-center gap-1 px-2 pb-1.5 pt-0.5 border-t border-border/50 min-w-0">
+          <User className="w-2.5 h-2.5 text-text-muted flex-shrink-0" />
+          <span className="text-[10px] text-text-muted truncate flex-1 min-w-0">
+            {card.consultor_nome ?? "—"}
           </span>
-        )}
-        {card.sub_estado && <SubEstadoBadge sub={card.sub_estado} />}
-        {card.tem_atraso && <AtrasoBadge />}
-        {card.consultor_nome && (
-          <span className="text-[10px] text-text-muted truncate">{card.consultor_nome}</span>
-        )}
-      </div>
+          {card.qtd_ambientes_sem_lote > 0 && (
+            <span className="flex-shrink-0 text-[10px] font-mono text-text-muted">
+              {card.qtd_ambientes_sem_lote}s/l
+            </span>
+          )}
+        </div>
+      )}
     </button>
   );
 }
 
-// ─── Card de lote (kanban) ────────────────────────────────────────────────────
+// ─── Card de lote — layout compacto ──────────────────────────────────────────
 function KanbanLoteCard({ card, isActive, onClick }: { card: KanbanCard; isActive: boolean; onClick: () => void }) {
+  const codigo = formatCodigoCliente(card.cliente_codigo);
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left rounded-lg border p-3 transition-all ${
+      className={`w-full text-left rounded border transition-all min-w-0 ${
         isActive
           ? "border-foreground bg-accent-light shadow-sm"
-          : "border-border bg-surface hover:border-text-muted hover:shadow-sm"
+          : "border-border bg-surface hover:border-text-muted"
       }`}
     >
-      <div className="flex items-center gap-1.5 mb-1">
-        <span className="font-mono font-bold text-sm text-text-primary">{card.lote_numero}</span>
-        {card.tem_ressalva && <span className="text-[10px] text-[var(--color-warning)] font-semibold">⚠</span>}
+      {/* Topo: código · cliente + ressalva */}
+      <div className="flex items-start gap-1 px-2 pt-2 pb-1 min-w-0">
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <div className="flex items-baseline gap-1 min-w-0 overflow-hidden">
+            {codigo && (
+              <span className="font-mono font-bold text-[11px] text-text-primary flex-shrink-0">{codigo}</span>
+            )}
+            {codigo && <span className="text-text-muted text-[10px] flex-shrink-0">·</span>}
+            <span className="text-[11px] text-text-secondary truncate leading-tight">{card.cliente_nome}</span>
+          </div>
+        </div>
+        {card.tem_ressalva && (
+          <span className="flex-shrink-0 text-[10px] text-[var(--color-warning)] font-bold">⚠</span>
+        )}
       </div>
-      <div className="text-xs text-text-muted truncate">{card.contrato_numero} · {card.cliente_nome}</div>
+      {/* Rodapé: consultor */}
       {card.consultor_nome && (
-        <div className="text-[10px] text-text-muted mt-1 truncate">{card.consultor_nome}</div>
+        <div className="flex items-center gap-1 px-2 pb-1.5 pt-0.5 border-t border-border/50 min-w-0">
+          <User className="w-2.5 h-2.5 text-text-muted flex-shrink-0" />
+          <span className="text-[10px] text-text-muted truncate">{card.consultor_nome}</span>
+        </div>
       )}
     </button>
   );
@@ -134,7 +181,7 @@ function ContratosWorkspace() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("moveria_kanban_v")
-        .select("tipo_card, etapa, contrato_id, contrato_numero, cliente_nome, lote_id, lote_numero, consultor_id, consultor_nome, status, conformado_em, tem_ressalva, qtd_itens, qtd_ambientes_sem_lote, sub_estado, data_prevista_max, tem_atraso");
+        .select("tipo_card, etapa, contrato_id, contrato_numero, cliente_nome, cliente_codigo, lote_id, lote_numero, consultor_id, consultor_nome, status, conformado_em, tem_ressalva, qtd_itens, qtd_ambientes_sem_lote, sub_estado, data_prevista_max, tem_atraso");
       if (error) throw error;
       return (data ?? []) as KanbanCard[];
     },
@@ -254,23 +301,27 @@ function ContratosWorkspace() {
       )}
 
       {!isLoading && viewMode === "kanban" && (
-        <div className="flex-1 overflow-x-auto overflow-y-hidden">
-          {/* min-w-max garante scroll horizontal quando as 8 cols não cabem */}
-          <div className="flex h-full gap-0 min-w-max">
+        /* Desktop ≥1024px: overflow hidden, 8 cols dividem o espaço (flex-1).
+           Mobile <1024px: overflow-x-auto, cada col tem min-w-[150px] (scroll). */
+        <div className="flex-1 overflow-x-auto lg:overflow-x-hidden overflow-y-hidden">
+          <div className="flex h-full gap-0 min-w-max lg:min-w-0">
             {KANBAN_COLUNAS.map((col) => {
               const colCards = cards.filter((c) => c.etapa === col.etapa);
               return (
-                <div key={col.etapa} className="flex flex-col h-full border-r border-border last:border-r-0" style={{ minWidth: 200, width: 220 }}>
-                  {/* Cabeçalho da coluna */}
-                  <div className="flex-shrink-0 px-3 py-2.5 border-b border-border bg-accent-light">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">{col.label}</p>
+                <div
+                  key={col.etapa}
+                  className="flex flex-col h-full border-r border-border last:border-r-0 min-w-[150px] lg:min-w-0 lg:flex-1"
+                >
+                  {/* Cabeçalho */}
+                  <div className="flex-shrink-0 px-2 py-2 border-b border-border bg-accent-light">
+                    <p className="text-[9px] font-semibold uppercase tracking-wider text-text-muted truncate">{col.label}</p>
                     <p className="text-xs text-text-secondary font-medium">{colCards.length}</p>
                   </div>
-                  {/* Cards ou empty state — sempre renderiza */}
-                  <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-2">
+                  {/* Cards — sempre renderiza */}
+                  <div className="flex-1 overflow-y-auto p-1.5 flex flex-col gap-1.5">
                     {colCards.length === 0 ? (
-                      <div className="text-xs text-text-muted text-center py-6 px-2 leading-relaxed">
-                        Nenhum card nesta etapa.
+                      <div className="text-[10px] text-text-muted text-center py-5 px-1 leading-relaxed">
+                        Vazio
                       </div>
                     ) : (
                       colCards.map((c) => {

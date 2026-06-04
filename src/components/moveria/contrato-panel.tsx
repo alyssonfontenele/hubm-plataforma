@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AptidaoBadge, EtapaBadge, type Aptidao } from "./status-badge";
+import { formatCodigoCliente } from "@/lib/moveria";
 import { AmbienteDrawer } from "./ambiente-drawer";
 import { LotesTab } from "./lotes-tab";
 import { ComentariosTab } from "./comentarios-tab";
@@ -448,16 +449,20 @@ export function ContratoPanel({
     },
   });
 
-  const { data: clienteInfo } = useQuery<{ nome: string; tipo: "PF" | "PJ" | "—" } | null>({
+  const { data: clienteInfo } = useQuery<{ nome: string; tipo: "PF" | "PJ" | "—"; codigo: string | null } | null>({
     queryKey: ["moveria_cliente", contrato?.cliente_id],
     enabled: !!contrato?.cliente_id,
     queryFn: async () => {
       const { data } = await supabase.from("moveria_clientes_v")
-        .select("nome_completo, cpf_mascarado, cnpj_hash")
+        .select("nome_completo, cpf_mascarado, cnpj_hash, codigo_cliente")
         .eq("id", contrato!.cliente_id!).maybeSingle();
       const cl = data as any;
       if (!cl) return null;
-      return { nome: cl.nome_completo, tipo: cl.cnpj_hash ? "PJ" : cl.cpf_mascarado ? "PF" : "—" };
+      return {
+        nome:   cl.nome_completo,
+        tipo:   cl.cnpj_hash ? "PJ" : cl.cpf_mascarado ? "PF" : "—",
+        codigo: cl.codigo_cliente ?? null,
+      };
     },
   });
 
@@ -497,6 +502,11 @@ export function ContratoPanel({
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-mono font-bold text-lg text-text-primary">{contrato.numero}</span>
+            {clienteInfo?.codigo && (
+              <span className="font-mono text-xs font-semibold text-text-muted bg-accent-light border border-border px-1.5 py-0.5 rounded">
+                {formatCodigoCliente(clienteInfo.codigo)}
+              </span>
+            )}
             {clienteInfo?.nome && (
               <span className="text-text-secondary text-sm truncate">{clienteInfo.nome}</span>
             )}

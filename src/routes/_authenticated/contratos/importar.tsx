@@ -211,6 +211,7 @@ function ImportarContratoPage() {
         // Atualiza campos que podem ter mudado
         await supabase.from("moveria_clientes").update({
           nome_completo:   form.cliente_nome,
+          codigo_cliente:  form.cliente_codigo || null,
           telefone:        form.telefone || null,
           email:           form.email || null,
           endereco:        form.end_atual_rua,
@@ -224,6 +225,7 @@ function ImportarContratoPage() {
         // ── 3. Cria novo cliente ────────────────────────────────────────────
         const clientePayload: Record<string, unknown> = {
           nome_completo:   form.cliente_nome,
+          codigo_cliente:  form.cliente_codigo || null,
           telefone:        form.telefone || null,
           email:           form.email || null,
           endereco:        form.end_atual_rua,
