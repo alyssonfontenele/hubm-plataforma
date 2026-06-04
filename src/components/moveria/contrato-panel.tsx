@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { LoaderCircle, ChevronRight, X, UserPlus } from "lucide-react";
+import { LoaderCircle, ChevronRight, X, UserPlus, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -101,7 +101,7 @@ function DesignacaoBlock({
 // ─── Lista de ambientes inline com aptidão + Select de rascunho (admin) ───────
 function AmbientesInline({
   ambientes, isLoading, canEdit, isAdmin, isVendedor, consultores, contratoId,
-  draft, onDraftChange, refetch,
+  draft, onDraftChange, redesignando, onRedesignarConfirm, refetch,
 }: {
   ambientes: AmbienteRow[];
   isLoading: boolean;
@@ -112,10 +112,13 @@ function AmbientesInline({
   contratoId: string;
   draft: Record<string, string>;
   onDraftChange: (itemId: string, consultorId: string) => void;
+  redesignando: Set<string>;
+  onRedesignarConfirm: (itemId: string) => void;
   refetch: () => void;
 }) {
   const [selectedItem, setSelectedItem] = useState<AmbienteRow | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [pendingRedesignarItem, setPendingRedesignarItem] = useState<AmbienteRow | null>(null);
 
   const aptMut = useMutation({
     mutationFn: async ({ id, aptidao }: { id: string; aptidao: Aptidao }) => {
@@ -159,10 +162,11 @@ function AmbientesInline({
         </div>
 
         {ambientes.map((a) => {
-          const nome = a.ambiente || a.descricao || a.codigo;
           // Valor exibido no Select: draft local > salvo no banco
           const consultorExibido = draft[a.id] ?? a.consultor_designado ?? "";
           const temRascunho = draft[a.id] !== undefined && draft[a.id] !== (a.consultor_designado ?? "");
+          const showDesc = a.descricao && a.descricao !== a.codigo;
+          const jaDesignado = !!a.consultor_designado && !redesignando.has(a.id);
 
           return (
             <div
@@ -172,38 +176,59 @@ function AmbientesInline({
               }`}
               style={{ gridTemplateColumns: gridCols }}
             >
-              {/* Col 1: nome + código */}
+              {/* Col 1: código · descrição */}
               <div className="min-w-0 overflow-hidden">
-                <p className="text-sm font-medium text-text-primary truncate">{nome}</p>
-                <p className="text-xs text-text-muted truncate">{a.codigo}</p>
+                <p className="text-sm font-medium text-text-primary truncate">
+                  <span className="font-mono">{a.codigo}</span>
+                  {showDesc && (
+                    <span className="font-normal text-text-secondary"> · {a.descricao}</span>
+                  )}
+                </p>
               </div>
 
-              {/* Col 2: Select consultor (só admin, só items designáveis) */}
+              {/* Col 2: consultor (só admin) */}
               {isAdmin && (
                 <div className="pr-2">
                   {podeDesignar(a) ? (
-                    <Select
-                      value={consultorExibido}
-                      onValueChange={(newId) => {
-                        if (!newId) return;
-                        onDraftChange(a.id, newId);
-                      }}
-                    >
-                      <SelectTrigger className={`h-7 text-xs w-full ${temRascunho ? "border-[var(--color-info)] ring-1 ring-[var(--color-info)]" : ""}`}>
-                        <SelectValue placeholder={
-                          <span className="flex items-center gap-1 text-text-muted">
-                            <UserPlus className="w-3 h-3" /> Designar
-                          </span>
-                        } />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {consultores.map((c) => (
-                          <SelectItem key={c.id} value={c.id} className="text-xs">
-                            {c.full_name ?? c.id}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    jaDesignado ? (
+                      // Já designado e salvo → READ-ONLY + botão Redesignar
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-xs text-text-secondary truncate">
+                          {consultores.find((c) => c.id === a.consultor_designado)?.full_name ?? "—"}
+                        </span>
+                        <button
+                          onClick={() => setPendingRedesignarItem(a)}
+                          className="flex-shrink-0 p-0.5 rounded text-text-muted hover:text-text-primary hover:bg-accent-light transition-colors"
+                          title="Redesignar"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      // Não designado ou desbloqueado para redesignação → Select editável
+                      <Select
+                        value={consultorExibido}
+                        onValueChange={(newId) => {
+                          if (!newId) return;
+                          onDraftChange(a.id, newId);
+                        }}
+                      >
+                        <SelectTrigger className={`h-7 text-xs w-full ${temRascunho ? "border-[var(--color-info)] ring-1 ring-[var(--color-info)]" : ""}`}>
+                          <SelectValue placeholder={
+                            <span className="flex items-center gap-1 text-text-muted">
+                              <UserPlus className="w-3 h-3" /> Designar
+                            </span>
+                          } />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {consultores.map((c) => (
+                            <SelectItem key={c.id} value={c.id} className="text-xs">
+                              {c.full_name ?? c.id}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )
                   ) : (
                     // Item em lote ou apto/ressalva: mostra nome do consultor sem Select
                     <span className="text-xs text-text-muted truncate block">
@@ -267,6 +292,31 @@ function AmbientesInline({
         onClose={() => setDrawerOpen(false)}
         onAptidaoChange={refetch}
       />
+
+      <AlertDialog open={!!pendingRedesignarItem} onOpenChange={(o) => { if (!o) setPendingRedesignarItem(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Redesignar ambiente</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que quer alterar a designação já definida para{" "}
+              <span className="font-semibold">
+                {pendingRedesignarItem?.codigo}
+                {pendingRedesignarItem?.descricao && pendingRedesignarItem.descricao !== pendingRedesignarItem.codigo
+                  ? ` · ${pendingRedesignarItem.descricao}` : ""}
+              </span>?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (pendingRedesignarItem) onRedesignarConfirm(pendingRedesignarItem.id);
+              setPendingRedesignarItem(null);
+            }}>
+              Sim, redesignar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
@@ -434,6 +484,7 @@ export function ContratoPanel({
 
   // ── Draft de designação (estado local, não salvo no banco ainda) ──
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [redesignando, setRedesignando] = useState<Set<string>>(new Set());
   const [dataPrevista, setDataPrevista] = useState("");
   const [confirmDesigOpen, setConfirmDesigOpen] = useState(false);
   const [alertSairOpen, setAlertSairOpen] = useState(false);
@@ -515,7 +566,9 @@ export function ContratoPanel({
 
   function aplicarTodos(consultorId: string) {
     const updates: Record<string, string> = { ...draft };
-    ambientes.filter(podeDesignar).forEach((a) => { updates[a.id] = consultorId; });
+    ambientes
+      .filter((a) => podeDesignar(a) && (!a.consultor_designado || redesignando.has(a.id)))
+      .forEach((a) => { updates[a.id] = consultorId; });
     setDraft(updates);
   }
 
@@ -582,6 +635,7 @@ export function ContratoPanel({
       qc.invalidateQueries({ queryKey: ["moveria_kanban"] });
 
       setDraft({});
+      setRedesignando(new Set());
       setConfirmDesigOpen(false);
       onClose?.();
     },
@@ -712,6 +766,8 @@ export function ContratoPanel({
             contratoId={contratoId}
             draft={draft}
             onDraftChange={setItemDraft}
+            redesignando={redesignando}
+            onRedesignarConfirm={(id) => setRedesignando((prev) => new Set([...prev, id]))}
             refetch={refetchAmbientes}
           />
         </TabsContent>
