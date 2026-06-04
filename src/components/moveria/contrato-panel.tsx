@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { LoaderCircle, ChevronRight, X } from "lucide-react";
+import { LoaderCircle, ChevronRight, X, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -17,6 +16,7 @@ import { formatCodigoCliente } from "@/lib/moveria";
 import { AmbienteDrawer } from "./ambiente-drawer";
 import { LotesTab } from "./lotes-tab";
 import { ComentariosTab } from "./comentarios-tab";
+import { DialogDesignacaoCerimoniosa, type AfetadoItem } from "./dialog-designacao-cerimon";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ContratoRow = {
@@ -26,8 +26,10 @@ type ContratoRow = {
 type AmbienteRow = {
   id: string; codigo: string; descricao: string;
   ambiente: string | null; aptidao: Aptidao; aptidao_obs: string | null; ordem: number | null;
+  consultor_designado: string | null;
 };
 type MedicaoRow = { id: string; contrato_id: string; consultor_id: string; data_visita: string; status: string; sequencia: string };
+type ConsultorItem = { id: string; full_name: string | null };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function rpcFriendly(msg: string) {
@@ -38,40 +40,84 @@ function rpcFriendly(msg: string) {
   return msg;
 }
 
+async function gravarEventoDesignacao(payload: {
+  scope: "todos" | "item";
+  contratoId: string;
+  itemId?: string;
+  profileId: string;
+  consultorNovoId: string;
+  consultorNovoNome: string;
+  afetados?: AfetadoItem[];
+  consultorAnteriorId?: string | null;
+  consultorAnteriorNome?: string | null;
+  dataPrevista: string;
+}) {
+  const eventPayload: Record<string, unknown> = {
+    scope: payload.scope,
+    consultor_novo_id: payload.consultorNovoId,
+    consultor_novo_nome: payload.consultorNovoNome,
+    data_prevista: payload.dataPrevista || null,
+  };
+
+  if (payload.scope === "todos" && payload.afetados) {
+    eventPayload.ambientes_afetados = payload.afetados.map((a) => a.itemId);
+    eventPayload.alteracoes = payload.afetados
+      .filter((a) => a.consultorAnteriorId && a.consultorAnteriorId !== payload.consultorNovoId)
+      .map((a) => ({
+        item_id: a.itemId,
+        de: a.consultorAnteriorId,
+        de_nome: a.consultorAnteriorNome,
+        para: payload.consultorNovoId,
+      }));
+  }
+
+  if (payload.scope === "item") {
+    eventPayload.consultor_anterior_id = payload.consultorAnteriorId ?? null;
+    eventPayload.consultor_anterior_nome = payload.consultorAnteriorNome ?? null;
+  }
+
+  await supabase.from("moveria_eventos").insert({
+    tipo: "designacao_registrada",
+    contrato_id: payload.contratoId,
+    ...(payload.itemId ? { item_id: payload.itemId } : {}),
+    autor_id: payload.profileId,
+    payload: eventPayload,
+  });
+}
+
 // ─── Designação em massa ──────────────────────────────────────────────────────
-function DesignacaoBlock({ contratoId, isAdmin }: { contratoId: string; isAdmin: boolean }) {
+function DesignacaoBlock({
+  contratoId, isAdmin, profileId, consultores,
+}: {
+  contratoId: string; isAdmin: boolean; profileId: string; consultores: ConsultorItem[];
+}) {
   const qc = useQueryClient();
   const [consultorId, setConsultorId] = useState("");
   const [dataPrevista, setDataPrevista] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const { data: consultores = [] } = useQuery<{ id: string; full_name: string | null }[]>({
-    queryKey: ["moveria_consultores"],
+  const consultorNome = consultores.find((c) => c.id === consultorId)?.full_name ?? "";
+
+  // Carrega afetados somente quando o dialog está aberto
+  const { data: afetados = [], isLoading: afetadosLoading } = useQuery<AfetadoItem[]>({
+    queryKey: ["moveria_afetados_desig", contratoId, confirmOpen],
+    enabled: confirmOpen && !!consultorId,
     queryFn: async () => {
-      const { data: membros } = await supabase.from("moveria_membros")
-        .select("id, profile_id").eq("papel", "consultor_tecnico").eq("ativo", true);
-      const ids = (membros ?? []).map((m: any) => m.profile_id as string);
-      if (!ids.length) return [];
-      const { data: profs } = await supabase.from("profiles").select("id, full_name").in("id", ids);
-      return (membros ?? []).map((m: any) => ({
-        id: m.id as string,
-        full_name: (profs ?? []).find((p: any) => p.id === m.profile_id)?.full_name ?? null,
+      const { data } = await supabase
+        .from("moveria_itens_contrato")
+        .select("id, ambiente, descricao, codigo, consultor_designado")
+        .eq("contrato_id", contratoId)
+        .is("deletado_em", null)
+        .is("lote_id", null)
+        .in("aptidao", ["pendente", "inapto"]);
+      return (data ?? []).map((item: any) => ({
+        itemId: item.id as string,
+        itemNome: (item.ambiente || item.descricao || item.codigo) as string,
+        consultorAnteriorId: (item.consultor_designado as string | null) ?? null,
+        consultorAnteriorNome: consultores.find((c) => c.id === item.consultor_designado)?.full_name ?? null,
       }));
     },
   });
-
-  const { data: qtdAmbientes = 0 } = useQuery<number>({
-    queryKey: ["moveria_ambientes_count", contratoId],
-    queryFn: async () => {
-      const { count } = await supabase.from("moveria_itens_contrato")
-        .select("id", { count: "exact", head: true })
-        .eq("contrato_id", contratoId).is("deletado_em", null)
-        .is("lote_id", null).in("aptidao", ["pendente", "inapto"]);
-      return count ?? 0;
-    },
-  });
-
-  const consultorNome = consultores.find((c) => c.id === consultorId)?.full_name ?? "";
 
   const designar = useMutation({
     mutationFn: async () => {
@@ -82,7 +128,16 @@ function DesignacaoBlock({ contratoId, isAdmin }: { contratoId: string; isAdmin:
       if (error) throw error;
       return data as number;
     },
-    onSuccess: (qtd) => {
+    onSuccess: async (qtd) => {
+      await gravarEventoDesignacao({
+        scope: "todos",
+        contratoId,
+        profileId,
+        consultorNovoId: consultorId,
+        consultorNovoNome: consultorNome,
+        afetados,
+        dataPrevista,
+      });
       const dataStr = dataPrevista
         ? new Date(dataPrevista + "T12:00:00").toLocaleDateString("pt-BR") : "sem previsão";
       toast.success(`${qtd} ambiente(s) designado(s) para ${consultorNome} — previsão: ${dataStr}`);
@@ -126,49 +181,45 @@ function DesignacaoBlock({ contratoId, isAdmin }: { contratoId: string; isAdmin:
         </Button>
       </div>
 
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar designação</DialogTitle>
-            <DialogDescription>
-              {qtdAmbientes} ambiente(s) serão designados para{" "}
-              <strong>{consultorNome || "—"}</strong>
-              {dataPrevista && (
-                <> com previsão de medição em{" "}
-                  <strong>{new Date(dataPrevista + "T12:00:00").toLocaleDateString("pt-BR")}</strong>
-                </>
-              )}.
-              Designações anteriores serão substituídas. Medições já finalizadas são preservadas.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmOpen(false)}>Cancelar</Button>
-            <Button onClick={() => designar.mutate()} disabled={designar.isPending}>
-              {designar.isPending && <LoaderCircle className="w-3.5 h-3.5 animate-spin mr-1.5" />}
-              Confirmar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DialogDesignacaoCerimoniosa
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        scope="todos"
+        consultorNovoNome={consultorNome}
+        dataPrevista={dataPrevista}
+        afetados={afetados}
+        afetadosLoading={afetadosLoading}
+        onConfirm={() => designar.mutate()}
+        isPending={designar.isPending}
+      />
     </div>
   );
 }
 
-// ─── Lista de ambientes inline com aptidão ────────────────────────────────────
+// ─── Lista de ambientes inline com aptidão + designação por linha (admin) ─────
 function AmbientesInline({
-  contratoId, canEdit, isAdmin, isVendedor, medicaoId,
+  contratoId, canEdit, isAdmin, isVendedor, profileId, consultores,
 }: {
-  contratoId: string; canEdit: boolean; isAdmin: boolean; isVendedor: boolean; medicaoId?: string;
+  contratoId: string; canEdit: boolean; isAdmin: boolean; isVendedor: boolean;
+  profileId: string; consultores: ConsultorItem[];
 }) {
+  const qc = useQueryClient();
   const [selectedItem, setSelectedItem] = useState<AmbienteRow | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Designação por linha: item pendente de confirmação
+  const [pendingDesig, setPendingDesig] = useState<{
+    item: AmbienteRow;
+    consultorNovoId: string;
+    dataPrevista: string;
+  } | null>(null);
 
   const { data: ambientes = [], isLoading, refetch } = useQuery<AmbienteRow[]>({
     queryKey: ["moveria_ambientes", contratoId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("moveria_itens_contrato")
-        .select("id, codigo, descricao, ambiente, aptidao, aptidao_obs, ordem")
+        .select("id, codigo, descricao, ambiente, aptidao, aptidao_obs, ordem, consultor_designado")
         .eq("contrato_id", contratoId).is("deletado_em", null)
         .order("ordem");
       if (error) throw error;
@@ -186,6 +237,42 @@ function AmbientesInline({
     onError: (e: any) => toast.error(e.message ?? "Erro ao salvar aptidão"),
   });
 
+  const designarItem = useMutation({
+    mutationFn: async ({ itemId, consultorId, dataPrev }: { itemId: string; consultorId: string; dataPrev: string }) => {
+      const { data, error } = await supabase.rpc("moveria_fn_designar_item", {
+        p_item_id: itemId,
+        p_consultor_id: consultorId,
+        p_data_prevista: dataPrev || null,
+      });
+      if (error) throw error;
+      return data as number;
+    },
+    onSuccess: async (_qtd, vars) => {
+      const item = pendingDesig?.item;
+      const consultorNome = consultores.find((c) => c.id === vars.consultorId)?.full_name ?? "";
+      const antId = item?.consultor_designado ?? null;
+      const antNome = antId ? (consultores.find((c) => c.id === antId)?.full_name ?? null) : null;
+
+      await gravarEventoDesignacao({
+        scope: "item",
+        contratoId,
+        itemId: vars.itemId,
+        profileId,
+        consultorNovoId: vars.consultorId,
+        consultorNovoNome: consultorNome,
+        consultorAnteriorId: antId,
+        consultorAnteriorNome: antNome,
+        dataPrevista: vars.dataPrev,
+      });
+
+      toast.success(`Ambiente designado para ${consultorNome}`);
+      qc.invalidateQueries({ queryKey: ["moveria_ambientes", contratoId] });
+      qc.invalidateQueries({ queryKey: ["moveria_kanban"] });
+      setPendingDesig(null);
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao designar ambiente"),
+  });
+
   if (isLoading) return (
     <div className="flex justify-center py-8">
       <LoaderCircle className="w-5 h-5 animate-spin text-text-muted" />
@@ -198,13 +285,28 @@ function AmbientesInline({
     </div>
   );
 
+  // Colunas: [nome] [consultor — só admin] [aptidão] [seta]
+  const gridCols = isAdmin
+    ? "minmax(0,1fr) minmax(120px,180px) auto auto"
+    : "minmax(0,1fr) auto auto";
+
+  const pendingConsultorNome = pendingDesig
+    ? (consultores.find((c) => c.id === pendingDesig.consultorNovoId)?.full_name ?? "")
+    : "";
+  const pendingAntNome = pendingDesig?.item.consultor_designado
+    ? (consultores.find((c) => c.id === pendingDesig.item.consultor_designado)?.full_name ?? null)
+    : null;
+
   return (
     <>
       <div className="rounded-lg border border-border overflow-hidden">
         {/* Header */}
-        <div className="grid bg-accent-light px-3 py-2 border-b border-border text-[10px] font-semibold uppercase tracking-wider text-text-muted"
-          style={{ gridTemplateColumns: "minmax(0,1fr) auto auto" }}>
+        <div
+          className="grid bg-accent-light px-3 py-2 border-b border-border text-[10px] font-semibold uppercase tracking-wider text-text-muted"
+          style={{ gridTemplateColumns: gridCols }}
+        >
           <div>Ambiente</div>
+          {isAdmin && <div>Consultor</div>}
           {!isVendedor && <div className="text-right pr-2">Aptidão</div>}
           <div />
         </div>
@@ -212,15 +314,46 @@ function AmbientesInline({
         {ambientes.map((a) => {
           const nome = a.ambiente || a.descricao || a.codigo;
           return (
-            <div key={a.id}
+            <div
+              key={a.id}
               className="grid px-3 py-2.5 border-b border-border last:border-0 items-center hover:bg-accent-light/50 transition-colors"
-              style={{ gridTemplateColumns: "minmax(0,1fr) auto auto" }}>
+              style={{ gridTemplateColumns: gridCols }}
+            >
+              {/* Col 1: nome + código */}
               <div className="min-w-0 overflow-hidden">
                 <p className="text-sm font-medium text-text-primary truncate">{nome}</p>
                 <p className="text-xs text-text-muted truncate">{a.codigo}</p>
               </div>
 
-              {/* Aptidão inline (só consultor/admin em modo medição) */}
+              {/* Col 2: Select consultor (só admin) */}
+              {isAdmin && (
+                <div className="pr-2">
+                  <Select
+                    value={a.consultor_designado ?? ""}
+                    onValueChange={(newId) => {
+                      if (!newId || newId === a.consultor_designado) return;
+                      setPendingDesig({ item: a, consultorNovoId: newId, dataPrevista: "" });
+                    }}
+                  >
+                    <SelectTrigger className="h-7 text-xs w-full">
+                      <SelectValue placeholder={
+                        <span className="flex items-center gap-1 text-text-muted">
+                          <UserPlus className="w-3 h-3" /> Designar
+                        </span>
+                      } />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {consultores.map((c) => (
+                        <SelectItem key={c.id} value={c.id} className="text-xs">
+                          {c.full_name ?? c.id}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Col 3: Aptidão inline ou badge */}
               {!isVendedor && canEdit ? (
                 <div className="flex gap-1 pr-2">
                   {(["apto", "apto_ressalva", "inapto"] as Aptidao[]).map((apt) => {
@@ -250,7 +383,7 @@ function AmbientesInline({
                 </div>
               )}
 
-              {/* Seta → detalhe (exceto vendedor) */}
+              {/* Col 4: Seta → detalhe */}
               {!isVendedor && (
                 <button
                   onClick={() => { setSelectedItem(a); setDrawerOpen(true); }}
@@ -272,6 +405,27 @@ function AmbientesInline({
         onClose={() => setDrawerOpen(false)}
         onAptidaoChange={() => refetch()}
       />
+
+      {/* Dialog cerimonioso para designação por linha */}
+      {pendingDesig && (
+        <DialogDesignacaoCerimoniosa
+          open={!!pendingDesig}
+          onOpenChange={(v) => { if (!v) setPendingDesig(null); }}
+          scope="item"
+          consultorNovoNome={pendingConsultorNome}
+          dataPrevista={pendingDesig.dataPrevista}
+          itemNome={pendingDesig.item.ambiente || pendingDesig.item.descricao || pendingDesig.item.codigo}
+          consultorAnteriorNome={pendingAntNome}
+          onConfirm={() =>
+            designarItem.mutate({
+              itemId: pendingDesig.item.id,
+              consultorId: pendingDesig.consultorNovoId,
+              dataPrev: pendingDesig.dataPrevista,
+            })
+          }
+          isPending={designarItem.isPending}
+        />
+      )}
     </>
   );
 }
@@ -358,7 +512,6 @@ function MedicaoBlock({
     <div className="rounded-lg border border-border bg-surface p-4 mb-4">
       <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">Sessão de Medição</p>
 
-      {/* Resumo de aptidão */}
       <div className="flex gap-3 text-xs mb-3 text-text-secondary">
         <span><span className="font-semibold text-[var(--color-success-text)]">{nApto}</span> apto(s)</span>
         <span><span className="font-semibold text-[var(--color-warning-text)]">{nRessalva}</span> c/ ressalva</span>
@@ -388,7 +541,6 @@ function MedicaoBlock({
         </div>
       )}
 
-      {/* Dialog de confirmação */}
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
           <DialogHeader>
@@ -476,9 +628,27 @@ export function ContratoPanel({
     },
   });
 
-  const isVendedor = membro?.papel === "vendedor";
+  // Consultores ativos — compartilhado entre DesignacaoBlock e AmbientesInline
+  const { data: consultores = [] } = useQuery<ConsultorItem[]>({
+    queryKey: ["moveria_consultores"],
+    enabled: isAdmin,
+    queryFn: async () => {
+      const { data: membros } = await supabase.from("moveria_membros")
+        .select("id, profile_id").eq("papel", "consultor_tecnico").eq("ativo", true);
+      const ids = (membros ?? []).map((m: any) => m.profile_id as string);
+      if (!ids.length) return [];
+      const { data: profs } = await supabase.from("profiles").select("id, full_name").in("id", ids);
+      return (membros ?? []).map((m: any) => ({
+        id: m.id as string,
+        full_name: (profs ?? []).find((p: any) => p.id === m.profile_id)?.full_name ?? null,
+      }));
+    },
+  });
+
+  const isVendedor  = membro?.papel === "vendedor";
   const isConsultor = membro?.papel === "consultor_tecnico";
-  const canEdit = isAdmin || isConsultor;
+  const canEdit     = isAdmin || isConsultor;
+  const profileId   = profile?.id ?? "";
 
   if (loadingC) return (
     <div className="flex-1 flex items-center justify-center">
@@ -544,12 +714,15 @@ export function ContratoPanel({
 
         {/* ── Ambientes ── */}
         <TabsContent value="ambientes" className="flex-1 overflow-y-auto px-5 py-4 mt-0">
-          {/* Designação (admin) */}
           {isAdmin && (
-            <DesignacaoBlock contratoId={contratoId} isAdmin={isAdmin} />
+            <DesignacaoBlock
+              contratoId={contratoId}
+              isAdmin={isAdmin}
+              profileId={profileId}
+              consultores={consultores}
+            />
           )}
 
-          {/* Bloco de sessão (consultor ou admin) */}
           {!isVendedor && (
             <MedicaoBlock
               contratoId={contratoId}
@@ -561,13 +734,13 @@ export function ContratoPanel({
             />
           )}
 
-          {/* Lista de ambientes */}
           <AmbientesInline
             contratoId={contratoId}
             canEdit={canEdit}
             isAdmin={isAdmin}
             isVendedor={isVendedor}
-            medicaoId={undefined}
+            profileId={profileId}
+            consultores={consultores}
           />
         </TabsContent>
 

@@ -5,11 +5,6 @@ import { LoaderCircle, LayoutList, LayoutGrid, Plus, FileText, User } from "luci
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { ContratoPanel } from "@/components/moveria/contrato-panel";
 import { EtapaBadge, SubEstadoBadge, AtrasoBadge } from "@/components/moveria/status-badge";
@@ -357,23 +352,13 @@ function ContratosWorkspace() {
   return (
     <div className="h-[calc(100vh-4rem)]">
       {selectedId ? (
-        <ResizablePanelGroup direction="horizontal" className="h-full">
-          <ResizablePanel defaultSize={35} minSize={25} maxSize={55}>
-            <div className="h-full bg-background border-r border-border">
-              <ListaPanel />
-            </div>
-          </ResizablePanel>
-          <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={65}>
-            <div className="h-full bg-surface overflow-hidden">
-              <ContratoPanel
-                key={selectedId}
-                contratoId={selectedId}
-                onClose={() => navigate({ to: "/contratos", search: {} })}
-              />
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+        <div className="h-full bg-surface overflow-hidden">
+          <ContratoPanel
+            key={selectedId}
+            contratoId={selectedId}
+            onClose={() => navigate({ to: "/contratos", search: {} })}
+          />
+        </div>
       ) : (
         <div className="h-full bg-background">
           <ListaPanel />
