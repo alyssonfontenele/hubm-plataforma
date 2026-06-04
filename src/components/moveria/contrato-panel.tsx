@@ -87,9 +87,10 @@ async function gravarEventoDesignacao(payload: {
 
 // ─── Designação em massa ──────────────────────────────────────────────────────
 function DesignacaoBlock({
-  contratoId, isAdmin, profileId, consultores,
+  contratoId, isAdmin, profileId, consultores, onClose,
 }: {
   contratoId: string; isAdmin: boolean; profileId: string; consultores: ConsultorItem[];
+  onClose?: () => void;
 }) {
   const qc = useQueryClient();
   const [consultorId, setConsultorId] = useState("");
@@ -144,6 +145,7 @@ function DesignacaoBlock({
       qc.invalidateQueries({ queryKey: ["moveria_kanban"] });
       qc.invalidateQueries({ queryKey: ["moveria_ambientes", contratoId] });
       setConfirmOpen(false);
+      onClose?.();
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao designar"),
   });
@@ -198,10 +200,10 @@ function DesignacaoBlock({
 
 // ─── Lista de ambientes inline com aptidão + designação por linha (admin) ─────
 function AmbientesInline({
-  contratoId, canEdit, isAdmin, isVendedor, profileId, consultores,
+  contratoId, canEdit, isAdmin, isVendedor, profileId, consultores, onClose,
 }: {
   contratoId: string; canEdit: boolean; isAdmin: boolean; isVendedor: boolean;
-  profileId: string; consultores: ConsultorItem[];
+  profileId: string; consultores: ConsultorItem[]; onClose?: () => void;
 }) {
   const qc = useQueryClient();
   const [selectedItem, setSelectedItem] = useState<AmbienteRow | null>(null);
@@ -269,6 +271,7 @@ function AmbientesInline({
       qc.invalidateQueries({ queryKey: ["moveria_ambientes", contratoId] });
       qc.invalidateQueries({ queryKey: ["moveria_kanban"] });
       setPendingDesig(null);
+      onClose?.();
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao designar ambiente"),
   });
@@ -720,6 +723,7 @@ export function ContratoPanel({
               isAdmin={isAdmin}
               profileId={profileId}
               consultores={consultores}
+              onClose={onClose}
             />
           )}
 
@@ -741,6 +745,7 @@ export function ContratoPanel({
             isVendedor={isVendedor}
             profileId={profileId}
             consultores={consultores}
+            onClose={onClose}
           />
         </TabsContent>
 
