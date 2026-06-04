@@ -253,44 +253,46 @@ function ContratosWorkspace() {
         </div>
       )}
 
-      {!isLoading && viewMode === "kanban" && cards.length > 0 && (
+      {!isLoading && viewMode === "kanban" && (
         <div className="flex-1 overflow-x-auto overflow-y-hidden">
+          {/* min-w-max garante scroll horizontal quando as 8 cols não cabem */}
           <div className="flex h-full gap-0 min-w-max">
             {KANBAN_COLUNAS.map((col) => {
               const colCards = cards.filter((c) => c.etapa === col.etapa);
-              if (colCards.length === 0 && !["backlog", "aguardando_medicao"].includes(col.etapa)) return null;
               return (
-                <div key={col.etapa} className="flex flex-col h-full border-r border-border last:border-r-0" style={{ width: 220 }}>
+                <div key={col.etapa} className="flex flex-col h-full border-r border-border last:border-r-0" style={{ minWidth: 200, width: 220 }}>
+                  {/* Cabeçalho da coluna */}
                   <div className="flex-shrink-0 px-3 py-2.5 border-b border-border bg-accent-light">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">{col.label}</p>
                     <p className="text-xs text-text-secondary font-medium">{colCards.length}</p>
                   </div>
+                  {/* Cards ou empty state — sempre renderiza */}
                   <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-2">
-                    {colCards.length === 0 && (
-                      <div className="text-xs text-text-muted text-center py-6 px-2">
-                        {col.etapa === "backlog" ? "Nenhum contrato no backlog." :
-                         col.etapa === "aguardando_medicao" ? "Nenhum aguardando medição." : "Vazio"}
+                    {colCards.length === 0 ? (
+                      <div className="text-xs text-text-muted text-center py-6 px-2 leading-relaxed">
+                        Nenhum card nesta etapa.
                       </div>
+                    ) : (
+                      colCards.map((c) => {
+                        const id = c.contrato_id;
+                        const isActive = selectedId === id;
+                        return c.tipo_card === "contrato" ? (
+                          <KanbanContratoCard
+                            key={c.contrato_id}
+                            card={c}
+                            isActive={isActive}
+                            onClick={() => selectContrato(id)}
+                          />
+                        ) : (
+                          <KanbanLoteCard
+                            key={c.lote_id}
+                            card={c}
+                            isActive={isActive}
+                            onClick={() => selectContrato(id)}
+                          />
+                        );
+                      })
                     )}
-                    {colCards.map((c) => {
-                      const id = c.contrato_id;
-                      const isActive = selectedId === id;
-                      return c.tipo_card === "contrato" ? (
-                        <KanbanContratoCard
-                          key={c.contrato_id}
-                          card={c}
-                          isActive={isActive}
-                          onClick={() => selectContrato(id)}
-                        />
-                      ) : (
-                        <KanbanLoteCard
-                          key={c.lote_id}
-                          card={c}
-                          isActive={isActive}
-                          onClick={() => selectContrato(id)}
-                        />
-                      );
-                    })}
                   </div>
                 </div>
               );
