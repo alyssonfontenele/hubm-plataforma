@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { LoaderCircle, ChevronRight, X, UserPlus, RotateCcw } from "lucide-react";
+import { LoaderCircle, ChevronRight, X, UserPlus, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,7 +24,7 @@ import { DialogDesignacaoCerimoniosa, type EntradaRascunho } from "./dialog-desi
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ContratoRow = {
-  id: string; numero: string; status: string;
+  id: string; numero: string; numero_base: string; status: string;
   cliente_id: string | null; vendedor_id: string | null; data_contrato: string | null;
 };
 type AmbienteRow = {
@@ -470,6 +470,106 @@ function MedicaoBlock({
   );
 }
 
+// ─── Dialog cerimonioso de exclusão de contrato ───────────────────────────────
+function DialogExcluirContrato({
+  open, onOpenChange, contrato, onSuccess,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  contrato: ContratoRow;
+  onSuccess: () => void;
+}) {
+  const [checked, setChecked] = useState(false);
+  const [inputNumero, setInputNumero] = useState("");
+
+  useEffect(() => {
+    if (!open) { setChecked(false); setInputNumero(""); }
+  }, [open]);
+
+  const canConfirm = checked && inputNumero === contrato.numero_base;
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("moveria_fn_excluir_contrato", {
+        p_contrato_id: contrato.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success(`Contrato ${contrato.numero} excluído com sucesso.`);
+      onOpenChange(false);
+      onSuccess();
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao excluir contrato"),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-[var(--color-danger)]">
+            <Trash2 className="w-4 h-4" />
+            Excluir contrato {contrato.numero}
+          </DialogTitle>
+          <DialogDescription asChild>
+            <div className="space-y-2.5 text-sm text-text-secondary pt-1">
+              <p>
+                Esta ação é <strong>permanente e irreversível</strong>. Todos os dados serão apagados:
+                itens, lotes, designações, medições, questionários e documentos.{" "}
+                <strong>O cliente não é apagado.</strong>
+              </p>
+              <p className="text-[var(--color-warning-text)] bg-[var(--color-warning-light)] border border-[var(--color-warning)] rounded px-3 py-2 text-xs">
+                ⚠ Para recuperar, será necessário reimportar o PDF do início.
+              </p>
+            </div>
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-1">
+          <label className="flex items-start gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={(e) => setChecked(e.target.checked)}
+              className="mt-0.5 accent-[var(--color-danger)]"
+            />
+            <span className="text-sm">Entendo que esta ação é irreversível</span>
+          </label>
+
+          <div className="space-y-1.5">
+            <p className="text-xs text-text-muted">
+              Digite o número do contrato{" "}
+              <span className="font-mono font-semibold">{contrato.numero_base}</span>{" "}
+              para confirmar:
+            </p>
+            <input
+              type="text"
+              value={inputNumero}
+              onChange={(e) => setInputNumero(e.target.value)}
+              placeholder={contrato.numero_base}
+              className="w-full h-9 text-sm border border-border rounded-md px-3 bg-surface focus:outline-none focus:ring-1 focus:ring-ring font-mono"
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={mutation.isPending}>
+            Cancelar
+          </Button>
+          <Button
+            variant="destructive"
+            disabled={!canConfirm || mutation.isPending}
+            onClick={() => mutation.mutate()}
+          >
+            {mutation.isPending && <LoaderCircle className="w-3.5 h-3.5 animate-spin mr-1.5" />}
+            Excluir contrato
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── ContratoPanel ────────────────────────────────────────────────────────────
 export function ContratoPanel({
   contratoId,
@@ -488,13 +588,14 @@ export function ContratoPanel({
   const [dataPrevista, setDataPrevista] = useState("");
   const [confirmDesigOpen, setConfirmDesigOpen] = useState(false);
   const [alertSairOpen, setAlertSairOpen] = useState(false);
+  const [excluirOpen, setExcluirOpen] = useState(false);
 
   // ── Queries ──────────────────────────────────────────────────────
   const { data: contrato, isLoading: loadingC } = useQuery<ContratoRow | null>({
     queryKey: ["moveria_contrato", contratoId],
     queryFn: async () => {
       const { data } = await supabase.from("moveria_contratos_v")
-        .select("id, numero, status, cliente_id, vendedor_id, data_contrato")
+        .select("id, numero, numero_base, status, cliente_id, vendedor_id, data_contrato")
         .eq("id", contratoId).maybeSingle();
       return (data as ContratoRow | null) ?? null;
     },
@@ -540,6 +641,22 @@ export function ContratoPanel({
       return (data ?? []) as AmbienteRow[];
     },
   });
+
+  // Etapa do contrato (para controle de permissão de exclusão — só admin)
+  const { data: contratoStage, isLoading: loadingStage } = useQuery<{
+    temLoteAvancado: boolean; statusAvancado: string | null;
+  }>({
+    queryKey: ["moveria_contrato_stage", contratoId],
+    enabled: isAdmin,
+    queryFn: async () => {
+      const { data } = await supabase.from("moveria_lotes")
+        .select("status").eq("contrato_id", contratoId)
+        .neq("status", "aberto").neq("status", "cancelado")
+        .limit(1).maybeSingle();
+      return { temLoteAvancado: !!data, statusAvancado: (data as any)?.status ?? null };
+    },
+  });
+  const temLoteAvancado = contratoStage?.temLoteAvancado ?? false;
 
   // Consultores ativos (só admin)
   const { data: consultores = [] } = useQuery<ConsultorItem[]>({
@@ -652,9 +769,11 @@ export function ContratoPanel({
   }
 
   // ── Roles ─────────────────────────────────────────────────────────
-  const isVendedor  = membro?.papel === "vendedor";
-  const isConsultor = membro?.papel === "consultor_tecnico";
-  const canEdit     = isAdmin || isConsultor;
+  const isSuperadmin = globalRole === "superadmin";
+  const isVendedor   = membro?.papel === "vendedor";
+  const isConsultor  = membro?.papel === "consultor_tecnico";
+  const canEdit      = isAdmin || isConsultor;
+  const podeDeletar  = isAdmin && (isSuperadmin || !temLoteAvancado) && !loadingStage;
 
   if (loadingC) return (
     <div className="flex-1 flex items-center justify-center">
@@ -697,14 +816,31 @@ export function ContratoPanel({
             {dataFmt && <span>{dataFmt}</span>}
           </div>
         </div>
-        {onClose && (
-          <button
-            onClick={handleClose}
-            className="p-1.5 rounded hover:bg-border transition-colors text-text-muted flex-shrink-0"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
+        <div className="flex items-center gap-0.5 flex-shrink-0">
+          {isAdmin && (
+            <button
+              onClick={() => setExcluirOpen(true)}
+              disabled={!podeDeletar}
+              title={
+                loadingStage ? "Verificando permissão..." :
+                !isSuperadmin && temLoteAvancado
+                  ? `Somente superadmin pode excluir (etapa: ${contratoStage?.statusAvancado})`
+                  : "Excluir contrato"
+              }
+              className="p-1.5 rounded transition-colors text-text-muted hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-light)] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-text-muted disabled:hover:bg-transparent"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+          {onClose && (
+            <button
+              onClick={handleClose}
+              className="p-1.5 rounded hover:bg-border transition-colors text-text-muted"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Abas ── */}
@@ -792,6 +928,19 @@ export function ContratoPanel({
         onConfirm={() => designarLote.mutate()}
         isPending={designarLote.isPending}
       />
+
+      {/* ── Dialog de exclusão cerimonioso ── */}
+      {contrato && (
+        <DialogExcluirContrato
+          open={excluirOpen}
+          onOpenChange={setExcluirOpen}
+          contrato={contrato}
+          onSuccess={() => {
+            qc.invalidateQueries({ queryKey: ["moveria_kanban"] });
+            onClose?.();
+          }}
+        />
+      )}
 
       {/* ── AlertDialog de proteção de rascunho não salvo ── */}
       <AlertDialog open={alertSairOpen} onOpenChange={setAlertSairOpen}>
