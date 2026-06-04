@@ -302,7 +302,7 @@ function ContratosWorkspace() {
   ), [cards, isLoading, viewMode, selectedId, isAdmin]);
 
   return (
-    <div className="-m-6 md:-m-8 h-[calc(100vh-4rem)]">
+    <div className="h-[calc(100vh-4rem)]">
       {selectedId ? (
         <ResizablePanelGroup direction="horizontal" className="h-full">
           <ResizablePanel defaultSize={35} minSize={25} maxSize={55}>
