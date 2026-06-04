@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { LoaderCircle, LayoutList, LayoutGrid, Plus, FileText, User } from "lucide-react";
@@ -39,20 +39,112 @@ type KanbanCard = {
   sub_estado: "designado" | "em_rodadas" | null;
   data_prevista_max: string | null;
   tem_atraso: boolean;
+  vendedor_id: string | null;
+  vendedor_nome: string | null;
+  data_contrato: string | null;
+  valor_total_declarado: number | null;
+};
+
+type ContratoListRow = {
+  contrato_id: string;
+  contrato_numero: string;
+  cliente_nome: string;
+  cliente_codigo: string | null;
+  etapa_principal: string;
+  etapas_extras_count: number;
+  etapa_tooltip: string;
+  qtd_ambientes: number;
+  consultor_nome: string | null;
+  vendedor_nome: string | null;
+  valor_total_declarado: number | null;
+  data_contrato: string | null;
+  data_prevista_max: string | null;
 };
 
 type ViewMode = "lista" | "kanban";
 
 const KANBAN_COLUNAS = [
-  { etapa: "backlog",            label: "Backlog" },
-  { etapa: "aguardando_medicao", label: "Aguardando Medição" },
-  { etapa: "medido",             label: "Medido" },
-  { etapa: "apresentacao_tecnica", label: "Apresentação" },
-  { etapa: "em_aprovacao",       label: "Em Aprovação" },
-  { etapa: "aprovado",           label: "Aprovado" },
-  { etapa: "pedidos_fornecedores", label: "Ped. Fornec." },
-  { etapa: "documentacao_tecnica_completa", label: "Doc. Técnica" },
+  { etapa: "backlog",                        label: "Backlog" },
+  { etapa: "aguardando_medicao",             label: "Aguardando Medição" },
+  { etapa: "medido",                         label: "Medido" },
+  { etapa: "apresentacao_tecnica",           label: "Apresentação" },
+  { etapa: "em_aprovacao",                   label: "Em Aprovação" },
+  { etapa: "aprovado",                       label: "Aprovado" },
+  { etapa: "pedidos_fornecedores",           label: "Ped. Fornec." },
+  { etapa: "documentacao_tecnica_completa",  label: "Doc. Técnica" },
 ];
+
+const ETAPA_PRIORITY: Record<string, number> = Object.fromEntries(
+  KANBAN_COLUNAS.map((c, i) => [c.etapa, i + 1])
+);
+const ETAPA_LABEL: Record<string, string> = Object.fromEntries(
+  KANBAN_COLUNAS.map((c) => [c.etapa, c.label])
+);
+
+const PLANILHA_COLS = "80px minmax(0,2fr) 110px 140px 48px minmax(0,1fr) minmax(0,1fr) 100px 96px 100px";
+
+function buildListRows(cards: KanbanCard[]): ContratoListRow[] {
+  const byContrato = new Map<string, KanbanCard[]>();
+  for (const c of cards) {
+    const arr = byContrato.get(c.contrato_id) ?? [];
+    arr.push(c);
+    byContrato.set(c.contrato_id, arr);
+  }
+
+  return Array.from(byContrato.values()).map((group) => {
+    // Etapa mais avançada
+    let maxPriority = 0;
+    let etapaPrincipal = group[0].etapa;
+    for (const c of group) {
+      const p = ETAPA_PRIORITY[c.etapa] ?? 0;
+      if (p > maxPriority) { maxPriority = p; etapaPrincipal = c.etapa; }
+    }
+
+    // Etapas distintas anteriores à principal
+    const distinctEtapas = [...new Set(group.map((c) => c.etapa))];
+    const etapasExtras = distinctEtapas.filter((e) => (ETAPA_PRIORITY[e] ?? 0) < maxPriority);
+
+    // Tooltip: distribuição de ambientes/itens por etapa
+    const etapaCount: Record<string, number> = {};
+    for (const c of group) {
+      const n = c.tipo_card === "contrato"
+        ? (c.qtd_ambientes_sem_lote ?? 0)
+        : (c.qtd_itens ?? 0);
+      etapaCount[c.etapa] = (etapaCount[c.etapa] ?? 0) + n;
+    }
+    const tooltipParts = Object.entries(etapaCount)
+      .sort(([a], [b]) => (ETAPA_PRIORITY[a] ?? 0) - (ETAPA_PRIORITY[b] ?? 0))
+      .map(([etapa, n]) => `${n} ${ETAPA_LABEL[etapa] ?? etapa}`);
+
+    // Total de ambientes (sem lote + em lotes)
+    const qtdSemLote = group.find((c) => c.tipo_card === "contrato")?.qtd_ambientes_sem_lote ?? 0;
+    const qtdEmLotes = group
+      .filter((c) => c.tipo_card === "lote")
+      .reduce((s, c) => s + (c.qtd_itens ?? 0), 0);
+
+    // Consultor: preferir aguardando_medicao, depois qualquer lote com consultor
+    const aguardando = group.find((c) => c.etapa === "aguardando_medicao");
+    const loteComConsultor = group.find((c) => c.tipo_card === "lote" && c.consultor_nome);
+    const consultorNome = aguardando?.consultor_nome ?? loteComConsultor?.consultor_nome ?? null;
+
+    const ref = group[0];
+    return {
+      contrato_id:           ref.contrato_id,
+      contrato_numero:       ref.contrato_numero,
+      cliente_nome:          ref.cliente_nome,
+      cliente_codigo:        ref.cliente_codigo,
+      etapa_principal:       etapaPrincipal,
+      etapas_extras_count:   etapasExtras.length,
+      etapa_tooltip:         tooltipParts.length > 1 ? tooltipParts.join(" · ") : "",
+      qtd_ambientes:         qtdSemLote + qtdEmLotes,
+      consultor_nome:        consultorNome,
+      vendedor_nome:         ref.vendedor_nome,
+      valor_total_declarado: ref.valor_total_declarado,
+      data_contrato:         ref.data_contrato,
+      data_prevista_max:     aguardando?.data_prevista_max ?? null,
+    };
+  });
+}
 
 function getViewMode(): ViewMode {
   try { return (localStorage.getItem("moveria.viewMode") as ViewMode) ?? "lista"; } catch { return "lista"; }
@@ -176,11 +268,13 @@ function ContratosWorkspace() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("moveria_kanban_v")
-        .select("tipo_card, etapa, contrato_id, contrato_numero, cliente_nome, cliente_codigo, lote_id, lote_numero, consultor_id, consultor_nome, status, conformado_em, tem_ressalva, qtd_itens, qtd_ambientes_sem_lote, sub_estado, data_prevista_max, tem_atraso");
+        .select("tipo_card, etapa, contrato_id, contrato_numero, cliente_nome, cliente_codigo, lote_id, lote_numero, consultor_id, consultor_nome, status, conformado_em, tem_ressalva, qtd_itens, qtd_ambientes_sem_lote, sub_estado, data_prevista_max, tem_atraso, vendedor_id, vendedor_nome, data_contrato, valor_total_declarado");
       if (error) throw error;
       return (data ?? []) as KanbanCard[];
     },
   });
+
+  const listRows = useMemo(() => buildListRows(cards), [cards]);
 
   function selectContrato(id: string) {
     if (id === selectedId) {
@@ -195,16 +289,15 @@ function ContratosWorkspace() {
     setViewMode(v);
   }
 
-  const contratos = cards.filter((c) => c.tipo_card === "contrato");
-  const lotes     = cards.filter((c) => c.tipo_card === "lote");
-
   // ─── Painel esquerdo — lista ──
   const ListaPanel = useCallback(() => (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Toolbar */}
       <div className="flex-shrink-0 flex items-center gap-2 px-4 py-3 border-b border-border bg-surface">
         <span className="text-xs text-text-muted font-medium flex-1">
-          {cards.length} card{cards.length !== 1 ? "s" : ""}
+          {viewMode === "lista"
+            ? `${listRows.length} contrato${listRows.length !== 1 ? "s" : ""}`
+            : `${cards.length} card${cards.length !== 1 ? "s" : ""}`}
         </span>
         {/* Toggle view */}
         <div className="flex items-center gap-1 border border-border rounded-md p-0.5">
@@ -247,48 +340,96 @@ function ContratosWorkspace() {
         </div>
       )}
 
+      {/* ── Modo PLANILHA ─────────────────────────────────────────────────── */}
       {!isLoading && viewMode === "lista" && cards.length > 0 && (
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
-          {/* Header — minmax(0,1fr) permite shrink; auto dimensiona ao badge mais largo */}
-          <div className="sticky top-0 grid bg-accent-light px-4 py-2 border-b border-border text-[10px] font-semibold uppercase tracking-wider text-text-muted z-10"
-            style={{ gridTemplateColumns: "minmax(0,1fr) 48px auto" }}>
-            <div>Contrato / Lote</div>
-            <div>Amb.</div>
+          {/* Header sticky */}
+          <div
+            className="sticky top-0 grid bg-accent-light px-3 py-2 border-b border-border text-[10px] font-semibold uppercase tracking-wider text-text-muted z-10 gap-x-2"
+            style={{ gridTemplateColumns: PLANILHA_COLS }}
+          >
+            <div>Cód.</div>
+            <div>Nome cliente</div>
+            <div>Nº contrato</div>
             <div>Etapa</div>
+            <div className="text-right pr-2">Amb.</div>
+            <div>Consultor</div>
+            <div>Vendedor</div>
+            <div className="text-right">Valor</div>
+            <div>Fechamento</div>
+            <div>Prev. medição</div>
           </div>
-          {cards.map((c) => {
-            const isContr = c.tipo_card === "contrato";
-            const id = isContr ? c.contrato_id : c.contrato_id;
-            const isActive = selectedId === id;
+          {listRows.map((row) => {
+            const isActive = selectedId === row.contrato_id;
+            const codigo = formatCodigoCliente(row.cliente_codigo);
+            const valorFmt = row.valor_total_declarado != null
+              ? `R$ ${row.valor_total_declarado.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              : "—";
+            const dataFmt = row.data_contrato
+              ? new Date(row.data_contrato).toLocaleDateString("pt-BR")
+              : "—";
+            const prevFmt = row.data_prevista_max
+              ? new Date(row.data_prevista_max).toLocaleDateString("pt-BR")
+              : "—";
             return (
               <button
-                key={isContr ? c.contrato_id : c.lote_id}
-                onClick={() => selectContrato(id)}
-                className={`w-full text-left grid px-4 py-3 border-b border-border items-center transition-colors ${
+                key={row.contrato_id}
+                onClick={() => selectContrato(row.contrato_id)}
+                className={`w-full text-left grid px-3 py-2.5 border-b border-border items-center transition-colors gap-x-2 ${
                   isActive ? "bg-accent-light" : "bg-surface hover:bg-accent-light/60"
                 }`}
-                style={{ gridTemplateColumns: "minmax(0,1fr) 48px auto" }}
+                style={{ gridTemplateColumns: PLANILHA_COLS }}
               >
-                {/* Col 1: texto longo — overflow-hidden garante truncação */}
-                <div className="min-w-0 overflow-hidden">
-                  <div className="flex items-center gap-1.5 overflow-hidden">
-                    <span className="font-mono font-bold text-sm text-text-primary truncate">
-                      {isContr ? c.contrato_numero : c.lote_numero}
+                {/* Código */}
+                <div className="font-mono text-xs font-bold text-text-primary truncate min-w-0">
+                  {codigo || "—"}
+                </div>
+                {/* Nome cliente */}
+                <div className="text-xs text-text-secondary truncate min-w-0">
+                  {row.cliente_nome}
+                </div>
+                {/* Nº contrato */}
+                <div className="font-mono text-xs text-text-primary truncate min-w-0">
+                  {row.contrato_numero}
+                </div>
+                {/* Etapa (+ indicador "+N" e tooltip) */}
+                <div
+                  className="flex items-center gap-1 min-w-0 overflow-hidden"
+                  title={row.etapa_tooltip || undefined}
+                >
+                  <div className="flex-shrink-0 min-w-0 overflow-hidden">
+                    <EtapaBadge etapa={row.etapa_principal} />
+                  </div>
+                  {row.etapas_extras_count > 0 && (
+                    <span className="flex-shrink-0 text-[9px] text-text-muted font-mono leading-none">
+                      +{row.etapas_extras_count}
                     </span>
-                    {!isContr && c.tem_ressalva && <span className="text-[10px] text-[var(--color-warning)] flex-shrink-0">⚠</span>}
-                  </div>
-                  <div className="text-xs text-text-secondary truncate">{c.cliente_nome}</div>
-                  <div className="flex gap-1 mt-0.5 flex-wrap">
-                    {isContr && c.sub_estado && <SubEstadoBadge sub={c.sub_estado} />}
-                    {isContr && c.tem_atraso && <AtrasoBadge />}
-                  </div>
+                  )}
                 </div>
-                {/* Col 2: contagem — mono pequeno */}
+                {/* Amb. */}
                 <div className="font-mono text-xs text-text-muted text-right pr-2">
-                  {isContr && c.qtd_ambientes_sem_lote > 0 ? c.qtd_ambientes_sem_lote : isContr ? "—" : c.qtd_itens}
+                  {row.qtd_ambientes > 0 ? row.qtd_ambientes : "—"}
                 </div>
-                {/* Col 3: badge — flex-shrink-0 para não comprimir */}
-                <div className="flex-shrink-0"><EtapaBadge etapa={c.etapa} /></div>
+                {/* Consultor */}
+                <div className="text-xs text-text-secondary truncate min-w-0">
+                  {row.consultor_nome || "—"}
+                </div>
+                {/* Vendedor */}
+                <div className="text-xs text-text-secondary truncate min-w-0">
+                  {row.vendedor_nome || "—"}
+                </div>
+                {/* Valor */}
+                <div className="text-xs text-text-secondary text-right truncate min-w-0">
+                  {valorFmt}
+                </div>
+                {/* Fechamento */}
+                <div className="text-xs text-text-muted truncate min-w-0">
+                  {dataFmt}
+                </div>
+                {/* Prev. medição */}
+                <div className="text-xs text-text-muted truncate min-w-0">
+                  {prevFmt}
+                </div>
               </button>
             );
           })}
@@ -347,7 +488,7 @@ function ContratosWorkspace() {
         </div>
       )}
     </div>
-  ), [cards, isLoading, viewMode, selectedId, isAdmin]);
+  ), [cards, listRows, isLoading, viewMode, selectedId, isAdmin]);
 
   return (
     <div className="h-[calc(100vh-4rem)]">
