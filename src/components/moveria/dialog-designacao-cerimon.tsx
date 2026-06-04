@@ -1,14 +1,16 @@
 import { useState, useEffect } from "react";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, ArrowRight } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 
-export type AfetadoItem = {
+export type EntradaRascunho = {
   itemId: string;
   itemNome: string;
+  consultorNovoId: string;
+  consultorNovoNome: string;
   consultorAnteriorId: string | null;
   consultorAnteriorNome: string | null;
 };
@@ -16,16 +18,8 @@ export type AfetadoItem = {
 type Props = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  scope: "todos" | "item";
-  consultorNovoNome: string;
+  entradas: EntradaRascunho[];
   dataPrevista: string;
-  // scope="todos"
-  afetados?: AfetadoItem[];
-  afetadosLoading?: boolean;
-  // scope="item"
-  itemNome?: string;
-  consultorAnteriorNome?: string | null;
-  // ação
   onConfirm: () => void;
   isPending: boolean;
 };
@@ -36,99 +30,71 @@ function fmtData(d: string) {
 
 export function DialogDesignacaoCerimoniosa({
   open, onOpenChange,
-  scope,
-  consultorNovoNome, dataPrevista,
-  afetados = [], afetadosLoading = false,
-  itemNome, consultorAnteriorNome,
+  entradas,
+  dataPrevista,
   onConfirm, isPending,
 }: Props) {
   const [confirmado, setConfirmado] = useState(false);
 
-  // Reset checkbox ao abrir
   useEffect(() => { if (open) setConfirmado(false); }, [open]);
 
-  // ── Breakdown para scope="todos" ──────────────────────────────────────────
-  const semDesig    = afetados.filter((a) => !a.consultorAnteriorId);
-  const redesig     = afetados.filter((a) => !!a.consultorAnteriorId);
-  // Agrupa redesignados por consultor anterior
-  const porAnterior = redesig.reduce<Record<string, { nome: string; count: number }>>((acc, a) => {
-    const key = a.consultorAnteriorId!;
-    if (!acc[key]) acc[key] = { nome: a.consultorAnteriorNome ?? key, count: 0 };
-    acc[key].count++;
-    return acc;
-  }, {});
+  const novas      = entradas.filter((e) => !e.consultorAnteriorId);
+  const redesig    = entradas.filter((e) =>  e.consultorAnteriorId);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>
-            {scope === "todos" ? "Designar consultor — todos os ambientes" : "Designar consultor — ambiente específico"}
-          </DialogTitle>
+          <DialogTitle>Confirmar designações</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-1">
-          {/* ── Consultor novo ── */}
-          <div className="rounded-lg border border-border bg-accent-light px-4 py-3 space-y-1">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Novo consultor</p>
-            <p className="text-sm font-semibold text-text-primary">{consultorNovoNome || "—"}</p>
+          {/* ── Resumo de contagem ── */}
+          <div className="flex gap-3 text-xs text-text-secondary">
+            {novas.length > 0 && (
+              <span>
+                <span className="font-semibold text-text-primary">{novas.length}</span> nova{novas.length !== 1 ? "s" : ""}
+              </span>
+            )}
+            {redesig.length > 0 && (
+              <span>
+                <span className="font-semibold text-text-primary">{redesig.length}</span> redesignação{redesig.length !== 1 ? "ões" : ""}
+              </span>
+            )}
             {dataPrevista && (
-              <p className="text-xs text-text-secondary">Previsão de medição: <strong>{fmtData(dataPrevista)}</strong></p>
+              <span className="ml-auto text-text-muted">
+                Previsão de medição: <strong className="text-text-secondary">{fmtData(dataPrevista)}</strong>
+              </span>
             )}
           </div>
 
-          {/* ── O que vai mudar ── */}
-          {scope === "todos" && (
-            <div className="space-y-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Ambientes afetados</p>
-              {afetadosLoading ? (
-                <div className="flex items-center gap-2 text-xs text-text-muted py-2">
-                  <LoaderCircle className="w-3.5 h-3.5 animate-spin" /> Carregando…
-                </div>
-              ) : afetados.length === 0 ? (
-                <p className="text-xs text-text-muted">Nenhum ambiente pendente encontrado.</p>
-              ) : (
-                <div className="rounded-lg border border-border divide-y divide-border text-sm">
-                  {semDesig.length > 0 && (
-                    <div className="px-3 py-2 flex items-center justify-between gap-2">
-                      <span className="text-text-secondary">Sem designação prévia</span>
-                      <span className="font-mono font-semibold text-text-primary">{semDesig.length}</span>
+          {/* ── Lista item a item ── */}
+          <div className="rounded-lg border border-border overflow-hidden max-h-64 overflow-y-auto">
+            {entradas.length === 0 ? (
+              <p className="text-xs text-text-muted px-3 py-4 text-center">Nenhuma alteração pendente.</p>
+            ) : (
+              <div className="divide-y divide-border">
+                {entradas.map((e) => (
+                  <div key={e.itemId} className="px-3 py-2 flex items-center gap-2 min-w-0">
+                    {/* Nome do ambiente */}
+                    <p className="text-xs font-medium text-text-primary truncate flex-1 min-w-0">{e.itemNome}</p>
+                    {/* De → Para */}
+                    <div className="flex items-center gap-1 flex-shrink-0 text-xs">
+                      {e.consultorAnteriorNome ? (
+                        <>
+                          <span className="line-through text-text-muted">{e.consultorAnteriorNome}</span>
+                          <ArrowRight className="w-3 h-3 text-text-muted flex-shrink-0" />
+                        </>
+                      ) : (
+                        <span className="text-text-muted italic mr-1">novo</span>
+                      )}
+                      <span className="font-medium text-text-primary">{e.consultorNovoNome}</span>
                     </div>
-                  )}
-                  {Object.values(porAnterior).map((g) => (
-                    <div key={g.nome} className="px-3 py-2 flex items-center justify-between gap-2">
-                      <span className="text-text-secondary">
-                        <span className="line-through text-text-muted">{g.nome}</span>
-                        {" → "}
-                        <span className="font-medium text-text-primary">{consultorNovoNome}</span>
-                      </span>
-                      <span className="font-mono font-semibold text-text-primary">{g.count}</span>
-                    </div>
-                  ))}
-                  <div className="px-3 py-2 flex items-center justify-between gap-2 bg-accent-light">
-                    <span className="font-semibold text-text-primary">Total</span>
-                    <span className="font-mono font-bold text-text-primary">{afetados.length}</span>
                   </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {scope === "item" && (
-            <div className="space-y-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">Ambiente</p>
-              <div className="rounded-lg border border-border px-3 py-2.5 space-y-1.5">
-                <p className="text-sm font-medium text-text-primary">{itemNome || "—"}</p>
-                <div className="flex items-center gap-1.5 text-xs text-text-secondary">
-                  <span className={consultorAnteriorNome ? "line-through text-text-muted" : "text-text-muted"}>
-                    {consultorAnteriorNome ?? "Sem designação"}
-                  </span>
-                  <span className="text-text-muted">→</span>
-                  <span className="font-medium text-text-primary">{consultorNovoNome}</span>
-                </div>
+                ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* ── Checkbox de confirmação explícita ── */}
           <div className="flex items-start gap-3 rounded-lg border border-border bg-surface px-4 py-3">
@@ -139,7 +105,7 @@ export function DialogDesignacaoCerimoniosa({
               className="mt-0.5"
             />
             <label htmlFor="confirm-desig" className="text-sm text-text-secondary cursor-pointer select-none leading-snug">
-              Confirmo esta designação. Estou ciente que designações anteriores serão substituídas e que a ação fica registrada na trilha de auditoria.
+              Confirmo estas designações. Estou ciente que designações anteriores serão substituídas e que a ação fica registrada na trilha de auditoria.
             </label>
           </div>
         </div>
@@ -150,10 +116,10 @@ export function DialogDesignacaoCerimoniosa({
           </Button>
           <Button
             onClick={onConfirm}
-            disabled={!confirmado || isPending || (scope === "todos" && afetadosLoading)}
+            disabled={!confirmado || isPending || entradas.length === 0}
           >
             {isPending && <LoaderCircle className="w-3.5 h-3.5 animate-spin mr-1.5" />}
-            Confirmar designação
+            Confirmar designações
           </Button>
         </DialogFooter>
       </DialogContent>

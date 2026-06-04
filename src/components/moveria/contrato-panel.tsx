@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { LoaderCircle, ChevronRight, X, UserPlus } from "lucide-react";
 import { toast } from "sonner";
@@ -10,13 +10,17 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AptidaoBadge, EtapaBadge, type Aptidao } from "./status-badge";
 import { formatCodigoCliente } from "@/lib/moveria";
 import { AmbienteDrawer } from "./ambiente-drawer";
 import { LotesTab } from "./lotes-tab";
 import { ComentariosTab } from "./comentarios-tab";
-import { DialogDesignacaoCerimoniosa, type AfetadoItem } from "./dialog-designacao-cerimon";
+import { DialogDesignacaoCerimoniosa, type EntradaRascunho } from "./dialog-designacao-cerimon";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ContratoRow = {
@@ -25,8 +29,8 @@ type ContratoRow = {
 };
 type AmbienteRow = {
   id: string; codigo: string; descricao: string;
-  ambiente: string | null; aptidao: Aptidao; aptidao_obs: string | null; ordem: number | null;
-  consultor_designado: string | null;
+  ambiente: string | null; aptidao: Aptidao; aptidao_obs: string | null;
+  ordem: number | null; consultor_designado: string | null; lote_id: string | null;
 };
 type MedicaoRow = { id: string; contrato_id: string; consultor_id: string; data_visita: string; status: string; sequencia: string };
 type ConsultorItem = { id: string; full_name: string | null };
@@ -40,117 +44,20 @@ function rpcFriendly(msg: string) {
   return msg;
 }
 
-async function gravarEventoDesignacao(payload: {
-  scope: "todos" | "item";
-  contratoId: string;
-  itemId?: string;
-  profileId: string;
-  consultorNovoId: string;
-  consultorNovoNome: string;
-  afetados?: AfetadoItem[];
-  consultorAnteriorId?: string | null;
-  consultorAnteriorNome?: string | null;
-  dataPrevista: string;
-}) {
-  const eventPayload: Record<string, unknown> = {
-    scope: payload.scope,
-    consultor_novo_id: payload.consultorNovoId,
-    consultor_novo_nome: payload.consultorNovoNome,
-    data_prevista: payload.dataPrevista || null,
-  };
-
-  if (payload.scope === "todos" && payload.afetados) {
-    eventPayload.ambientes_afetados = payload.afetados.map((a) => a.itemId);
-    eventPayload.alteracoes = payload.afetados
-      .filter((a) => a.consultorAnteriorId && a.consultorAnteriorId !== payload.consultorNovoId)
-      .map((a) => ({
-        item_id: a.itemId,
-        de: a.consultorAnteriorId,
-        de_nome: a.consultorAnteriorNome,
-        para: payload.consultorNovoId,
-      }));
-  }
-
-  if (payload.scope === "item") {
-    eventPayload.consultor_anterior_id = payload.consultorAnteriorId ?? null;
-    eventPayload.consultor_anterior_nome = payload.consultorAnteriorNome ?? null;
-  }
-
-  await supabase.from("moveria_eventos").insert({
-    tipo: "designacao_registrada",
-    contrato_id: payload.contratoId,
-    ...(payload.itemId ? { item_id: payload.itemId } : {}),
-    autor_id: payload.profileId,
-    payload: eventPayload,
-  });
+function podeDesignar(a: AmbienteRow) {
+  return !a.lote_id && (a.aptidao === "pendente" || a.aptidao === "inapto");
 }
 
-// ─── Designação em massa ──────────────────────────────────────────────────────
+// ─── Bloco "Aplicar a todos" (preenchimento de rascunho) ──────────────────────
 function DesignacaoBlock({
-  contratoId, isAdmin, profileId, consultores, onClose,
+  consultores, dataPrevista, onDataPrevistaChange, onAplicarTodos,
 }: {
-  contratoId: string; isAdmin: boolean; profileId: string; consultores: ConsultorItem[];
-  onClose?: () => void;
+  consultores: ConsultorItem[];
+  dataPrevista: string;
+  onDataPrevistaChange: (v: string) => void;
+  onAplicarTodos: (consultorId: string) => void;
 }) {
-  const qc = useQueryClient();
   const [consultorId, setConsultorId] = useState("");
-  const [dataPrevista, setDataPrevista] = useState("");
-  const [confirmOpen, setConfirmOpen] = useState(false);
-
-  const consultorNome = consultores.find((c) => c.id === consultorId)?.full_name ?? "";
-
-  // Carrega afetados somente quando o dialog está aberto
-  const { data: afetados = [], isLoading: afetadosLoading } = useQuery<AfetadoItem[]>({
-    queryKey: ["moveria_afetados_desig", contratoId, confirmOpen],
-    enabled: confirmOpen && !!consultorId,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("moveria_itens_contrato")
-        .select("id, ambiente, descricao, codigo, consultor_designado")
-        .eq("contrato_id", contratoId)
-        .is("deletado_em", null)
-        .is("lote_id", null)
-        .in("aptidao", ["pendente", "inapto"]);
-      return (data ?? []).map((item: any) => ({
-        itemId: item.id as string,
-        itemNome: (item.ambiente || item.descricao || item.codigo) as string,
-        consultorAnteriorId: (item.consultor_designado as string | null) ?? null,
-        consultorAnteriorNome: consultores.find((c) => c.id === item.consultor_designado)?.full_name ?? null,
-      }));
-    },
-  });
-
-  const designar = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase.rpc("moveria_fn_designar_contrato", {
-        p_contrato_id: contratoId, p_consultor_id: consultorId,
-        p_data_prevista: dataPrevista || null,
-      });
-      if (error) throw error;
-      return data as number;
-    },
-    onSuccess: async (qtd) => {
-      await gravarEventoDesignacao({
-        scope: "todos",
-        contratoId,
-        profileId,
-        consultorNovoId: consultorId,
-        consultorNovoNome: consultorNome,
-        afetados,
-        dataPrevista,
-      });
-      const dataStr = dataPrevista
-        ? new Date(dataPrevista + "T12:00:00").toLocaleDateString("pt-BR") : "sem previsão";
-      toast.success(`${qtd} ambiente(s) designado(s) para ${consultorNome} — previsão: ${dataStr}`);
-      qc.invalidateQueries({ queryKey: ["moveria_kanban"] });
-      qc.invalidateQueries({ queryKey: ["moveria_ambientes", contratoId] });
-      setConfirmOpen(false);
-      onClose?.();
-    },
-    onError: (e: any) => toast.error(e.message ?? "Erro ao designar"),
-  });
-
-  if (!isAdmin) return null;
 
   return (
     <div className="rounded-lg border border-border bg-surface p-4 mb-4">
@@ -174,60 +81,41 @@ function DesignacaoBlock({
           <input
             type="date"
             value={dataPrevista}
-            onChange={(e) => setDataPrevista(e.target.value)}
+            onChange={(e) => onDataPrevistaChange(e.target.value)}
             className="h-8 text-sm border border-border rounded-md px-2 bg-surface focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
-        <Button size="sm" disabled={!consultorId} onClick={() => setConfirmOpen(true)}>
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={!consultorId}
+          onClick={() => { onAplicarTodos(consultorId); }}
+        >
           Aplicar a todos
         </Button>
       </div>
-
-      <DialogDesignacaoCerimoniosa
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
-        scope="todos"
-        consultorNovoNome={consultorNome}
-        dataPrevista={dataPrevista}
-        afetados={afetados}
-        afetadosLoading={afetadosLoading}
-        onConfirm={() => designar.mutate()}
-        isPending={designar.isPending}
-      />
     </div>
   );
 }
 
-// ─── Lista de ambientes inline com aptidão + designação por linha (admin) ─────
+// ─── Lista de ambientes inline com aptidão + Select de rascunho (admin) ───────
 function AmbientesInline({
-  contratoId, canEdit, isAdmin, isVendedor, profileId, consultores, onClose,
+  ambientes, isLoading, canEdit, isAdmin, isVendedor, consultores, contratoId,
+  draft, onDraftChange, refetch,
 }: {
-  contratoId: string; canEdit: boolean; isAdmin: boolean; isVendedor: boolean;
-  profileId: string; consultores: ConsultorItem[]; onClose?: () => void;
+  ambientes: AmbienteRow[];
+  isLoading: boolean;
+  canEdit: boolean;
+  isAdmin: boolean;
+  isVendedor: boolean;
+  consultores: ConsultorItem[];
+  contratoId: string;
+  draft: Record<string, string>;
+  onDraftChange: (itemId: string, consultorId: string) => void;
+  refetch: () => void;
 }) {
-  const qc = useQueryClient();
   const [selectedItem, setSelectedItem] = useState<AmbienteRow | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-
-  // Designação por linha: item pendente de confirmação
-  const [pendingDesig, setPendingDesig] = useState<{
-    item: AmbienteRow;
-    consultorNovoId: string;
-    dataPrevista: string;
-  } | null>(null);
-
-  const { data: ambientes = [], isLoading, refetch } = useQuery<AmbienteRow[]>({
-    queryKey: ["moveria_ambientes", contratoId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("moveria_itens_contrato")
-        .select("id, codigo, descricao, ambiente, aptidao, aptidao_obs, ordem, consultor_designado")
-        .eq("contrato_id", contratoId).is("deletado_em", null)
-        .order("ordem");
-      if (error) throw error;
-      return (data ?? []) as AmbienteRow[];
-    },
-  });
 
   const aptMut = useMutation({
     mutationFn: async ({ id, aptidao }: { id: string; aptidao: Aptidao }) => {
@@ -237,43 +125,6 @@ function AmbientesInline({
     },
     onSuccess: () => refetch(),
     onError: (e: any) => toast.error(e.message ?? "Erro ao salvar aptidão"),
-  });
-
-  const designarItem = useMutation({
-    mutationFn: async ({ itemId, consultorId, dataPrev }: { itemId: string; consultorId: string; dataPrev: string }) => {
-      const { data, error } = await supabase.rpc("moveria_fn_designar_item", {
-        p_item_id: itemId,
-        p_consultor_id: consultorId,
-        p_data_prevista: dataPrev || null,
-      });
-      if (error) throw error;
-      return data as number;
-    },
-    onSuccess: async (_qtd, vars) => {
-      const item = pendingDesig?.item;
-      const consultorNome = consultores.find((c) => c.id === vars.consultorId)?.full_name ?? "";
-      const antId = item?.consultor_designado ?? null;
-      const antNome = antId ? (consultores.find((c) => c.id === antId)?.full_name ?? null) : null;
-
-      await gravarEventoDesignacao({
-        scope: "item",
-        contratoId,
-        itemId: vars.itemId,
-        profileId,
-        consultorNovoId: vars.consultorId,
-        consultorNovoNome: consultorNome,
-        consultorAnteriorId: antId,
-        consultorAnteriorNome: antNome,
-        dataPrevista: vars.dataPrev,
-      });
-
-      toast.success(`Ambiente designado para ${consultorNome}`);
-      qc.invalidateQueries({ queryKey: ["moveria_ambientes", contratoId] });
-      qc.invalidateQueries({ queryKey: ["moveria_kanban"] });
-      setPendingDesig(null);
-      onClose?.();
-    },
-    onError: (e: any) => toast.error(e.message ?? "Erro ao designar ambiente"),
   });
 
   if (isLoading) return (
@@ -293,13 +144,6 @@ function AmbientesInline({
     ? "minmax(0,1fr) minmax(120px,180px) auto auto"
     : "minmax(0,1fr) auto auto";
 
-  const pendingConsultorNome = pendingDesig
-    ? (consultores.find((c) => c.id === pendingDesig.consultorNovoId)?.full_name ?? "")
-    : "";
-  const pendingAntNome = pendingDesig?.item.consultor_designado
-    ? (consultores.find((c) => c.id === pendingDesig.item.consultor_designado)?.full_name ?? null)
-    : null;
-
   return (
     <>
       <div className="rounded-lg border border-border overflow-hidden">
@@ -316,10 +160,16 @@ function AmbientesInline({
 
         {ambientes.map((a) => {
           const nome = a.ambiente || a.descricao || a.codigo;
+          // Valor exibido no Select: draft local > salvo no banco
+          const consultorExibido = draft[a.id] ?? a.consultor_designado ?? "";
+          const temRascunho = draft[a.id] !== undefined && draft[a.id] !== (a.consultor_designado ?? "");
+
           return (
             <div
               key={a.id}
-              className="grid px-3 py-2.5 border-b border-border last:border-0 items-center hover:bg-accent-light/50 transition-colors"
+              className={`grid px-3 py-2.5 border-b border-border last:border-0 items-center transition-colors ${
+                temRascunho ? "bg-[var(--color-info-light)]/30" : "hover:bg-accent-light/50"
+              }`}
               style={{ gridTemplateColumns: gridCols }}
             >
               {/* Col 1: nome + código */}
@@ -328,31 +178,40 @@ function AmbientesInline({
                 <p className="text-xs text-text-muted truncate">{a.codigo}</p>
               </div>
 
-              {/* Col 2: Select consultor (só admin) */}
+              {/* Col 2: Select consultor (só admin, só items designáveis) */}
               {isAdmin && (
                 <div className="pr-2">
-                  <Select
-                    value={a.consultor_designado ?? ""}
-                    onValueChange={(newId) => {
-                      if (!newId || newId === a.consultor_designado) return;
-                      setPendingDesig({ item: a, consultorNovoId: newId, dataPrevista: "" });
-                    }}
-                  >
-                    <SelectTrigger className="h-7 text-xs w-full">
-                      <SelectValue placeholder={
-                        <span className="flex items-center gap-1 text-text-muted">
-                          <UserPlus className="w-3 h-3" /> Designar
-                        </span>
-                      } />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {consultores.map((c) => (
-                        <SelectItem key={c.id} value={c.id} className="text-xs">
-                          {c.full_name ?? c.id}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {podeDesignar(a) ? (
+                    <Select
+                      value={consultorExibido}
+                      onValueChange={(newId) => {
+                        if (!newId) return;
+                        onDraftChange(a.id, newId);
+                      }}
+                    >
+                      <SelectTrigger className={`h-7 text-xs w-full ${temRascunho ? "border-[var(--color-info)] ring-1 ring-[var(--color-info)]" : ""}`}>
+                        <SelectValue placeholder={
+                          <span className="flex items-center gap-1 text-text-muted">
+                            <UserPlus className="w-3 h-3" /> Designar
+                          </span>
+                        } />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {consultores.map((c) => (
+                          <SelectItem key={c.id} value={c.id} className="text-xs">
+                            {c.full_name ?? c.id}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    // Item em lote ou apto/ressalva: mostra nome do consultor sem Select
+                    <span className="text-xs text-text-muted truncate block">
+                      {consultorExibido
+                        ? (consultores.find((c) => c.id === consultorExibido)?.full_name ?? "—")
+                        : "—"}
+                    </span>
+                  )}
                 </div>
               )}
 
@@ -406,29 +265,8 @@ function AmbientesInline({
         isAdmin={isAdmin}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        onAptidaoChange={() => refetch()}
+        onAptidaoChange={refetch}
       />
-
-      {/* Dialog cerimonioso para designação por linha */}
-      {pendingDesig && (
-        <DialogDesignacaoCerimoniosa
-          open={!!pendingDesig}
-          onOpenChange={(v) => { if (!v) setPendingDesig(null); }}
-          scope="item"
-          consultorNovoNome={pendingConsultorNome}
-          dataPrevista={pendingDesig.dataPrevista}
-          itemNome={pendingDesig.item.ambiente || pendingDesig.item.descricao || pendingDesig.item.codigo}
-          consultorAnteriorNome={pendingAntNome}
-          onConfirm={() =>
-            designarItem.mutate({
-              itemId: pendingDesig.item.id,
-              consultorId: pendingDesig.consultorNovoId,
-              dataPrev: pendingDesig.dataPrevista,
-            })
-          }
-          isPending={designarItem.isPending}
-        />
-      )}
     </>
   );
 }
@@ -468,9 +306,9 @@ function MedicaoBlock({
   const canConformar = nApto + nRessalva > 0;
 
   async function criarSessao() {
-    const { data, error } = await supabase.from("moveria_medicoes")
+    const { error } = await supabase.from("moveria_medicoes")
       .insert({ contrato_id: contratoId, consultor_id: membroId, data_visita: new Date().toISOString().slice(0, 10) })
-      .select("id, contrato_id, consultor_id, data_visita, status, sequencia").single();
+      .select("id").single();
     if (error) { toast.error(error.message); return; }
     refetchSessao();
     toast.success("Sessão de medição iniciada");
@@ -582,7 +420,7 @@ function MedicaoBlock({
   );
 }
 
-// ─── ContratoPanel (painel direito) ──────────────────────────────────────────
+// ─── ContratoPanel ────────────────────────────────────────────────────────────
 export function ContratoPanel({
   contratoId,
   onClose,
@@ -594,6 +432,13 @@ export function ContratoPanel({
   const isAdmin = globalRole === "admin" || globalRole === "superadmin";
   const qc = useQueryClient();
 
+  // ── Draft de designação (estado local, não salvo no banco ainda) ──
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [dataPrevista, setDataPrevista] = useState("");
+  const [confirmDesigOpen, setConfirmDesigOpen] = useState(false);
+  const [alertSairOpen, setAlertSairOpen] = useState(false);
+
+  // ── Queries ──────────────────────────────────────────────────────
   const { data: contrato, isLoading: loadingC } = useQuery<ContratoRow | null>({
     queryKey: ["moveria_contrato", contratoId],
     queryFn: async () => {
@@ -631,7 +476,21 @@ export function ContratoPanel({
     },
   });
 
-  // Consultores ativos — compartilhado entre DesignacaoBlock e AmbientesInline
+  // Ambientes — lifted aqui para hasDraft e batch confirm
+  const { data: ambientes = [], isLoading: loadingAmb, refetch: refetchAmbientes } = useQuery<AmbienteRow[]>({
+    queryKey: ["moveria_ambientes", contratoId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("moveria_itens_contrato")
+        .select("id, codigo, descricao, ambiente, aptidao, aptidao_obs, ordem, consultor_designado, lote_id")
+        .eq("contrato_id", contratoId).is("deletado_em", null)
+        .order("ordem");
+      if (error) throw error;
+      return (data ?? []) as AmbienteRow[];
+    },
+  });
+
+  // Consultores ativos (só admin)
   const { data: consultores = [] } = useQuery<ConsultorItem[]>({
     queryKey: ["moveria_consultores"],
     enabled: isAdmin,
@@ -648,10 +507,100 @@ export function ContratoPanel({
     },
   });
 
+  // ── Draft helpers ──────────────────────────────────────────────────
+  const hasDraft = Object.entries(draft).some(([itemId, consultorId]) => {
+    const saved = ambientes.find((a) => a.id === itemId)?.consultor_designado ?? null;
+    return consultorId !== saved;
+  });
+
+  function aplicarTodos(consultorId: string) {
+    const updates: Record<string, string> = { ...draft };
+    ambientes.filter(podeDesignar).forEach((a) => { updates[a.id] = consultorId; });
+    setDraft(updates);
+  }
+
+  function setItemDraft(itemId: string, consultorId: string) {
+    setDraft((prev) => ({ ...prev, [itemId]: consultorId }));
+  }
+
+  // Entradas para o dialog cerimonioso — só items com mudança real
+  const entradasDialog: EntradaRascunho[] = ambientes
+    .filter((a) => {
+      const draftVal = draft[a.id];
+      return draftVal !== undefined && draftVal !== (a.consultor_designado ?? "");
+    })
+    .map((a) => ({
+      itemId: a.id,
+      itemNome: a.ambiente || a.descricao || a.codigo,
+      consultorNovoId: draft[a.id],
+      consultorNovoNome: consultores.find((c) => c.id === draft[a.id])?.full_name ?? "",
+      consultorAnteriorId: a.consultor_designado,
+      consultorAnteriorNome: a.consultor_designado
+        ? (consultores.find((c) => c.id === a.consultor_designado)?.full_name ?? null)
+        : null,
+    }));
+
+  // ── Mutation batch ─────────────────────────────────────────────────
+  const designarLote = useMutation({
+    mutationFn: async () => {
+      const payload = entradasDialog.map((e) => ({
+        item_id: e.itemId,
+        consultor_id: e.consultorNovoId,
+        data_prevista: dataPrevista || null,
+      }));
+      const { data, error } = await supabase.rpc("moveria_fn_designar_itens_lote", {
+        p_designacoes: payload,
+      });
+      if (error) throw error;
+      return data as number;
+    },
+    onSuccess: async (qtd) => {
+      // Evento consolidado de auditoria
+      await supabase.from("moveria_eventos").insert({
+        tipo: "designacao_registrada",
+        contrato_id: contratoId,
+        autor_id: profile?.id ?? "",
+        payload: {
+          scope: "lote",
+          data_prevista: dataPrevista || null,
+          alteracoes: entradasDialog.map((e) => ({
+            item_id: e.itemId,
+            item_nome: e.itemNome,
+            de: e.consultorAnteriorId,
+            de_nome: e.consultorAnteriorNome,
+            para: e.consultorNovoId,
+            para_nome: e.consultorNovoNome,
+          })),
+        },
+      });
+
+      const dataStr = dataPrevista
+        ? new Date(dataPrevista + "T12:00:00").toLocaleDateString("pt-BR") : "sem previsão";
+      toast.success(`${qtd} ambiente(s) designado(s) — previsão: ${dataStr}`);
+
+      qc.invalidateQueries({ queryKey: ["moveria_ambientes", contratoId] });
+      qc.invalidateQueries({ queryKey: ["moveria_kanban"] });
+
+      setDraft({});
+      setConfirmDesigOpen(false);
+      onClose?.();
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao designar"),
+  });
+
+  // ── Fechar com proteção de rascunho ───────────────────────────────
+  function handleClose() {
+    if (hasDraft) {
+      setAlertSairOpen(true);
+    } else {
+      onClose?.();
+    }
+  }
+
+  // ── Roles ─────────────────────────────────────────────────────────
   const isVendedor  = membro?.papel === "vendedor";
   const isConsultor = membro?.papel === "consultor_tecnico";
   const canEdit     = isAdmin || isConsultor;
-  const profileId   = profile?.id ?? "";
 
   if (loadingC) return (
     <div className="flex-1 flex items-center justify-center">
@@ -695,7 +644,10 @@ export function ContratoPanel({
           </div>
         </div>
         {onClose && (
-          <button onClick={onClose} className="p-1.5 rounded hover:bg-border transition-colors text-text-muted flex-shrink-0">
+          <button
+            onClick={handleClose}
+            className="p-1.5 rounded hover:bg-border transition-colors text-text-muted flex-shrink-0"
+          >
             <X className="w-4 h-4" />
           </button>
         )}
@@ -717,35 +669,50 @@ export function ContratoPanel({
 
         {/* ── Ambientes ── */}
         <TabsContent value="ambientes" className="flex-1 overflow-y-auto px-5 py-4 mt-0">
+          {/* Bloco de designação (só admin) */}
           {isAdmin && (
             <DesignacaoBlock
-              contratoId={contratoId}
-              isAdmin={isAdmin}
-              profileId={profileId}
               consultores={consultores}
-              onClose={onClose}
+              dataPrevista={dataPrevista}
+              onDataPrevistaChange={setDataPrevista}
+              onAplicarTodos={aplicarTodos}
             />
           )}
 
+          {/* Botão de confirmação do rascunho (só quando há mudanças) */}
+          {isAdmin && hasDraft && (
+            <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-[var(--color-info)] bg-[var(--color-info-light)] px-4 py-3">
+              <p className="text-xs text-[var(--color-info-text)] font-medium">
+                {entradasDialog.length} designação{entradasDialog.length !== 1 ? "ões" : ""} não salva{entradasDialog.length !== 1 ? "s" : ""}
+              </p>
+              <Button size="sm" onClick={() => setConfirmDesigOpen(true)}>
+                Confirmar designações →
+              </Button>
+            </div>
+          )}
+
+          {/* Sessão de medição (consultor ou admin) */}
           {!isVendedor && (
             <MedicaoBlock
               contratoId={contratoId}
               membroId={membro?.id ?? ""}
               papel={membro?.papel ?? ""}
-              onConformado={() => {
-                qc.invalidateQueries({ queryKey: ["moveria_ambientes", contratoId] });
-              }}
+              onConformado={refetchAmbientes}
             />
           )}
 
+          {/* Lista de ambientes */}
           <AmbientesInline
-            contratoId={contratoId}
+            ambientes={ambientes}
+            isLoading={loadingAmb}
             canEdit={canEdit}
             isAdmin={isAdmin}
             isVendedor={isVendedor}
-            profileId={profileId}
             consultores={consultores}
-            onClose={onClose}
+            contratoId={contratoId}
+            draft={draft}
+            onDraftChange={setItemDraft}
+            refetch={refetchAmbientes}
           />
         </TabsContent>
 
@@ -759,6 +726,34 @@ export function ContratoPanel({
           <ComentariosTab contratoId={contratoId} />
         </TabsContent>
       </Tabs>
+
+      {/* ── Dialog cerimonioso de confirmação do lote ── */}
+      <DialogDesignacaoCerimoniosa
+        open={confirmDesigOpen}
+        onOpenChange={setConfirmDesigOpen}
+        entradas={entradasDialog}
+        dataPrevista={dataPrevista}
+        onConfirm={() => designarLote.mutate()}
+        isPending={designarLote.isPending}
+      />
+
+      {/* ── AlertDialog de proteção de rascunho não salvo ── */}
+      <AlertDialog open={alertSairOpen} onOpenChange={setAlertSairOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Designações não salvas</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você tem {entradasDialog.length} designação{entradasDialog.length !== 1 ? "ões" : ""} não confirmada{entradasDialog.length !== 1 ? "s" : ""}. Sair mesmo? As alterações serão perdidas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setAlertSairOpen(false); onClose?.(); }}>
+              Sair sem salvar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
