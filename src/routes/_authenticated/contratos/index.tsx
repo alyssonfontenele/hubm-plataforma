@@ -206,12 +206,12 @@ function ContratosWorkspace() {
       )}
 
       {!isLoading && viewMode === "lista" && cards.length > 0 && (
-        <div className="flex-1 overflow-y-auto">
-          {/* Header */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+          {/* Header — minmax(0,1fr) permite shrink; auto dimensiona ao badge mais largo */}
           <div className="sticky top-0 grid bg-accent-light px-4 py-2 border-b border-border text-[10px] font-semibold uppercase tracking-wider text-text-muted z-10"
-            style={{ gridTemplateColumns: "1fr 72px 80px" }}>
+            style={{ gridTemplateColumns: "minmax(0,1fr) 48px auto" }}>
             <div>Contrato / Lote</div>
-            <div>Ambientes</div>
+            <div>Amb.</div>
             <div>Etapa</div>
           </div>
           {cards.map((c) => {
@@ -225,14 +225,15 @@ function ContratosWorkspace() {
                 className={`w-full text-left grid px-4 py-3 border-b border-border items-center transition-colors ${
                   isActive ? "bg-accent-light" : "bg-surface hover:bg-accent-light/60"
                 }`}
-                style={{ gridTemplateColumns: "1fr 72px 80px" }}
+                style={{ gridTemplateColumns: "minmax(0,1fr) 48px auto" }}
               >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-sm text-text-primary">
+                {/* Col 1: texto longo — overflow-hidden garante truncação */}
+                <div className="min-w-0 overflow-hidden">
+                  <div className="flex items-center gap-1.5 overflow-hidden">
+                    <span className="font-mono font-bold text-sm text-text-primary truncate">
                       {isContr ? c.contrato_numero : c.lote_numero}
                     </span>
-                    {!isContr && c.tem_ressalva && <span className="text-[10px] text-[var(--color-warning)]">⚠</span>}
+                    {!isContr && c.tem_ressalva && <span className="text-[10px] text-[var(--color-warning)] flex-shrink-0">⚠</span>}
                   </div>
                   <div className="text-xs text-text-secondary truncate">{c.cliente_nome}</div>
                   <div className="flex gap-1 mt-0.5 flex-wrap">
@@ -240,10 +241,12 @@ function ContratosWorkspace() {
                     {isContr && c.tem_atraso && <AtrasoBadge />}
                   </div>
                 </div>
-                <div className="font-mono text-xs text-text-muted">
-                  {isContr && c.qtd_ambientes_sem_lote > 0 ? `${c.qtd_ambientes_sem_lote} s/lote` : isContr ? "—" : c.qtd_itens}
+                {/* Col 2: contagem — mono pequeno */}
+                <div className="font-mono text-xs text-text-muted text-right pr-2">
+                  {isContr && c.qtd_ambientes_sem_lote > 0 ? c.qtd_ambientes_sem_lote : isContr ? "—" : c.qtd_itens}
                 </div>
-                <div><EtapaBadge etapa={c.etapa} /></div>
+                {/* Col 3: badge — flex-shrink-0 para não comprimir */}
+                <div className="flex-shrink-0"><EtapaBadge etapa={c.etapa} /></div>
               </button>
             );
           })}

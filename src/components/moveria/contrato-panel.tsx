@@ -202,7 +202,7 @@ function AmbientesInline({
       <div className="rounded-lg border border-border overflow-hidden">
         {/* Header */}
         <div className="grid bg-accent-light px-3 py-2 border-b border-border text-[10px] font-semibold uppercase tracking-wider text-text-muted"
-          style={{ gridTemplateColumns: "1fr auto auto" }}>
+          style={{ gridTemplateColumns: "minmax(0,1fr) auto auto" }}>
           <div>Ambiente</div>
           {!isVendedor && <div className="text-right pr-2">Aptidão</div>}
           <div />
@@ -213,10 +213,10 @@ function AmbientesInline({
           return (
             <div key={a.id}
               className="grid px-3 py-2.5 border-b border-border last:border-0 items-center hover:bg-accent-light/50 transition-colors"
-              style={{ gridTemplateColumns: "1fr auto auto" }}>
-              <div className="min-w-0">
+              style={{ gridTemplateColumns: "minmax(0,1fr) auto auto" }}>
+              <div className="min-w-0 overflow-hidden">
                 <p className="text-sm font-medium text-text-primary truncate">{nome}</p>
-                <p className="text-xs text-text-muted">{a.codigo}</p>
+                <p className="text-xs text-text-muted truncate">{a.codigo}</p>
               </div>
 
               {/* Aptidão inline (só consultor/admin em modo medição) */}

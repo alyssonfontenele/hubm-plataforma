@@ -45,7 +45,7 @@ export function LotesTab({ contratoId }: { contratoId: string }) {
     <div className="rounded-lg border border-border overflow-hidden">
       {/* Header */}
       <div className="grid bg-accent-light px-4 py-2.5 border-b border-border text-[10px] font-semibold uppercase tracking-wider text-text-muted"
-        style={{ gridTemplateColumns: "64px 1fr 120px 56px 100px" }}>
+        style={{ gridTemplateColumns: "48px auto minmax(0,1fr) 36px 80px" }}>
         <div>Lote</div>
         <div>Status</div>
         <div>Consultor</div>
@@ -60,14 +60,14 @@ export function LotesTab({ contratoId }: { contratoId: string }) {
           <div
             key={l.id}
             className="grid px-4 py-3 border-b border-border last:border-0 items-center text-sm hover:bg-accent-light/60 transition-colors"
-            style={{ gridTemplateColumns: "64px 1fr 120px 56px 100px" }}
+            style={{ gridTemplateColumns: "48px auto minmax(0,1fr) 36px 80px" }}
           >
             <div className="flex items-center gap-1.5">
               <span className="font-mono font-bold text-text-primary">{l.numero}</span>
               {l.tem_ressalva && <span className="text-[var(--color-warning)] text-xs">⚠</span>}
             </div>
             <div><EtapaBadge etapa={l.status} /></div>
-            <div className="text-text-secondary text-xs truncate">{l.consultor_nome ?? "—"}</div>
+            <div className="text-text-secondary text-xs truncate min-w-0 overflow-hidden">{l.consultor_nome ?? "—"}</div>
             <div className="font-mono text-text-secondary">{l.qtd_itens}</div>
             <div className="font-mono text-xs text-text-muted">{dia}</div>
           </div>

@@ -100,17 +100,17 @@ function LoteDetalhePage() {
       ) : (
         <div className="rounded-lg border border-border overflow-hidden">
           <div className="grid bg-accent-light px-4 py-2 border-b border-border text-[10px] font-semibold uppercase tracking-wider text-text-muted"
-            style={{ gridTemplateColumns: "1fr 120px" }}>
+            style={{ gridTemplateColumns: "minmax(0,1fr) auto" }}>
             <div>Ambiente</div>
             <div>Aptidão</div>
           </div>
           {itens.map((item) => (
             <div key={item.item_id}
               className="grid px-4 py-3 border-b border-border last:border-0 items-center"
-              style={{ gridTemplateColumns: "1fr 120px" }}>
-              <div>
-                <p className="text-sm font-medium text-text-primary">{item.ambiente || item.descricao}</p>
-                <p className="text-xs text-text-muted">{item.codigo}</p>
+              style={{ gridTemplateColumns: "minmax(0,1fr) auto" }}>
+              <div className="min-w-0 overflow-hidden">
+                <p className="text-sm font-medium text-text-primary truncate">{item.ambiente || item.descricao}</p>
+                <p className="text-xs text-text-muted truncate">{item.codigo}</p>
               </div>
               <AptidaoBadge aptidao={item.aptidao} />
             </div>
