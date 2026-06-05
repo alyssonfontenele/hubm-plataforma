@@ -795,20 +795,20 @@ function ContratosWorkspace() {
             <LayoutList className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={() => toggleView("misto")}
-            className={`p-1 rounded transition-colors ${
-              viewMode === "misto" ? "bg-foreground text-background" : "text-text-muted hover:text-text-primary"
-            }`}
-          >
-            <Rows2 className="w-3.5 h-3.5" />
-          </button>
-          <button
             onClick={() => toggleView("kanban")}
             className={`p-1 rounded transition-colors ${
               viewMode === "kanban" ? "bg-foreground text-background" : "text-text-muted hover:text-text-primary"
             }`}
           >
             <LayoutGrid className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => toggleView("misto")}
+            className={`p-1 rounded transition-colors ${
+              viewMode === "misto" ? "bg-foreground text-background" : "text-text-muted hover:text-text-primary"
+            }`}
+          >
+            <Rows2 className="w-3.5 h-3.5" />
           </button>
         </div>
         {isAdmin && (
