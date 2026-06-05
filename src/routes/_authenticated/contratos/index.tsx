@@ -727,14 +727,14 @@ function ContratosWorkspace() {
           <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 border-b border-border flex-wrap">
             {/* Consultor */}
             <Select
-              value={filters.consultor_id ?? ""}
-              onValueChange={(v) => updateFilter("consultor_id", v || null)}
+              value={filters.consultor_id ?? "__all__"}
+              onValueChange={(v) => updateFilter("consultor_id", v === "__all__" ? null : v)}
             >
               <SelectTrigger className="h-7 text-[11px] w-36 gap-1">
                 <SelectValue placeholder="Consultor" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os consultores</SelectItem>
+                <SelectItem value="__all__">Todos os consultores</SelectItem>
                 {consultores.map((c) => (
                   <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
                 ))}
@@ -743,14 +743,14 @@ function ContratosWorkspace() {
 
             {/* Vendedor */}
             <Select
-              value={filters.vendedor_id ?? ""}
-              onValueChange={(v) => updateFilter("vendedor_id", v || null)}
+              value={filters.vendedor_id ?? "__all__"}
+              onValueChange={(v) => updateFilter("vendedor_id", v === "__all__" ? null : v)}
             >
               <SelectTrigger className="h-7 text-[11px] w-36 gap-1">
                 <SelectValue placeholder="Vendedor" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os vendedores</SelectItem>
+                <SelectItem value="__all__">Todos os vendedores</SelectItem>
                 {vendedores.map((v) => (
                   <SelectItem key={v.id} value={v.id}>{v.nome}</SelectItem>
                 ))}
