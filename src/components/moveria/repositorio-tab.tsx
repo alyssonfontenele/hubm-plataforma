@@ -49,16 +49,32 @@ const PAPEL_LABEL: Record<string, string> = {
 const DEFAULT_FORM = { nome: "", telefone: "", email: "", papel: "" };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function formatEndereco(
-  rua: string | null,
-  bairro: string | null,
-  cidade: string | null,
-  uf: string | null,
-  cep: string | null,
-): string {
-  const locParts = [cidade, uf].filter(Boolean).join("/");
-  const parts = [rua, bairro, locParts, cep].filter(Boolean);
-  return parts.join(", ") || "Não informado";
+type EnderecoFields = {
+  rua: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  uf: string | null;
+  cep: string | null;
+};
+
+function EnderecoSegmentado({ end }: { end: EnderecoFields }) {
+  const fields: [string, string | null][] = [
+    ["Rua",    end.rua],
+    ["Bairro", end.bairro],
+    ["Cidade", end.cidade],
+    ["UF",     end.uf],
+    ["CEP",    end.cep],
+  ];
+  return (
+    <div className="flex flex-col gap-1">
+      {fields.map(([label, value]) => (
+        <div key={label} className="flex items-baseline gap-2">
+          <span className="text-[10px] text-text-muted w-12 flex-shrink-0">{label}</span>
+          <span className="text-sm text-text-secondary">{value || "—"}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function InfoRow({ label, value }: { label: string; value: string | null }) {
@@ -225,21 +241,20 @@ export function RepositorioTab({
     }
   }
 
-  // ── Endereços (C3) ──────────────────────────────────────────────────────────
-  const endCliente = formatEndereco(
-    cliente?.endereco_rua ?? null,
-    cliente?.endereco_bairro ?? null,
-    cliente?.endereco_cidade ?? null,
-    cliente?.endereco_uf ?? null,
-    cliente?.endereco_cep ?? null,
-  );
-  const endEntrega = formatEndereco(
-    enderecos?.entrega_rua ?? null,
-    enderecos?.entrega_bairro ?? null,
-    enderecos?.entrega_cidade ?? null,
-    enderecos?.entrega_uf ?? null,
-    enderecos?.entrega_cep ?? null,
-  );
+  const endCliente: EnderecoFields = {
+    rua:    cliente?.endereco_rua    ?? null,
+    bairro: cliente?.endereco_bairro ?? null,
+    cidade: cliente?.endereco_cidade ?? null,
+    uf:     cliente?.endereco_uf     ?? null,
+    cep:    cliente?.endereco_cep    ?? null,
+  };
+  const endEntrega: EnderecoFields = {
+    rua:    enderecos?.entrega_rua    ?? null,
+    bairro: enderecos?.entrega_bairro ?? null,
+    cidade: enderecos?.entrega_cidade ?? null,
+    uf:     enderecos?.entrega_uf     ?? null,
+    cep:    enderecos?.entrega_cep    ?? null,
+  };
 
   const isSubmitting = insertMut.isPending || updateMut.isPending;
   const editingId = editing !== null && editing !== "new"
@@ -265,25 +280,25 @@ export function RepositorioTab({
       {/* ── Endereços ──────────────────────────────────────────────────────── */}
       <SectionCard title="Endereços">
         {enderecos?.entrega_igual_atual ? (
-          <div className="flex flex-col gap-1.5">
-            <p className="text-sm text-text-secondary">{endCliente}</p>
+          <div className="flex flex-col gap-2">
+            <EnderecoSegmentado end={endCliente} />
             <p className="text-[10px] text-text-muted mt-0.5">
               Entrega no mesmo endereço do cliente.
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-4">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-2">
                 Endereço do cliente
               </p>
-              <p className="text-sm text-text-secondary">{endCliente}</p>
+              <EnderecoSegmentado end={endCliente} />
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-2">
                 Endereço de entrega
               </p>
-              <p className="text-sm text-text-secondary">{endEntrega}</p>
+              <EnderecoSegmentado end={endEntrega} />
             </div>
           </div>
         )}
