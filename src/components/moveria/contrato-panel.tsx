@@ -194,11 +194,6 @@ function AmbientesInline({
                 </p>
               </div>
 
-              {/* Col Valor */}
-              <div className="text-xs font-mono text-right text-text-muted pr-1">
-                {(a.valor_item ?? 0) > 0 ? fmtBRL(a.valor_item!) : "—"}
-              </div>
-
               {/* Col 2: consultor (só admin) */}
               {isAdmin && (
                 <div className="pr-2">
@@ -252,6 +247,11 @@ function AmbientesInline({
                   )}
                 </div>
               )}
+
+              {/* Col Valor */}
+              <div className="text-xs font-mono text-right text-text-muted pr-1">
+                {(a.valor_item ?? 0) > 0 ? fmtBRL(a.valor_item!) : "—"}
+              </div>
 
               {/* Col 3: Aptidão inline ou badge */}
               {!isVendedor && canEdit ? (
