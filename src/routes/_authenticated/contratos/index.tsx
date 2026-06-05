@@ -841,7 +841,7 @@ function ContratosWorkspace() {
 
       {/* ── Modo LISTA e MISTO — tags + filtros + planilha/split ────────────── */}
       {!isLoading && (viewMode === "lista" || viewMode === "misto") && cards.length > 0 && (
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
 
           {/* Tags de etapa */}
           <div className="flex-shrink-0 flex items-center gap-1 px-4 py-2 border-b border-border overflow-x-auto">
@@ -1011,7 +1011,7 @@ function ContratosWorkspace() {
             <ResizablePanelGroup
               direction="vertical"
               autoSaveId="moveria_misto_split"
-              className="flex-1"
+              className="h-full"
             >
               <ResizablePanel defaultSize={50} minSize={20}>
                 <div className="h-full overflow-y-auto overflow-x-hidden">
