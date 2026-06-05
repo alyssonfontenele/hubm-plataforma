@@ -1009,7 +1009,7 @@ function ContratosWorkspace() {
 
             /* ── Misto: planilha + kanban com divisória arrastável ───────────── */
             <ResizablePanelGroup
-              direction="vertical"
+              orientation="vertical"
               autoSaveId="moveria_misto_split"
               className="flex-1"
             >
