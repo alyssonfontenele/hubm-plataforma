@@ -3,7 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   LoaderCircle, LayoutList, LayoutGrid, Plus, FileText, User,
-  ChevronRight, X, Check, ChevronsUpDown, ArrowUp, ArrowDown,
+  ChevronRight, X, Check, ChevronsUpDown, ArrowUp, ArrowDown, Rows2,
 } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +20,9 @@ import {
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from "@/components/ui/command";
+import {
+  ResizablePanelGroup, ResizablePanel, ResizableHandle,
+} from "@/components/ui/resizable";
 import { formatCodigoCliente } from "@/lib/moveria";
 
 // ─── Route ────────────────────────────────────────────────────────────────────
@@ -115,7 +118,7 @@ type FilterState = {
   sort_dir:          SortDir;
 };
 
-type ViewMode = "lista" | "kanban";
+type ViewMode = "lista" | "kanban" | "misto";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const KANBAN_COLUNAS = [
@@ -578,6 +581,12 @@ function ContratosWorkspace() {
     [filters]
   );
 
+  // IDs dos contratos que passaram nos filtros — usado pelo kanban no modo misto
+  const filteredContratoIds = useMemo(
+    () => new Set(filteredRows.map((r) => r.contrato_id)),
+    [filteredRows]
+  );
+
   // ── Handlers ─────────────────────────────────────────────────────────────
   function updateFilter<K extends keyof FilterState>(k: K, v: FilterState[K]) {
     setFilters((prev) => ({ ...prev, [k]: v }));
@@ -612,6 +621,146 @@ function ContratosWorkspace() {
     persistViewMode(v);
   }
 
+  // ── Planilha (compartilhado entre lista e misto) ─────────────────────────
+  const planilhaContent = (
+    <>
+      {/* Header sticky */}
+      <div
+        className="sticky top-0 grid bg-accent-light px-3 py-2 border-b border-border text-[10px] font-semibold uppercase tracking-wider text-text-muted z-10 gap-x-2"
+        style={{ gridTemplateColumns: PLANILHA_COLS }}
+      >
+        <div /> {/* chevron */}
+        <div>Cód.</div>
+        <div>Nome cliente</div>
+        <div>Nº contrato</div>
+        <div>Etapa</div>
+        <div className="text-right pr-2">Amb.</div>
+        <div>Consultor</div>
+        <div>Vendedor</div>
+        <div className="text-right">Valor</div>
+        <SortHeaderBtn field="data_contrato" label="Fechamento" filters={filters} onToggle={toggleSort} />
+        <SortHeaderBtn field="prazo_critico" label="Prev. medição" filters={filters} onToggle={toggleSort} />
+      </div>
+
+      {/* Zero results */}
+      {filteredRows.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-12 text-center px-6">
+          <p className="text-sm text-text-muted">
+            Nenhum contrato para os filtros selecionados.
+          </p>
+          <button
+            onClick={() => setFilters(DEFAULT_FILTERS)}
+            className="mt-2 text-xs text-text-muted underline hover:text-text-primary"
+          >
+            Limpar filtros
+          </button>
+        </div>
+      )}
+
+      {/* Rows */}
+      {filteredRows.map((row) => {
+        const isActive   = selectedId === row.contrato_id;
+        const isExpanded = expandedIds.has(row.contrato_id);
+        const codigo = formatCodigoCliente(row.cliente_codigo);
+        const valorFmt = row.valor_total_declarado != null
+          ? `R$ ${row.valor_total_declarado.toLocaleString("pt-BR", {
+              minimumFractionDigits: 2, maximumFractionDigits: 2,
+            })}`
+          : "—";
+        const dataFmt = row.data_contrato
+          ? new Date(row.data_contrato + "T00:00:00").toLocaleDateString("pt-BR")
+          : "—";
+        const prevFmt = row.data_prevista_max
+          ? new Date(row.data_prevista_max + "T00:00:00").toLocaleDateString("pt-BR")
+          : "—";
+        const consultorMae =
+          row.subLinhas.find((s) => s.consultor_nome)?.consultor_nome ?? null;
+
+        return (
+          <div key={row.contrato_id} className="border-b border-border last:border-b-0">
+            {/* Linha-mãe */}
+            <div
+              onClick={() => selectContrato(row.contrato_id)}
+              className={`cursor-pointer grid px-3 py-2.5 items-center transition-colors gap-x-2 ${
+                isActive ? "bg-accent-light" : "bg-surface hover:bg-accent-light/60"
+              }`}
+              style={{ gridTemplateColumns: PLANILHA_COLS }}
+            >
+              {/* Chevron */}
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleExpand(row.contrato_id); }}
+                className="flex items-center justify-center text-text-muted hover:text-text-primary transition-colors"
+                aria-label={isExpanded ? "Recolher" : "Expandir"}
+              >
+                <ChevronRight
+                  className={`w-3 h-3 transition-transform duration-150 ${
+                    isExpanded ? "rotate-90" : ""
+                  }`}
+                />
+              </button>
+              <div className="font-mono text-xs font-bold text-text-primary truncate min-w-0">
+                {codigo || "—"}
+              </div>
+              <div className="text-xs text-text-secondary truncate min-w-0">
+                {row.cliente_nome}
+              </div>
+              <div className="font-mono text-xs text-text-primary truncate min-w-0">
+                {row.contrato_numero}
+              </div>
+              <div
+                className="flex items-center gap-1 min-w-0 overflow-hidden"
+                title={row.etapa_tooltip || undefined}
+              >
+                <div className="flex-shrink-0 min-w-0 overflow-hidden">
+                  <EtapaBadge etapa={row.etapa_principal} />
+                </div>
+                {row.etapas_extras_count > 0 && (
+                  <span className="flex-shrink-0 text-[9px] text-text-muted font-mono leading-none">
+                    +{row.etapas_extras_count}
+                  </span>
+                )}
+              </div>
+              <div className="font-mono text-xs text-text-muted text-right pr-2">
+                {row.qtd_ambientes > 0 ? row.qtd_ambientes : "—"}
+              </div>
+              <div className="text-xs text-text-secondary truncate min-w-0">
+                {consultorMae || "—"}
+              </div>
+              <div className="text-xs text-text-secondary truncate min-w-0">
+                {row.vendedor_nome || "—"}
+              </div>
+              <div className="text-xs text-text-secondary text-right truncate min-w-0">
+                {valorFmt}
+              </div>
+              <div className="text-xs text-text-muted truncate min-w-0">
+                {dataFmt}
+              </div>
+              <div className="text-xs text-text-muted truncate min-w-0">
+                {prevFmt}
+              </div>
+            </div>
+
+            {/* Sub-linhas */}
+            {isExpanded && (
+              <div className="bg-background/50 divide-y divide-border/50">
+                {row.subLinhas.map((sub) => (
+                  <SubLinhaRow
+                    key={sub.tipo === "lote" ? sub.lote_id : `${row.contrato_id}-sem-lote`}
+                    sub={sub}
+                    highlight={
+                      !!filters.consultor_id &&
+                      sub.consultor_id === filters.consultor_id
+                    }
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+
   // ── Render: painel de detalhe ─────────────────────────────────────────────
   if (selectedId) {
     return (
@@ -632,9 +781,9 @@ function ContratosWorkspace() {
       {/* Toolbar */}
       <div className="flex-shrink-0 flex items-center gap-2 px-4 py-3 border-b border-border bg-surface">
         <span className="text-xs text-text-muted font-medium flex-1">
-          {viewMode === "lista"
-            ? `${filteredRows.length} contrato${filteredRows.length !== 1 ? "s" : ""}`
-            : `${cards.length} card${cards.length !== 1 ? "s" : ""}`}
+          {viewMode === "kanban"
+            ? `${cards.length} card${cards.length !== 1 ? "s" : ""}`
+            : `${filteredRows.length} contrato${filteredRows.length !== 1 ? "s" : ""}`}
         </span>
         <div className="flex items-center gap-1 border border-border rounded-md p-0.5">
           <button
@@ -644,6 +793,14 @@ function ContratosWorkspace() {
             }`}
           >
             <LayoutList className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => toggleView("misto")}
+            className={`p-1 rounded transition-colors ${
+              viewMode === "misto" ? "bg-foreground text-background" : "text-text-muted hover:text-text-primary"
+            }`}
+          >
+            <Rows2 className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => toggleView("kanban")}
@@ -682,8 +839,8 @@ function ContratosWorkspace() {
         </div>
       )}
 
-      {/* ── Modo PLANILHA ──────────────────────────────────────────────────── */}
-      {!isLoading && viewMode === "lista" && cards.length > 0 && (
+      {/* ── Modo LISTA e MISTO — tags + filtros + planilha/split ────────────── */}
+      {!isLoading && (viewMode === "lista" || viewMode === "misto") && cards.length > 0 && (
         <div className="flex-1 flex flex-col overflow-hidden">
 
           {/* Tags de etapa */}
@@ -841,158 +998,86 @@ function ContratosWorkspace() {
             )}
           </div>
 
-          {/* Planilha */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden">
+          {viewMode === "lista" ? (
 
-            {/* Header sticky */}
-            <div
-              className="sticky top-0 grid bg-accent-light px-3 py-2 border-b border-border text-[10px] font-semibold uppercase tracking-wider text-text-muted z-10 gap-x-2"
-              style={{ gridTemplateColumns: PLANILHA_COLS }}
-            >
-              <div /> {/* chevron */}
-              <div>Cód.</div>
-              <div>Nome cliente</div>
-              <div>Nº contrato</div>
-              <div>Etapa</div>
-              <div className="text-right pr-2">Amb.</div>
-              <div>Consultor</div>
-              <div>Vendedor</div>
-              <div className="text-right">Valor</div>
-              <SortHeaderBtn field="data_contrato" label="Fechamento" filters={filters} onToggle={toggleSort} />
-              <SortHeaderBtn field="prazo_critico" label="Prev. medição" filters={filters} onToggle={toggleSort} />
+            /* ── Lista: planilha direta ────────────────────────────────────── */
+            <div className="flex-1 overflow-y-auto overflow-x-hidden">
+              {planilhaContent}
             </div>
 
-            {/* Zero results */}
-            {filteredRows.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-12 text-center px-6">
-                <p className="text-sm text-text-muted">
-                  Nenhum contrato para os filtros selecionados.
-                </p>
-                <button
-                  onClick={() => setFilters(DEFAULT_FILTERS)}
-                  className="mt-2 text-xs text-text-muted underline hover:text-text-primary"
-                >
-                  Limpar filtros
-                </button>
-              </div>
-            )}
+          ) : (
 
-            {/* Rows */}
-            {filteredRows.map((row) => {
-              const isActive   = selectedId === row.contrato_id;
-              const isExpanded = expandedIds.has(row.contrato_id);
-              const codigo = formatCodigoCliente(row.cliente_codigo);
-              const valorFmt = row.valor_total_declarado != null
-                ? `R$ ${row.valor_total_declarado.toLocaleString("pt-BR", {
-                    minimumFractionDigits: 2, maximumFractionDigits: 2,
-                  })}`
-                : "—";
-              const dataFmt = row.data_contrato
-                ? new Date(row.data_contrato + "T00:00:00").toLocaleDateString("pt-BR")
-                : "—";
-              const prevFmt = row.data_prevista_max
-                ? new Date(row.data_prevista_max + "T00:00:00").toLocaleDateString("pt-BR")
-                : "—";
-              const consultorMae =
-                row.subLinhas.find((s) => s.consultor_nome)?.consultor_nome ?? null;
-
-              return (
-                <div key={row.contrato_id} className="border-b border-border last:border-b-0">
-                  {/* Linha-mãe */}
-                  <div
-                    onClick={() => selectContrato(row.contrato_id)}
-                    className={`cursor-pointer grid px-3 py-2.5 items-center transition-colors gap-x-2 ${
-                      isActive ? "bg-accent-light" : "bg-surface hover:bg-accent-light/60"
-                    }`}
-                    style={{ gridTemplateColumns: PLANILHA_COLS }}
-                  >
-                    {/* Chevron */}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); toggleExpand(row.contrato_id); }}
-                      className="flex items-center justify-center text-text-muted hover:text-text-primary transition-colors"
-                      aria-label={isExpanded ? "Recolher" : "Expandir"}
-                    >
-                      <ChevronRight
-                        className={`w-3 h-3 transition-transform duration-150 ${
-                          isExpanded ? "rotate-90" : ""
-                        }`}
-                      />
-                    </button>
-                    {/* Código */}
-                    <div className="font-mono text-xs font-bold text-text-primary truncate min-w-0">
-                      {codigo || "—"}
-                    </div>
-                    {/* Nome cliente */}
-                    <div className="text-xs text-text-secondary truncate min-w-0">
-                      {row.cliente_nome}
-                    </div>
-                    {/* Nº contrato */}
-                    <div className="font-mono text-xs text-text-primary truncate min-w-0">
-                      {row.contrato_numero}
-                    </div>
-                    {/* Etapa */}
-                    <div
-                      className="flex items-center gap-1 min-w-0 overflow-hidden"
-                      title={row.etapa_tooltip || undefined}
-                    >
-                      <div className="flex-shrink-0 min-w-0 overflow-hidden">
-                        <EtapaBadge etapa={row.etapa_principal} />
-                      </div>
-                      {row.etapas_extras_count > 0 && (
-                        <span className="flex-shrink-0 text-[9px] text-text-muted font-mono leading-none">
-                          +{row.etapas_extras_count}
-                        </span>
-                      )}
-                    </div>
-                    {/* Amb. */}
-                    <div className="font-mono text-xs text-text-muted text-right pr-2">
-                      {row.qtd_ambientes > 0 ? row.qtd_ambientes : "—"}
-                    </div>
-                    {/* Consultor */}
-                    <div className="text-xs text-text-secondary truncate min-w-0">
-                      {consultorMae || "—"}
-                    </div>
-                    {/* Vendedor */}
-                    <div className="text-xs text-text-secondary truncate min-w-0">
-                      {row.vendedor_nome || "—"}
-                    </div>
-                    {/* Valor */}
-                    <div className="text-xs text-text-secondary text-right truncate min-w-0">
-                      {valorFmt}
-                    </div>
-                    {/* Fechamento */}
-                    <div className="text-xs text-text-muted truncate min-w-0">
-                      {dataFmt}
-                    </div>
-                    {/* Prev. medição */}
-                    <div className="text-xs text-text-muted truncate min-w-0">
-                      {prevFmt}
-                    </div>
-                  </div>
-
-                  {/* Sub-linhas */}
-                  {isExpanded && (
-                    <div className="bg-background/50 divide-y divide-border/50">
-                      {row.subLinhas.map((sub) => (
-                        <SubLinhaRow
-                          key={sub.tipo === "lote" ? sub.lote_id : `${row.contrato_id}-sem-lote`}
-                          sub={sub}
-                          highlight={
-                            !!filters.consultor_id &&
-                            sub.consultor_id === filters.consultor_id
-                          }
-                        />
-                      ))}
-                    </div>
-                  )}
+            /* ── Misto: planilha + kanban com divisória arrastável ───────────── */
+            <ResizablePanelGroup
+              direction="vertical"
+              autoSaveId="moveria_misto_split"
+              className="flex-1"
+            >
+              <ResizablePanel defaultSize={50} minSize={20}>
+                <div className="h-full overflow-y-auto overflow-x-hidden">
+                  {planilhaContent}
                 </div>
-              );
-            })}
-          </div>
+              </ResizablePanel>
+
+              <ResizableHandle withHandle />
+
+              <ResizablePanel defaultSize={50} minSize={15}>
+                <div className="h-full overflow-x-auto lg:overflow-x-hidden overflow-y-hidden">
+                  <div className="flex h-full gap-0 min-w-max lg:min-w-0">
+                    {KANBAN_COLUNAS.map((col) => {
+                      const colCards = cards
+                        .filter((c) => filteredContratoIds.has(c.contrato_id))
+                        .filter((c) => c.etapa === col.etapa);
+                      return (
+                        <div
+                          key={col.etapa}
+                          className="flex flex-col h-full border-r border-border last:border-r-0 min-w-[150px] lg:min-w-0 lg:flex-1"
+                        >
+                          <div className="flex-shrink-0 px-2 py-2 border-b border-border bg-accent-light">
+                            <p className="text-[9px] font-semibold uppercase tracking-wider text-text-muted truncate">
+                              {col.label}
+                            </p>
+                            <p className="text-xs text-text-secondary font-medium">{colCards.length}</p>
+                          </div>
+                          <div className="flex-1 overflow-y-auto p-1.5 flex flex-col gap-1.5">
+                            {colCards.length === 0 ? (
+                              <div className="text-[10px] text-text-muted text-center py-5 px-1 leading-relaxed">
+                                Vazio
+                              </div>
+                            ) : (
+                              colCards.map((c) => {
+                                const id = c.contrato_id;
+                                const isActive = selectedId === id;
+                                return c.tipo_card === "contrato" ? (
+                                  <KanbanContratoCard
+                                    key={c.contrato_id}
+                                    card={c}
+                                    isActive={isActive}
+                                    onClick={() => selectContrato(id)}
+                                  />
+                                ) : (
+                                  <KanbanLoteCard
+                                    key={c.lote_id}
+                                    card={c}
+                                    isActive={isActive}
+                                    onClick={() => selectContrato(id)}
+                                  />
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          )}
         </div>
       )}
 
-      {/* ── Modo KANBAN ────────────────────────────────────────────────────── */}
+      {/* ── Modo KANBAN (standalone, sem filtros) ───────────────────────────── */}
       {!isLoading && viewMode === "kanban" && (
         <div className="flex-1 overflow-x-auto lg:overflow-x-hidden overflow-y-hidden">
           <div className="flex h-full gap-0 min-w-max lg:min-w-0">

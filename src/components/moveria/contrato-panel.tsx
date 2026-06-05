@@ -20,17 +20,20 @@ import { formatCodigoCliente } from "@/lib/moveria";
 import { AmbienteDrawer } from "./ambiente-drawer";
 import { LotesTab } from "./lotes-tab";
 import { ComentariosTab } from "./comentarios-tab";
+import { RepositorioTab } from "./repositorio-tab";
 import { DialogDesignacaoCerimoniosa, type EntradaRascunho } from "./dialog-designacao-cerimon";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ContratoRow = {
   id: string; numero: string; numero_base: string; status: string;
   cliente_id: string | null; vendedor_id: string | null; data_contrato: string | null;
+  valor_total_declarado: number | null;
 };
 type AmbienteRow = {
   id: string; codigo: string; descricao: string;
   ambiente: string | null; aptidao: Aptidao; aptidao_obs: string | null;
   ordem: number | null; consultor_designado: string | null; lote_id: string | null;
+  valor_unitario: number | null; valor_item: number | null;
 };
 type MedicaoRow = { id: string; contrato_id: string; consultor_id: string; data_visita: string; status: string; sequencia: string };
 type ConsultorItem = { id: string; full_name: string | null };
@@ -46,6 +49,10 @@ function rpcFriendly(msg: string) {
 
 function podeDesignar(a: AmbienteRow) {
   return !a.lote_id && (a.aptidao === "pendente" || a.aptidao === "inapto");
+}
+
+function fmtBRL(v: number) {
+  return `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 // ─── Bloco "Aplicar a todos" (preenchimento de rascunho) ──────────────────────
@@ -144,8 +151,8 @@ function AmbientesInline({
 
   // Colunas: [nome] [consultor — só admin] [aptidão] [seta]
   const gridCols = isAdmin
-    ? "minmax(0,1fr) minmax(120px,180px) auto auto"
-    : "minmax(0,1fr) auto auto";
+    ? "minmax(0,1fr) minmax(120px,180px) 72px auto auto"
+    : "minmax(0,1fr) 72px auto auto";
 
   return (
     <>
@@ -157,6 +164,7 @@ function AmbientesInline({
         >
           <div>Ambiente</div>
           {isAdmin && <div>Consultor</div>}
+          <div className="text-right">Valor</div>
           {!isVendedor && <div className="text-right pr-2">Aptidão</div>}
           <div />
         </div>
@@ -184,6 +192,11 @@ function AmbientesInline({
                     <span className="font-normal text-text-secondary"> · {a.descricao}</span>
                   )}
                 </p>
+              </div>
+
+              {/* Col Valor */}
+              <div className="text-xs font-mono text-right text-text-muted pr-1">
+                {(a.valor_item ?? 0) > 0 ? fmtBRL(a.valor_item!) : "—"}
               </div>
 
               {/* Col 2: consultor (só admin) */}
@@ -595,7 +608,7 @@ export function ContratoPanel({
     queryKey: ["moveria_contrato", contratoId],
     queryFn: async () => {
       const { data } = await supabase.from("moveria_contratos_v")
-        .select("id, numero, numero_base, status, cliente_id, vendedor_id, data_contrato")
+        .select("id, numero, numero_base, status, cliente_id, vendedor_id, data_contrato, valor_total_declarado")
         .eq("id", contratoId).maybeSingle();
       return (data as ContratoRow | null) ?? null;
     },
@@ -634,7 +647,7 @@ export function ContratoPanel({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("moveria_itens_contrato")
-        .select("id, codigo, descricao, ambiente, aptidao, aptidao_obs, ordem, consultor_designado, lote_id")
+        .select("id, codigo, descricao, ambiente, aptidao, aptidao_obs, ordem, consultor_designado, lote_id, valor_unitario, valor_item")
         .eq("contrato_id", contratoId).is("deletado_em", null)
         .order("ordem");
       if (error) throw error;
@@ -657,6 +670,10 @@ export function ContratoPanel({
     },
   });
   const temLoteAvancado = contratoStage?.temLoteAvancado ?? false;
+
+  // Valor calculado dos itens
+  const valorItens = ambientes.reduce((s, a) => s + (a.valor_item ?? 0), 0);
+  const hasValorItens = ambientes.some((a) => (a.valor_item ?? 0) > 0);
 
   // Consultores ativos (só admin)
   const { data: consultores = [] } = useQuery<ConsultorItem[]>({
@@ -815,6 +832,26 @@ export function ContratoPanel({
             <EtapaBadge etapa={contrato.status} />
             {dataFmt && <span>{dataFmt}</span>}
           </div>
+          {(contrato.valor_total_declarado != null || hasValorItens) && (
+            <div className="flex items-center gap-3 mt-1 text-xs flex-wrap">
+              {contrato.valor_total_declarado != null && (
+                <span className="text-text-muted">
+                  Decl.{" "}
+                  <span className="font-mono font-semibold text-text-primary">
+                    {fmtBRL(contrato.valor_total_declarado)}
+                  </span>
+                </span>
+              )}
+              {hasValorItens && (
+                <span className="text-text-muted">
+                  Itens{" "}
+                  <span className="font-mono font-semibold text-text-primary">
+                    {fmtBRL(valorItens)}
+                  </span>
+                </span>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-0.5 flex-shrink-0">
           {isAdmin && (
@@ -854,6 +891,9 @@ export function ContratoPanel({
           </TabsTrigger>
           <TabsTrigger value="comercial" className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent px-3 py-2.5 text-sm">
             Conexão com o Comercial
+          </TabsTrigger>
+          <TabsTrigger value="repositorio" className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent px-3 py-2.5 text-sm">
+            Repositório
           </TabsTrigger>
         </TabsList>
 
@@ -916,6 +956,15 @@ export function ContratoPanel({
         {/* ── Conexão com o Comercial ── */}
         <TabsContent value="comercial" className="flex-1 overflow-y-auto px-5 py-4 mt-0 flex flex-col">
           <ComentariosTab contratoId={contratoId} />
+        </TabsContent>
+
+        {/* ── Repositório ── */}
+        <TabsContent value="repositorio" className="flex-1 overflow-y-auto px-5 py-4 mt-0">
+          <RepositorioTab
+            contratoId={contratoId}
+            clienteId={contrato?.cliente_id ?? null}
+            isVendedor={isVendedor}
+          />
         </TabsContent>
       </Tabs>
 
