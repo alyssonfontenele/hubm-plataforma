@@ -13,7 +13,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const LOCAL_URL = "http://127.0.0.1:54321";
+const LOCAL_URL = "http://127.0.0.1:54391";
 const ANON_KEY  = "sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH";
 const SVC_JWT   =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE3MDAwMDAwMDAsImV4cCI6MjEwMDAwMDAwMH0.goLT_yrisHkVs3i4xFEFrO6WxA3PiDHLypfetBIXSAA";
@@ -350,11 +350,13 @@ describe.skipIf(SKIP)("Moveria Fase 3 — Lotes: numeração densa e dissoluçã
     });
 
     it("dissolução gera evento 'lote_dissolvido' no audit log", async () => {
+      // lote_id é NULL após a dissolução (ON DELETE SET NULL na FK moveria_eventos_lote_id_fkey).
+      // O payload preserva numero e contrato_id para rastreabilidade.
       const { data: eventos, error } = await admin
         .from("moveria_eventos")
         .select("tipo, payload")
         .eq("tipo", "lote_dissolvido")
-        .eq("lote_id", IDS.loteC);
+        .filter("payload->>numero", "eq", "3");
       expect(error).toBeNull();
       expect(eventos!.length).toBeGreaterThan(0);
       expect(eventos![0].payload.numero).toBe("3");

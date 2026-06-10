@@ -2,11 +2,10 @@
 -- Fase 5 r2 (b): agendamento e sequência em moveria_medicoes
 -- =================================================================
 
-CREATE TYPE IF NOT EXISTS moveria_status_agendamento AS ENUM (
-  'designado',
-  'data_confirmada',
-  'liberado_medir'
-);
+DO $$ BEGIN
+  CREATE TYPE moveria_status_agendamento AS ENUM ('designado', 'data_confirmada', 'liberado_medir');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 ALTER TABLE moveria_medicoes
   ADD COLUMN IF NOT EXISTS data_prevista       date                       NULL,

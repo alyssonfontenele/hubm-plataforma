@@ -1,5 +1,8 @@
 -- =================================================================
 -- Buckets e policies de storage do módulo Moveria
+-- Pré-condição: migration 20260602010000_add_moveria_module deve ter sido aplicada.
+-- Em db reset local, 20260529041000_bootstrap_companies garante a presença do
+-- slug 'moveria' antes desta migration, permitindo que o módulo seja instalado.
 -- =================================================================
 
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -66,25 +69,12 @@ CREATE POLICY "moveria-docs: delete"
 
 -- ── moveria-medicoes policies ────────────────────────────────────
 
+-- SELECT e DELETE de moveria-medicoes são placeholders até 20260603030000_moveria_fase4a_medicao
+-- recriar com referência a moveria_desenhos_medicao (ainda não existe neste ponto).
 DROP POLICY IF EXISTS "moveria-medicoes: select" ON storage.objects;
 CREATE POLICY "moveria-medicoes: select"
   ON storage.objects FOR SELECT
-  USING (
-    bucket_id = 'moveria-medicoes'
-    AND (
-      auth_is_moveria_admin()
-      OR (
-        auth_moveria_papel()::text = 'consultor_tecnico'
-        AND EXISTS (
-          SELECT 1
-          FROM moveria_desenhos_medicao d
-          JOIN moveria_designacoes des ON des.item_id = d.item_id AND des.ativo = true
-          JOIN moveria_membros      m  ON m.id = des.consultor_id AND m.profile_id = auth.uid()
-          WHERE d.path = objects.name
-        )
-      )
-    )
-  );
+  USING (bucket_id = 'moveria-medicoes' AND auth_is_moveria_admin());
 
 DROP POLICY IF EXISTS "moveria-medicoes: insert" ON storage.objects;
 CREATE POLICY "moveria-medicoes: insert"
@@ -109,19 +99,4 @@ CREATE POLICY "moveria-medicoes: insert"
 DROP POLICY IF EXISTS "moveria-medicoes: delete" ON storage.objects;
 CREATE POLICY "moveria-medicoes: delete"
   ON storage.objects FOR DELETE
-  USING (
-    bucket_id = 'moveria-medicoes'
-    AND (
-      auth_is_moveria_admin()
-      OR (
-        auth_moveria_papel()::text = 'consultor_tecnico'
-        AND EXISTS (
-          SELECT 1
-          FROM moveria_desenhos_medicao d
-          JOIN moveria_designacoes des ON des.item_id = d.item_id AND des.ativo = true
-          JOIN moveria_membros      m  ON m.id = des.consultor_id AND m.profile_id = auth.uid()
-          WHERE d.path = objects.name
-        )
-      )
-    )
-  );
+  USING (bucket_id = 'moveria-medicoes' AND auth_is_moveria_admin());
