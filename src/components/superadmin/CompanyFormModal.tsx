@@ -31,9 +31,24 @@ const DEFAULT_FORM = {
   active: true,
 };
 
-const AVAILABLE_FEATURES = [
+interface FeatureDef {
+  slug: string;
+  label: string;
+  hasPapeisConfig?: boolean;
+}
+
+const AVAILABLE_FEATURES: FeatureDef[] = [
   { slug: "moveria-contratos", label: "Sistema de Contratos (Moveria)" },
-] as const;
+  { slug: "tarefas", label: "Módulo Tarefas", hasPapeisConfig: true },
+];
+
+const PAPEIS_DISPONIVEIS: { value: string; label: string }[] = [
+  { value: "admin", label: "Admin" },
+  { value: "manager", label: "Gestor" },
+  { value: "member", label: "Membro" },
+  { value: "viewer", label: "Visualizador" },
+  { value: "operational", label: "Operacional" },
+];
 
 const inputCls =
   "w-full h-9 rounded-md border border-border bg-surface px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-ring/30";
@@ -51,21 +66,30 @@ export function CompanyFormModal({ open, onClose, onSaved, editTarget }: Props) 
   const [form, setForm] = useState(DEFAULT_FORM);
   const [saving, setSaving] = useState(false);
   const [featureToggles, setFeatureToggles] = useState<Record<string, boolean>>({});
+  const [featurePapeis, setFeaturePapeis] = useState<Record<string, string[]>>({});
+  const [existingConfigs, setExistingConfigs] = useState<Record<string, Record<string, unknown>>>({});
 
   useEffect(() => {
     if (!open) return;
     if (editTarget) {
       void companyClient
         .from("company_features")
-        .select("feature_slug, enabled")
+        .select("feature_slug, enabled, config")
         .eq("company_id", editTarget.id)
         .then(({ data }) => {
           const toggles: Record<string, boolean> = {};
+          const papeis: Record<string, string[]> = {};
+          const configs: Record<string, Record<string, unknown>> = {};
           for (const f of data ?? []) {
-            toggles[(f as { feature_slug: string; enabled: boolean }).feature_slug] =
-              (f as { feature_slug: string; enabled: boolean }).enabled;
+            const row = f as { feature_slug: string; enabled: boolean; config: Record<string, unknown> };
+            toggles[row.feature_slug] = row.enabled;
+            const rawPapeis = row.config?.papeis_liberados;
+            papeis[row.feature_slug] = Array.isArray(rawPapeis) ? rawPapeis as string[] : [];
+            configs[row.feature_slug] = row.config ?? {};
           }
           setFeatureToggles(toggles);
+          setFeaturePapeis(papeis);
+          setExistingConfigs(configs);
         });
       setForm({
         name: editTarget.name,
@@ -79,6 +103,8 @@ export function CompanyFormModal({ open, onClose, onSaved, editTarget }: Props) 
     } else {
       setForm(DEFAULT_FORM);
       setFeatureToggles({});
+      setFeaturePapeis({});
+      setExistingConfigs({});
     }
   }, [open, editTarget]);
 
@@ -116,11 +142,14 @@ export function CompanyFormModal({ open, onClose, onSaved, editTarget }: Props) 
           .eq("id", editTarget.id);
         if (error) throw error;
 
-        // Upsert all features for this company
-        const featureUpserts = AVAILABLE_FEATURES.map(({ slug }) => ({
+        // Upsert all features for this company — merge config to preserve unrelated fields
+        const featureUpserts = AVAILABLE_FEATURES.map(({ slug, hasPapeisConfig }) => ({
           company_id: editTarget.id,
           feature_slug: slug,
           enabled: featureToggles[slug] ?? false,
+          config: hasPapeisConfig
+            ? { ...(existingConfigs[slug] ?? {}), papeis_liberados: featurePapeis[slug] ?? [] }
+            : (existingConfigs[slug] ?? {}),
         }));
         const { error: featErr } = await companyClient
           .from("company_features")
@@ -180,7 +209,14 @@ export function CompanyFormModal({ open, onClose, onSaved, editTarget }: Props) 
         // Insert enabled features for the new company
         const enabledFeatures = AVAILABLE_FEATURES
           .filter(({ slug }) => featureToggles[slug])
-          .map(({ slug }) => ({ company_id: companyId, feature_slug: slug, enabled: true }));
+          .map(({ slug, hasPapeisConfig }) => ({
+            company_id: companyId,
+            feature_slug: slug,
+            enabled: true,
+            config: hasPapeisConfig
+              ? { papeis_liberados: featurePapeis[slug] ?? [] }
+              : {},
+          }));
         if (enabledFeatures.length > 0) {
           const { error: featErr } = await companyClient
             .from("company_features")
@@ -283,18 +319,61 @@ export function CompanyFormModal({ open, onClose, onSaved, editTarget }: Props) 
 
           <div>
             <p className="text-xs font-medium text-text-secondary mb-2">Funcionalidades</p>
-            <div className="rounded-md border border-border bg-background px-3 py-1">
-              {AVAILABLE_FEATURES.map(({ slug, label }) => (
-                <div key={slug} className="flex items-center justify-between py-2">
-                  <span className="text-sm text-text-primary">{label}</span>
-                  <Switch
-                    checked={featureToggles[slug] ?? false}
-                    onCheckedChange={(v) =>
-                      setFeatureToggles((prev) => ({ ...prev, [slug]: v }))
-                    }
-                  />
-                </div>
-              ))}
+            <div className="rounded-md border border-border bg-background px-3 py-1 space-y-1">
+              {AVAILABLE_FEATURES.map(({ slug, label, hasPapeisConfig }) => {
+                const isEnabled = featureToggles[slug] ?? false;
+                return (
+                  <div key={slug}>
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm text-text-primary">{label}</span>
+                      <Switch
+                        checked={isEnabled}
+                        onCheckedChange={(v) =>
+                          setFeatureToggles((prev) => ({ ...prev, [slug]: v }))
+                        }
+                      />
+                    </div>
+                    {hasPapeisConfig && isEnabled && (
+                      <div className="pb-2 pl-1">
+                        <p className="text-xs text-text-muted mb-1.5">Papéis com acesso</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {PAPEIS_DISPONIVEIS.map(({ value, label: roleLabel }) => {
+                            const papeis = featurePapeis[slug] ?? [];
+                            const checked = papeis.includes(value);
+                            return (
+                              <button
+                                key={value}
+                                type="button"
+                                onClick={() =>
+                                  setFeaturePapeis((prev) => {
+                                    const current = prev[slug] ?? [];
+                                    const next = checked
+                                      ? current.filter((p) => p !== value)
+                                      : [...current, value];
+                                    return { ...prev, [slug]: next };
+                                  })
+                                }
+                                className={`px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors ${
+                                  checked
+                                    ? "bg-text-primary text-background border-text-primary"
+                                    : "bg-background text-text-muted border-border hover:bg-accent-light"
+                                }`}
+                              >
+                                {roleLabel}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {(featurePapeis[slug] ?? []).length === 0 && (
+                          <p className="text-xs text-[var(--color-warning-text)] mt-1">
+                            Nenhum papel selecionado — nenhum usuário terá acesso.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 

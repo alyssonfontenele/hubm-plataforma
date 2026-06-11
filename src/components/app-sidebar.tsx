@@ -17,6 +17,7 @@ import {
   Wallet,
   ChevronDown,
   ChevronRight,
+  CheckSquare,
 
   type LucideIcon,
 } from "lucide-react";
@@ -42,7 +43,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { FEATURE_SLUGS, useHasFeature } from "@/hooks/useCompanyFeatures";
+import { FEATURE_SLUGS, useHasFeature, useTarefasFeature } from "@/hooks/useCompanyFeatures";
 
 const ICONS: Record<string, LucideIcon> = {
   folder: Folder,
@@ -111,6 +112,7 @@ export function AppSidebar() {
   const isAdmin = globalRole === "admin";
   const companyId = company?.id;
   const hasContratos = useHasFeature(FEATURE_SLUGS.CONTRATOS);
+  const { hasAccess: hasTarefas } = useTarefasFeature();
 
   const sectorIds = useMemo(
     () => sectorMemberships.map((m) => m.sector.id).sort(),
@@ -250,6 +252,24 @@ export function AppSidebar() {
                     <Link to="/contratos" className="flex items-center gap-2">
                       <FileText className="h-4 w-4" />
                       {!collapsed && <span>Contratos</span>}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {hasTarefas && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Tarefas</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={isActive("/tarefas")}>
+                    <Link to="/tarefas" className="flex items-center gap-2">
+                      <CheckSquare className="h-4 w-4" />
+                      {!collapsed && <span>Tarefas</span>}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

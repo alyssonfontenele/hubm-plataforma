@@ -17,21 +17,23 @@ BEGIN;
 --           mowig para testar isolamento de guard nas migrations)
 -- moveria — empresa Moveria; ID referenciado em todas as FKs do seed
 -- ============================================================
-INSERT INTO public.companies (id, slug, name, active)
+INSERT INTO public.companies (id, slug, name, active, allowed_domains)
 VALUES
   (
     'bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb',
     'mowig',
     'Mowig',
-    true
+    true,
+    '{}'
   ),
   (
     'fac9ae68-d906-4055-b228-02861cff3a7f',
     'moveria',
     'Moveria',
-    true
+    true,
+    '{moveria.test}'
   )
-ON CONFLICT (slug) DO NOTHING;
+ON CONFLICT (slug) DO UPDATE SET allowed_domains = EXCLUDED.allowed_domains;
 
 -- ============================================================
 -- STEP 2: auth.users (3 usuários de teste)
@@ -70,7 +72,7 @@ VALUES
     'c3c3c3c3-c3c3-4c3c-c3c3-c3c3c3c3c3c3',
     '00000000-0000-0000-0000-000000000000',
     'authenticated', 'authenticated',
-    'cliente.joao@moveria.test',
+    '52998224725@hubm.internal',
     crypt('Teste@1234', gen_salt('bf')),
     now(), now(), now(),
     '{"global_role": "member"}'::jsonb,
@@ -127,9 +129,9 @@ VALUES
     'email', now(), now()
   ),
   (
-    'cliente.joao@moveria.test',
+    '52998224725@hubm.internal',
     'c3c3c3c3-c3c3-4c3c-c3c3-c3c3c3c3c3c3',
-    '{"sub": "c3c3c3c3-c3c3-4c3c-c3c3-c3c3c3c3c3c3", "email": "cliente.joao@moveria.test", "email_verified": true}'::jsonb,
+    '{"sub": "c3c3c3c3-c3c3-4c3c-c3c3-c3c3c3c3c3c3", "email": "52998224725@hubm.internal", "email_verified": true}'::jsonb,
     'email', now(), now()
   )
 ON CONFLICT (provider_id, provider) DO NOTHING;
@@ -139,7 +141,7 @@ UPDATE auth.users SET
   email_change               = COALESCE(NULLIF(email_change, ''), ''),
   email_change_token_new     = COALESCE(email_change_token_new, ''),
   email_change_token_current = COALESCE(email_change_token_current, '')
-WHERE email LIKE '%moveria.test%';
+WHERE email LIKE '%moveria.test%' OR email = '52998224725@hubm.internal';
 
 -- ============================================================
 -- STEP 5: moveria_membros
