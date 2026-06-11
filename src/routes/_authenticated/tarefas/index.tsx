@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CheckSquare, LoaderCircle } from "lucide-react";
 import { useTarefasAtribuidas, type TarefasStatus, type TarefasTipo } from "@/hooks/useTarefas";
+import { useTarefasFeature } from "@/hooks/useCompanyFeatures";
+import { NovaTarefaModal } from "@/components/tarefas/NovaTarefaModal";
 
 export const Route = createFileRoute("/_authenticated/tarefas/")({
   ssr: false,
@@ -45,6 +47,7 @@ function fmtDate(iso: string): string {
 
 function TarefasPage() {
   const { data: tarefas, isLoading } = useTarefasAtribuidas();
+  const { hasAccess } = useTarefasFeature();
   const now = new Date();
 
   return (
@@ -56,6 +59,9 @@ function TarefasPage() {
             {tarefas.length}
           </span>
         )}
+        <div className="ml-auto">
+          {hasAccess && <NovaTarefaModal size="sm" />}
+        </div>
       </div>
 
       {isLoading ? (

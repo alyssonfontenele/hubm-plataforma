@@ -74,6 +74,7 @@ export interface Tarefa {
   tipo: TarefasTipo;
   modo: TarefasModo;
   solicitante_id: string;
+  responsavel_id: string | null;
   status: TarefasStatus;
   objetivo: string;
   instrucoes: string | null;
@@ -242,11 +243,14 @@ export function useTarefaEventos(tarefaId: string | null) {
 export interface CreateTarefaInput {
   objetivo: string;
   instrucoes?: string;
-  prazo: string;
+  prazo?: string;
   modo?: TarefasModo;
   tipo?: TarefasTipo;
-  sla_id?: string;
+  /** modo=unica: responsável único (FK profiles). Obrigatório nesse modo. */
+  responsavel_id?: string;
+  /** modo=colaborativo: IDs dos atribuídos (mínimo 1). */
   atribuido_ids?: string[];
+  sla_id?: string;
   campos_personalizados?: Record<string, unknown>;
   template_id?: string;
 }
@@ -259,19 +263,32 @@ export function useCreateTarefa() {
     mutationFn: async (input: CreateTarefaInput) => {
       if (!profile) throw new Error("Usuário não autenticado.");
 
+      const tipo = input.tipo ?? "requisitada";
+      const modo = tipo === "propria" ? "unica" : (input.modo ?? "unica");
+
+      // Para tipo=propria o responsavel é sempre o próprio usuário.
+      const responsavelId =
+        tipo === "propria" ? profile.id : (input.responsavel_id ?? null);
+
+      // prazo: campo NOT NULL no banco — default 30 dias se omitido.
+      const prazoDate = input.prazo
+        ? input.prazo
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
       const { data: tarefa, error: tarefaErr } = await supabase
         .from("tarefas")
         .insert({
-          company_id: profile.company_id,
-          solicitante_id: profile.id,
-          objetivo: input.objetivo,
-          instrucoes: input.instrucoes ?? null,
-          prazo: input.prazo,
-          modo: input.modo ?? "unica",
-          tipo: input.tipo ?? "requisitada",
-          sla_id: input.sla_id ?? null,
+          company_id:            profile.company_id,
+          solicitante_id:        profile.id,
+          objetivo:              input.objetivo,
+          instrucoes:            input.instrucoes ?? null,
+          prazo:                 prazoDate,
+          modo,
+          tipo,
+          responsavel_id:        responsavelId,
+          sla_id:                input.sla_id ?? null,
           campos_personalizados: input.campos_personalizados ?? {},
-          template_id: input.template_id ?? null,
+          template_id:           input.template_id ?? null,
         })
         .select("id")
         .single();
@@ -279,10 +296,12 @@ export function useCreateTarefa() {
 
       const tarefaId = (tarefa as { id: string }).id;
 
-      if (input.atribuido_ids && input.atribuido_ids.length > 0) {
+      // Atribuições: apenas para modo=colaborativo.
+      if (modo === "colaborativo" && input.atribuido_ids && input.atribuido_ids.length > 0) {
         const rows = input.atribuido_ids.map((atribuido_id) => ({
           tarefa_id: tarefaId,
           atribuido_id,
+          status: "pendente_aceite" as const,
         }));
         const { error: atrErr } = await supabase
           .from("tarefas_atribuicoes")
@@ -290,14 +309,53 @@ export function useCreateTarefa() {
         if (atrErr) throw atrErr;
       }
 
-      // Evento inicial append-only
-      const { error: evtErr } = await supabase.from("tarefas_eventos").insert({
-        tarefa_id: tarefaId,
-        tipo: "criada" satisfies TarefasTipoEvento,
-        autor_id: profile.id,
-        payload: { objetivo: input.objetivo },
-      });
-      if (evtErr) throw evtErr;
+      // Evento 'criada' — sempre o primeiro no log append-only.
+      const { error: evtCriadaErr } = await supabase
+        .from("tarefas_eventos")
+        .insert({
+          tarefa_id: tarefaId,
+          tipo:      "criada" satisfies TarefasTipoEvento,
+          autor_id:  profile.id,
+          payload:   { objetivo: input.objetivo, tipo, modo },
+        });
+      if (evtCriadaErr) throw evtCriadaErr;
+
+      // Auto-aceite: tipo=propria vai direto a em_andamento (1 clique ao usuário).
+      if (tipo === "propria") {
+        // solicitada → aceita
+        const { error: updAceitaErr } = await supabase
+          .from("tarefas")
+          .update({ status: "aceita" })
+          .eq("id", tarefaId);
+        if (updAceitaErr) throw updAceitaErr;
+
+        const { error: evtAceitaErr } = await supabase
+          .from("tarefas_eventos")
+          .insert({
+            tarefa_id: tarefaId,
+            tipo:      "aceita" satisfies TarefasTipoEvento,
+            autor_id:  profile.id,
+            payload:   { auto_aceite: true },
+          });
+        if (evtAceitaErr) throw evtAceitaErr;
+
+        // aceita → em_andamento
+        const { error: updEmAndErr } = await supabase
+          .from("tarefas")
+          .update({ status: "em_andamento" })
+          .eq("id", tarefaId);
+        if (updEmAndErr) throw updEmAndErr;
+
+        const { error: evtEmAndErr } = await supabase
+          .from("tarefas_eventos")
+          .insert({
+            tarefa_id: tarefaId,
+            tipo:      "inicio_execucao" satisfies TarefasTipoEvento,
+            autor_id:  profile.id,
+            payload:   { auto_aceite: true },
+          });
+        if (evtEmAndErr) throw evtEmAndErr;
+      }
 
       return tarefaId;
     },

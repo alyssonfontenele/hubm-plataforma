@@ -144,6 +144,24 @@ UPDATE auth.users SET
 WHERE email LIKE '%moveria.test%' OR email = '52998224725@hubm.internal';
 
 -- ============================================================
+-- STEP 4b: company_features — feature flag tarefas (testes locais)
+-- A migration 20260611000000 insere com enabled=false / papeis=[].
+-- O seed sobrescreve para enabled=true / papeis=['member'] na Moveria,
+-- permitindo testar a criação de tarefas como consultor@moveria.test.
+-- ============================================================
+INSERT INTO public.company_features (company_id, feature_slug, enabled, config)
+VALUES (
+  'fac9ae68-d906-4055-b228-02861cff3a7f',
+  'tarefas',
+  true,
+  '{"papeis_liberados":["member"]}'::jsonb
+)
+ON CONFLICT (company_id, feature_slug)
+DO UPDATE SET
+  enabled = true,
+  config  = '{"papeis_liberados":["member"]}'::jsonb;
+
+-- ============================================================
 -- STEP 5: moveria_membros
 -- ============================================================
 INSERT INTO moveria_membros (id, profile_id, papel, ativo)
