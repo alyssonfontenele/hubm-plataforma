@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { LoaderCircle, ChevronRight, X, UserPlus, RotateCcw, Trash2 } from "lucide-react";
+import { LoaderCircle, ChevronRight, X, UserPlus, RotateCcw, Trash2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -58,6 +58,7 @@ function fmtBRL(v: number) {
 // ─── Bloco "Aplicar a todos" (preenchimento de rascunho) ──────────────────────
 function DesignacaoBlock({
   consultores, dataPrevista, onDataPrevistaChange, onAplicarTodos, travaAtiva, onReabrir,
+  hasDraft, isPending, onSalvar,
 }: {
   consultores: ConsultorItem[];
   dataPrevista: string;
@@ -65,6 +66,9 @@ function DesignacaoBlock({
   onAplicarTodos: (consultorId: string) => void;
   travaAtiva: boolean;
   onReabrir: () => void;
+  hasDraft: boolean;
+  isPending: boolean;
+  onSalvar: () => void;
 }) {
   const [consultorId, setConsultorId] = useState("");
 
@@ -119,6 +123,20 @@ function DesignacaoBlock({
         >
           Aplicar a todos
         </Button>
+        {hasDraft && (
+          <Button
+            size="sm"
+            disabled={isPending}
+            onClick={onSalvar}
+            className="flex items-center gap-1.5"
+          >
+            {isPending
+              ? <LoaderCircle className="w-3.5 h-3.5 animate-spin" />
+              : <Check className="w-3.5 h-3.5" />
+            }
+            Salvar designações
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -127,7 +145,7 @@ function DesignacaoBlock({
 // ─── Lista de ambientes inline com aptidão + Select de rascunho (admin) ───────
 function AmbientesInline({
   ambientes, isLoading, canEdit, isAdmin, isVendedor, consultores, contratoId,
-  draft, onDraftChange, redesignando, onRedesignarConfirm, travaAtiva, reaberto, refetch,
+  draft, onDraftChange, redesignando, onRedesignarConfirm, travaAtiva, reaberto, savedItemIds, refetch,
 }: {
   ambientes: AmbienteRow[];
   isLoading: boolean;
@@ -142,6 +160,7 @@ function AmbientesInline({
   onRedesignarConfirm: (itemId: string) => void;
   travaAtiva: boolean;
   reaberto: boolean;
+  savedItemIds: Set<string>;
   refetch: () => void;
 }) {
   const [selectedItem, setSelectedItem] = useState<AmbienteRow | null>(null);
@@ -234,6 +253,11 @@ function AmbientesInline({
                         <span className="text-xs text-text-secondary truncate">
                           {nomeConsultor(a.consultor_designado ?? "")}
                         </span>
+                        {savedItemIds.has(a.id) && (
+                          <span className="flex-shrink-0 flex items-center gap-0.5 text-[10px] font-semibold text-[var(--color-success-text)] bg-[var(--color-success-light)] border border-[var(--color-success)] rounded px-1.5 py-0.5">
+                            <Check className="w-2.5 h-2.5" /> Salvo
+                          </span>
+                        )}
                         <button
                           onClick={() => !travaAtiva && setPendingRedesignarItem(a)}
                           disabled={travaAtiva}
@@ -274,9 +298,16 @@ function AmbientesInline({
                     )
                   ) : (
                     // Consultor read-only: não-admin, ou admin sem reabrir
-                    <span className="text-xs text-text-muted truncate block">
-                      {nomeConsultor(consultorExibido)}
-                    </span>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-xs text-text-muted truncate">
+                        {nomeConsultor(consultorExibido)}
+                      </span>
+                      {savedItemIds.has(a.id) && (
+                        <span className="flex-shrink-0 flex items-center gap-0.5 text-[10px] font-semibold text-[var(--color-success-text)] bg-[var(--color-success-light)] border border-[var(--color-success)] rounded px-1.5 py-0.5">
+                          <Check className="w-2.5 h-2.5" /> Salvo
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
@@ -669,6 +700,7 @@ export function ContratoPanel({
   const [confirmDesigOpen, setConfirmDesigOpen] = useState(false);
   const [alertSairOpen, setAlertSairOpen] = useState(false);
   const [excluirOpen, setExcluirOpen] = useState(false);
+  const [savedItemIds, setSavedItemIds] = useState<Set<string>>(new Set());
 
   // ── Queries ──────────────────────────────────────────────────────
   const { data: contrato, isLoading: loadingC } = useQuery<ContratoRow | null>({
@@ -830,6 +862,8 @@ export function ContratoPanel({
       return data as number;
     },
     onSuccess: async (qtd) => {
+      const savedIds = new Set(entradasDialog.map((e) => e.itemId));
+
       // Evento consolidado de auditoria
       await supabase.from("moveria_eventos").insert({
         tipo: "designacao_registrada",
@@ -849,9 +883,7 @@ export function ContratoPanel({
         },
       });
 
-      const dataStr = dataPrevista
-        ? new Date(dataPrevista + "T12:00:00").toLocaleDateString("pt-BR") : "sem previsão";
-      toast.success(`${qtd} ambiente(s) designado(s) — previsão: ${dataStr}`);
+      toast.success(`${qtd} ${qtd !== 1 ? "designações salvas" : "designação salva"}`);
 
       qc.invalidateQueries({ queryKey: ["moveria_ambientes", contratoId] });
       qc.invalidateQueries({ queryKey: ["moveria_kanban"] });
@@ -860,7 +892,9 @@ export function ContratoPanel({
       setRedesignando(new Set());
       setReaberto(false);
       setConfirmDesigOpen(false);
-      onClose?.();
+
+      setSavedItemIds(savedIds);
+      setTimeout(() => setSavedItemIds(new Set()), 2500);
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao designar"),
   });
@@ -997,19 +1031,10 @@ export function ContratoPanel({
               onAplicarTodos={aplicarTodos}
               travaAtiva={travaAtiva}
               onReabrir={() => setReaberto(true)}
+              hasDraft={hasDraft}
+              isPending={designarLote.isPending}
+              onSalvar={() => designarLote.mutate()}
             />
-          )}
-
-          {/* Botão de confirmação do rascunho (só quando há mudanças) */}
-          {isAdmin && hasDraft && (
-            <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-[var(--color-info)] bg-[var(--color-info-light)] px-4 py-3">
-              <p className="text-xs text-[var(--color-info-text)] font-medium">
-                {entradasDialog.length} designação{entradasDialog.length !== 1 ? "ões" : ""} não salva{entradasDialog.length !== 1 ? "s" : ""}
-              </p>
-              <Button size="sm" onClick={() => setConfirmDesigOpen(true)}>
-                Confirmar designações →
-              </Button>
-            </div>
           )}
 
           {/* Sessão de medição (consultor ou admin) */}
@@ -1037,6 +1062,7 @@ export function ContratoPanel({
             onRedesignarConfirm={(id) => setRedesignando((prev) => new Set([...prev, id]))}
             travaAtiva={travaAtiva}
             reaberto={reaberto}
+            savedItemIds={savedItemIds}
             refetch={refetchAmbientes}
           />
         </TabsContent>
