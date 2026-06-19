@@ -352,9 +352,10 @@ function MedicaoBlock({
         .select("id, contrato_id, consultor_id, data_visita, status, sequencia")
         .eq("contrato_id", contratoId)
         .eq("consultor_id", membroId)
-        .eq("status", "em_andamento")
-        .maybeSingle();
-      return (data as MedicaoRow | null) ?? null;
+        .in("status", ["em_andamento", "finalizada"])
+        .order("criado_em", { ascending: false })
+        .limit(1);
+      return ((data ?? [])[0] as MedicaoRow | undefined) ?? null;
     },
   });
 
@@ -366,7 +367,17 @@ function MedicaoBlock({
   const nRessalva = ambientes.filter((a) => a.aptidao === "apto_ressalva").length;
   const nInapto   = ambientes.filter((a) => a.aptidao === "inapto").length;
   const nPendente = ambientes.filter((a) => a.aptidao === "pendente").length;
-  const canConformar = nApto + nRessalva > 0;
+  // Aptos sem lote: únicos que podem entrar numa nova conformação.
+  // Exclui itens já lotados de sessões anteriores, evitando falso positivo no fluxo multi-sessão.
+  const aptosDisponiveis = ambientes.filter(
+    (a) => (a.aptidao === "apto" || a.aptidao === "apto_ressalva") && a.lote_id === null
+  );
+  const canConformar = aptosDisponiveis.length > 0;
+  // jaConformada: sessão finalizada + existem aptos no contrato + nenhum disponível para novo lote.
+  const jaConformada =
+    sessao?.status === "finalizada" &&
+    (nApto + nRessalva) > 0 &&
+    !canConformar;
 
   async function criarSessao() {
     const { error } = await supabase.from("moveria_medicoes")
@@ -396,6 +407,7 @@ function MedicaoBlock({
       if (error) throw error;
       toast.success("Lote conformado com sucesso!");
       setConfirmOpen(false);
+      refetchSessao();
       qc.invalidateQueries({ queryKey: ["moveria_lotes_tab", contratoId] });
       qc.invalidateQueries({ queryKey: ["moveria_kanban"] });
       onConformado();
@@ -428,19 +440,40 @@ function MedicaoBlock({
           <Button size="sm" onClick={criarSessao}>Iniciar nova medição</Button>
           <span className="text-xs text-text-muted">Ou retome uma sessão salva acima.</span>
         </div>
-      ) : (
+      ) : jaConformada ? (
+        /* Sessão finalizada e aptos já em lote → read-only, sem risco de dupla conformação */
         <div className="flex items-center gap-2 flex-wrap">
           <div className="text-xs text-text-secondary flex items-center gap-1.5">
             <span className="font-mono font-semibold">Sessão {sessao.sequencia}</span>
-            <span className="text-text-muted">· em andamento ·</span>
+            <span className="text-text-muted">· finalizada ·</span>
             <span>{new Date(sessao.data_visita + "T12:00:00").toLocaleDateString("pt-BR")}</span>
           </div>
-          <Button size="sm" variant="outline" onClick={finalizarSessao}>Salvar e finalizar</Button>
+          <span className="flex items-center gap-1 text-[10px] font-semibold text-[var(--color-success-text)] bg-[var(--color-success-light)] border border-[var(--color-success)] rounded-full px-2.5 py-0.5">
+            ✓ Lote conformado
+          </span>
+          <Button size="sm" variant="outline" onClick={criarSessao}>Iniciar nova medição</Button>
+        </div>
+      ) : (
+        /* Sessão em andamento ou finalizada aguardando conformação */
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="text-xs text-text-secondary flex items-center gap-1.5">
+            <span className="font-mono font-semibold">Sessão {sessao.sequencia}</span>
+            <span className="text-text-muted">
+              · {sessao.status === "em_andamento" ? "em andamento" : "finalizada"} ·
+            </span>
+            <span>{new Date(sessao.data_visita + "T12:00:00").toLocaleDateString("pt-BR")}</span>
+          </div>
+          {sessao.status === "em_andamento" && (
+            <Button size="sm" variant="outline" onClick={finalizarSessao}>Salvar e finalizar</Button>
+          )}
           <Button size="sm" disabled={!canConformar || sessao.status !== "finalizada"} onClick={() => setConfirmOpen(true)}>
             Conformar lote →
           </Button>
-          {!canConformar && (
-            <span className="text-xs text-text-muted">Marque aptidão e finalize a sessão para conformar.</span>
+          {sessao.status === "em_andamento" && (
+            <span className="text-xs text-text-muted">Finalize a sessão para conformar.</span>
+          )}
+          {sessao.status === "finalizada" && !canConformar && (
+            <span className="text-xs text-text-muted">Nenhum ambiente apto nesta sessão.</span>
           )}
         </div>
       )}
