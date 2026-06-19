@@ -193,6 +193,7 @@ export function AmbienteDrawer({ item, canEdit, isAdmin, open, onClose, onAptida
 
   async function handleSaveQ() {
     if (!item || !profile) return;
+    const isComplete = BLOCO_CHAVES.every((k) => !!form[k].opcao_id);
     setSaving(true);
     try {
       const payload = {
@@ -214,6 +215,7 @@ export function AmbienteDrawer({ item, canEdit, isAdmin, open, onClose, onAptida
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ["moveria_questionario", item.id] });
       toast.success("Questionário salvo");
+      if (isComplete) onClose();
     } catch (e: any) {
       toast.error(e.message ?? "Erro ao salvar");
     } finally {

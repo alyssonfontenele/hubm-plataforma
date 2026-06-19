@@ -385,67 +385,82 @@ function SortHeaderBtn({
 
 // ─── SubLinhaRow ──────────────────────────────────────────────────────────────
 function SubLinhaRow({ sub, highlight }: { sub: SubLinha; highlight: boolean }) {
-  const hlCls = highlight
+  const rowCls = highlight
     ? "border-l-2 border-[var(--color-info)] bg-[var(--color-info-light)]"
-    : "border-l-2 border-transparent";
+    : sub.tipo === "sem_lote"
+    ? "border-l-2 border-[var(--color-warning)]/50 bg-[var(--color-warning-light)]/25"
+    : "border-l-2 border-[var(--color-success)]/40 bg-[var(--color-success-light)]/20";
 
-  if (sub.tipo === "sem_lote") {
-    const prevFmt = sub.data_prevista_max
-      ? new Date(sub.data_prevista_max + "T00:00:00").toLocaleDateString("pt-BR")
-      : null;
-    return (
-      <div className={`flex items-center gap-2.5 pl-6 pr-4 py-1.5 text-[11px] text-text-secondary ${hlCls}`}>
-        <span className="text-[9px] font-semibold uppercase tracking-wide text-text-muted bg-surface border border-border rounded px-1.5 py-0.5 flex-shrink-0">
-          sem lote
-        </span>
-        <EtapaBadge etapa={sub.etapa} />
-        {sub.sub_estado && <SubEstadoMini sub={sub.sub_estado} />}
-        {sub.tem_atraso && (
-          <span className="flex-shrink-0 text-[9px] font-semibold text-[var(--color-danger-text)]">
-            ⚠ atrasado
-          </span>
-        )}
-        <span className="flex items-center gap-1 min-w-0 truncate">
-          <User className="w-2.5 h-2.5 text-text-muted flex-shrink-0" />
-          <span className="truncate">
-            {sub.consultor_nome ?? <span className="italic text-text-muted">sem consultor</span>}
-          </span>
-        </span>
-        <span className="font-mono text-text-muted flex-shrink-0">
-          {sub.qtd_ambientes} amb.
-        </span>
-        {prevFmt && (
-          <span className="text-text-muted flex-shrink-0">Prev. {prevFmt}</span>
-        )}
-      </div>
-    );
-  }
-
-  // tipo === "lote"
-  const conformadoFmt = sub.conformado_em
+  const qtd = sub.tipo === "sem_lote" ? sub.qtd_ambientes : sub.qtd_itens;
+  const conformadoFmt = sub.tipo === "lote" && sub.conformado_em
     ? new Date(sub.conformado_em).toLocaleDateString("pt-BR")
     : null;
+  const prevFmt = sub.tipo === "sem_lote" && sub.data_prevista_max
+    ? new Date(sub.data_prevista_max + "T00:00:00").toLocaleDateString("pt-BR")
+    : null;
+
   return (
-    <div className={`flex items-center gap-2.5 pl-6 pr-4 py-1.5 text-[11px] text-text-secondary ${hlCls}`}>
-      <span className="text-[9px] font-semibold uppercase tracking-wide text-text-muted bg-surface border border-border rounded px-1.5 py-0.5 flex-shrink-0">
-        {sub.lote_numero || "lote"}
-      </span>
-      <EtapaBadge etapa={sub.etapa} />
-      {sub.tem_ressalva && (
-        <span className="text-[var(--color-warning)] font-bold flex-shrink-0" title="Com ressalva">⚠</span>
-      )}
-      <span className="flex items-center gap-1 min-w-0 truncate">
+    <div
+      className={`grid px-3 gap-x-2 py-1.5 items-center text-[11px] text-text-secondary ${rowCls}`}
+      style={{ gridTemplateColumns: PLANILHA_COLS }}
+    >
+      {/* Col 1: espaço chevron */}
+      <div />
+
+      {/* Col 2: Cód. — identificador do agrupamento */}
+      <div className="min-w-0">
+        <span className="text-[9px] font-semibold uppercase tracking-wide text-text-muted bg-surface border border-border rounded px-1.5 py-0.5 inline-block max-w-full truncate">
+          {sub.tipo === "sem_lote" ? "sem lote" : (sub.lote_numero || "lote")}
+        </span>
+      </div>
+
+      {/* Col 3: Nome — badges de estado */}
+      <div className="flex items-center gap-1 min-w-0 flex-wrap overflow-hidden">
+        {sub.tipo === "sem_lote" && sub.sub_estado && <SubEstadoMini sub={sub.sub_estado} />}
+        {sub.tipo === "sem_lote" && sub.tem_atraso && (
+          <span className="text-[9px] font-semibold text-[var(--color-danger-text)] flex-shrink-0">⚠ atrasado</span>
+        )}
+        {sub.tipo === "lote" && sub.tem_ressalva && (
+          <span className="text-[var(--color-warning)] font-bold flex-shrink-0" title="Com ressalva">⚠</span>
+        )}
+      </div>
+
+      {/* Col 4: Nº contrato — vazio */}
+      <div />
+
+      {/* Col 5: Etapa */}
+      <div className="min-w-0 overflow-hidden">
+        <EtapaBadge etapa={sub.etapa} />
+      </div>
+
+      {/* Col 6: Amb. */}
+      <div className="font-mono text-right pr-2 text-text-muted">
+        {qtd > 0 ? qtd : "—"}
+      </div>
+
+      {/* Col 7: Consultor */}
+      <div className="flex items-center gap-1 min-w-0 overflow-hidden">
         <User className="w-2.5 h-2.5 text-text-muted flex-shrink-0" />
         <span className="truncate">
           {sub.consultor_nome ?? <span className="italic text-text-muted">sem consultor</span>}
         </span>
-      </span>
-      <span className="font-mono text-text-muted flex-shrink-0">
-        {sub.qtd_itens} amb.
-      </span>
-      {conformadoFmt && (
-        <span className="text-text-muted flex-shrink-0">Conf. {conformadoFmt}</span>
-      )}
+      </div>
+
+      {/* Col 8: Vendedor — vazio */}
+      <div />
+
+      {/* Col 9: Valor — vazio */}
+      <div />
+
+      {/* Col 10: Fechamento (lotes conformados) */}
+      <div className="font-mono text-xs text-text-muted truncate">
+        {conformadoFmt ?? ""}
+      </div>
+
+      {/* Col 11: Prev. medição (sem-lote) */}
+      <div className="font-mono text-xs text-text-muted truncate">
+        {prevFmt ?? ""}
+      </div>
     </div>
   );
 }
@@ -741,20 +756,30 @@ function ContratosWorkspace() {
             </div>
 
             {/* Sub-linhas */}
-            {isExpanded && (
-              <div className="bg-background/50 divide-y divide-border/50">
-                {row.subLinhas.map((sub) => (
-                  <SubLinhaRow
-                    key={sub.tipo === "lote" ? sub.lote_id : `${row.contrato_id}-sem-lote`}
-                    sub={sub}
-                    highlight={
-                      !!filters.consultor_id &&
-                      sub.consultor_id === filters.consultor_id
-                    }
-                  />
-                ))}
-              </div>
-            )}
+            {isExpanded && (() => {
+              const semLotes = row.subLinhas.filter((s): s is SubLinhaSemLote => s.tipo === "sem_lote");
+              const lotes = row.subLinhas.filter((s): s is SubLinhaLote => s.tipo === "lote");
+              const hasBoth = semLotes.length > 0 && lotes.length > 0;
+              return (
+                <div className="bg-background/40">
+                  {semLotes.map((sub) => (
+                    <SubLinhaRow
+                      key={`${row.contrato_id}-sem-lote`}
+                      sub={sub}
+                      highlight={!!filters.consultor_id && sub.consultor_id === filters.consultor_id}
+                    />
+                  ))}
+                  {hasBoth && <div className="mx-3 border-t border-border/60" />}
+                  {lotes.map((sub) => (
+                    <SubLinhaRow
+                      key={sub.lote_id}
+                      sub={sub}
+                      highlight={!!filters.consultor_id && sub.consultor_id === filters.consultor_id}
+                    />
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         );
       })}

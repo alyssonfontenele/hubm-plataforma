@@ -44,8 +44,8 @@ export function LotesTab({ contratoId }: { contratoId: string }) {
   return (
     <div className="rounded-lg border border-border overflow-hidden">
       {/* Header */}
-      <div className="grid bg-accent-light px-4 py-2.5 border-b border-border text-[10px] font-semibold uppercase tracking-wider text-text-muted"
-        style={{ gridTemplateColumns: "48px auto minmax(0,1fr) 36px 80px" }}>
+      <div className="grid gap-x-2 bg-accent-light px-4 py-2.5 border-b border-border text-[10px] font-semibold uppercase tracking-wider text-text-muted"
+        style={{ gridTemplateColumns: "48px minmax(80px,120px) minmax(0,1fr) 36px 80px" }}>
         <div>Lote</div>
         <div>Status</div>
         <div>Consultor</div>
@@ -59,8 +59,8 @@ export function LotesTab({ contratoId }: { contratoId: string }) {
         return (
           <div
             key={l.id}
-            className="grid px-4 py-3 border-b border-border last:border-0 items-center text-sm hover:bg-accent-light/60 transition-colors"
-            style={{ gridTemplateColumns: "48px auto minmax(0,1fr) 36px 80px" }}
+            className="grid gap-x-2 px-4 py-3 border-b border-border last:border-0 items-center text-sm hover:bg-accent-light/60 transition-colors"
+            style={{ gridTemplateColumns: "48px minmax(80px,120px) minmax(0,1fr) 36px 80px" }}
           >
             <div className="flex items-center gap-1.5">
               <span className="font-mono font-bold text-text-primary">{l.numero}</span>
