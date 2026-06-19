@@ -36,7 +36,7 @@ type AmbienteRow = {
   valor_unitario: number | null; valor_item: number | null;
 };
 type MedicaoRow = { id: string; contrato_id: string; consultor_id: string; data_visita: string; status: string; sequencia: string };
-type ConsultorItem = { id: string; full_name: string | null };
+type ConsultorItem = { id: string; profileId: string; full_name: string | null };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function rpcFriendly(msg: string) {
@@ -57,14 +57,33 @@ function fmtBRL(v: number) {
 
 // ─── Bloco "Aplicar a todos" (preenchimento de rascunho) ──────────────────────
 function DesignacaoBlock({
-  consultores, dataPrevista, onDataPrevistaChange, onAplicarTodos,
+  consultores, dataPrevista, onDataPrevistaChange, onAplicarTodos, travaAtiva, onReabrir,
 }: {
   consultores: ConsultorItem[];
   dataPrevista: string;
   onDataPrevistaChange: (v: string) => void;
   onAplicarTodos: (consultorId: string) => void;
+  travaAtiva: boolean;
+  onReabrir: () => void;
 }) {
   const [consultorId, setConsultorId] = useState("");
+
+  if (travaAtiva) {
+    return (
+      <div className="rounded-lg border border-border bg-surface p-4 mb-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Designar Consultor</p>
+            <p className="text-xs text-text-secondary mt-0.5">Designações confirmadas.</p>
+          </div>
+          <Button size="sm" variant="outline" onClick={onReabrir} className="flex-shrink-0 flex items-center gap-1.5">
+            <RotateCcw className="w-3.5 h-3.5" />
+            Reabrir designação
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-lg border border-border bg-surface p-4 mb-4">
@@ -108,7 +127,7 @@ function DesignacaoBlock({
 // ─── Lista de ambientes inline com aptidão + Select de rascunho (admin) ───────
 function AmbientesInline({
   ambientes, isLoading, canEdit, isAdmin, isVendedor, consultores, contratoId,
-  draft, onDraftChange, redesignando, onRedesignarConfirm, refetch,
+  draft, onDraftChange, redesignando, onRedesignarConfirm, travaAtiva, refetch,
 }: {
   ambientes: AmbienteRow[];
   isLoading: boolean;
@@ -121,6 +140,7 @@ function AmbientesInline({
   onDraftChange: (itemId: string, consultorId: string) => void;
   redesignando: Set<string>;
   onRedesignarConfirm: (itemId: string) => void;
+  travaAtiva: boolean;
   refetch: () => void;
 }) {
   const [selectedItem, setSelectedItem] = useState<AmbienteRow | null>(null);
@@ -137,6 +157,12 @@ function AmbientesInline({
     onError: (e: any) => toast.error(e.message ?? "Erro ao salvar aptidão"),
   });
 
+  // Resolve nome do consultor a partir de moveria_membros.id OU profile_id
+  function nomeConsultor(id: string): string {
+    if (!id) return "—";
+    return consultores.find((c) => c.id === id || c.profileId === id)?.full_name ?? "—";
+  }
+
   if (isLoading) return (
     <div className="flex justify-center py-8">
       <LoaderCircle className="w-5 h-5 animate-spin text-text-muted" />
@@ -149,17 +175,18 @@ function AmbientesInline({
     </div>
   );
 
-  // Colunas: [nome] [consultor — só admin] [aptidão] [seta]
+  // Colunas: [nome] [consultor — só admin] [valor] [aptidão] [seta]
+  // Valor: 90px (espaço seguro para "R$ 99.999,99"); gap-x-2 entre colunas
   const gridCols = isAdmin
-    ? "minmax(0,1fr) minmax(120px,180px) 72px auto auto"
-    : "minmax(0,1fr) 72px auto auto";
+    ? "minmax(0,1fr) minmax(120px,180px) 90px auto auto"
+    : "minmax(0,1fr) 90px auto auto";
 
   return (
     <>
       <div className="rounded-lg border border-border overflow-hidden">
         {/* Header */}
         <div
-          className="grid bg-accent-light px-3 py-2 border-b border-border text-[10px] font-semibold uppercase tracking-wider text-text-muted"
+          className="grid gap-x-2 bg-accent-light px-3 py-2 border-b border-border text-[10px] font-semibold uppercase tracking-wider text-text-muted"
           style={{ gridTemplateColumns: gridCols }}
         >
           <div>Ambiente</div>
@@ -179,7 +206,7 @@ function AmbientesInline({
           return (
             <div
               key={a.id}
-              className={`grid px-3 py-2.5 border-b border-border last:border-0 items-center transition-colors ${
+              className={`grid gap-x-2 px-3 py-2.5 border-b border-border last:border-0 items-center transition-colors ${
                 temRascunho ? "bg-[var(--color-info-light)]/30" : "hover:bg-accent-light/50"
               }`}
               style={{ gridTemplateColumns: gridCols }}
@@ -199,15 +226,20 @@ function AmbientesInline({
                 <div className="pr-2">
                   {podeDesignar(a) ? (
                     jaDesignado ? (
-                      // Já designado e salvo → READ-ONLY + botão Redesignar
+                      // Já designado e salvo → READ-ONLY + botão Redesignar (travado quando travaAtiva)
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className="text-xs text-text-secondary truncate">
-                          {consultores.find((c) => c.id === a.consultor_designado)?.full_name ?? "—"}
+                          {nomeConsultor(a.consultor_designado ?? "")}
                         </span>
                         <button
-                          onClick={() => setPendingRedesignarItem(a)}
-                          className="flex-shrink-0 p-0.5 rounded text-text-muted hover:text-text-primary hover:bg-accent-light transition-colors"
-                          title="Redesignar"
+                          onClick={() => !travaAtiva && setPendingRedesignarItem(a)}
+                          disabled={travaAtiva}
+                          className={`flex-shrink-0 p-0.5 rounded transition-colors ${
+                            travaAtiva
+                              ? "text-text-muted opacity-30 cursor-not-allowed"
+                              : "text-text-muted hover:text-text-primary hover:bg-accent-light"
+                          }`}
+                          title={travaAtiva ? "Reabra a designação para editar" : "Redesignar"}
                         >
                           <RotateCcw className="w-3 h-3" />
                         </button>
@@ -240,9 +272,7 @@ function AmbientesInline({
                   ) : (
                     // Item em lote ou apto/ressalva: mostra nome do consultor sem Select
                     <span className="text-xs text-text-muted truncate block">
-                      {consultorExibido
-                        ? (consultores.find((c) => c.id === consultorExibido)?.full_name ?? "—")
-                        : "—"}
+                      {nomeConsultor(consultorExibido)}
                     </span>
                   )}
                 </div>
@@ -631,6 +661,7 @@ export function ContratoPanel({
   // ── Draft de designação (estado local, não salvo no banco ainda) ──
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [redesignando, setRedesignando] = useState<Set<string>>(new Set());
+  const [reaberto, setReaberto] = useState(false);
   const [dataPrevista, setDataPrevista] = useState("");
   const [confirmDesigOpen, setConfirmDesigOpen] = useState(false);
   const [alertSairOpen, setAlertSairOpen] = useState(false);
@@ -720,15 +751,29 @@ export function ContratoPanel({
       const { data: profs } = await supabase.from("profiles").select("id, full_name").in("id", ids);
       return (membros ?? []).map((m: any) => ({
         id: m.id as string,
+        profileId: m.profile_id as string,
         full_name: (profs ?? []).find((p: any) => p.id === m.profile_id)?.full_name ?? null,
       }));
     },
   });
 
+  // ── Estado de designação ───────────────────────────────────────────
+  // qualquerDesignado: pelo menos 1 item salvo com consultor no banco
+  const qualquerDesignado = ambientes.some((a) => !!a.consultor_designado);
+  // travaAtiva: card topo fica read-only + ↺ desabilitados até "Reabrir"
+  const travaAtiva = qualquerDesignado && !reaberto;
+
   // ── Draft helpers ──────────────────────────────────────────────────
+  // Resolve profile_id → moveria_membros.id para comparação com draft
+  function resolveMembroId(profileId: string | null): string {
+    if (!profileId) return "";
+    return consultores.find((c) => c.profileId === profileId)?.id ?? "";
+  }
+
   const hasDraft = Object.entries(draft).some(([itemId, consultorId]) => {
-    const saved = ambientes.find((a) => a.id === itemId)?.consultor_designado ?? null;
-    return consultorId !== saved;
+    const a = ambientes.find((amb) => amb.id === itemId);
+    if (!a) return false;
+    return consultorId !== resolveMembroId(a.consultor_designado);
   });
 
   function aplicarTodos(consultorId: string) {
@@ -747,7 +792,8 @@ export function ContratoPanel({
   const entradasDialog: EntradaRascunho[] = ambientes
     .filter((a) => {
       const draftVal = draft[a.id];
-      return draftVal !== undefined && draftVal !== (a.consultor_designado ?? "");
+      if (draftVal === undefined) return false;
+      return draftVal !== resolveMembroId(a.consultor_designado);
     })
     .map((a) => ({
       itemId: a.id,
@@ -756,7 +802,7 @@ export function ContratoPanel({
       consultorNovoNome: consultores.find((c) => c.id === draft[a.id])?.full_name ?? "",
       consultorAnteriorId: a.consultor_designado,
       consultorAnteriorNome: a.consultor_designado
-        ? (consultores.find((c) => c.id === a.consultor_designado)?.full_name ?? null)
+        ? (consultores.find((c) => c.profileId === a.consultor_designado)?.full_name ?? null)
         : null,
     }));
 
@@ -803,6 +849,7 @@ export function ContratoPanel({
 
       setDraft({});
       setRedesignando(new Set());
+      setReaberto(false);
       setConfirmDesigOpen(false);
       onClose?.();
     },
@@ -939,6 +986,8 @@ export function ContratoPanel({
               dataPrevista={dataPrevista}
               onDataPrevistaChange={setDataPrevista}
               onAplicarTodos={aplicarTodos}
+              travaAtiva={travaAtiva}
+              onReabrir={() => setReaberto(true)}
             />
           )}
 
@@ -977,6 +1026,7 @@ export function ContratoPanel({
             onDraftChange={setItemDraft}
             redesignando={redesignando}
             onRedesignarConfirm={(id) => setRedesignando((prev) => new Set([...prev, id]))}
+            travaAtiva={travaAtiva}
             refetch={refetchAmbientes}
           />
         </TabsContent>
