@@ -26,7 +26,11 @@ import {
 import { formatCodigoCliente } from "@/lib/moveria";
 
 // ─── Route ────────────────────────────────────────────────────────────────────
-const searchSchema = z.object({ id: z.string().optional() });
+const searchSchema = z.object({
+  id:   z.string().optional(),
+  tab:  z.string().optional(),
+  lote: z.string().optional(),
+});
 
 export const Route = createFileRoute("/_authenticated/contratos/")({
   ssr: false,
@@ -270,7 +274,7 @@ function SubEstadoMini({ sub }: { sub: "designado" | "em_rodadas" }) {
   );
 }
 
-// ─── KanbanContratoCard ───────────────────────────────────────────────────────
+// ─── KanbanContratoCard — visual apagado/tracejado (sem lote) ────────────────
 function KanbanContratoCard({
   card, isActive, onClick,
 }: { card: KanbanCard; isActive: boolean; onClick: () => void }) {
@@ -278,20 +282,20 @@ function KanbanContratoCard({
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left rounded border transition-all min-w-0 ${
+      className={`w-full text-left rounded border border-dashed transition-all min-w-0 ${
         isActive
-          ? "border-foreground bg-accent-light shadow-sm"
-          : "border-border bg-surface hover:border-text-muted"
+          ? "border-foreground/50 bg-accent-light/50"
+          : "border-border/60 bg-surface/50 hover:border-text-muted/60 hover:bg-accent-light/30"
       }`}
     >
-      <div className="flex items-start gap-1 px-2 pt-2 pb-1 min-w-0">
+      <div className="flex items-start gap-1 px-2 pt-2 pb-1 min-w-0 opacity-75">
         <div className="flex-1 min-w-0 overflow-hidden">
           <div className="flex items-baseline gap-1 min-w-0 overflow-hidden">
             {codigo && (
-              <span className="font-mono font-bold text-[11px] text-text-primary flex-shrink-0">{codigo}</span>
+              <span className="font-mono font-bold text-[11px] text-text-muted flex-shrink-0">{codigo}</span>
             )}
             {codigo && <span className="text-text-muted text-[10px] flex-shrink-0">·</span>}
-            <span className="text-[11px] text-text-secondary truncate leading-tight">{card.cliente_nome}</span>
+            <span className="text-[11px] text-text-muted truncate leading-tight">{card.cliente_nome}</span>
           </div>
           {card.tem_atraso && (
             <div className="flex items-center gap-0.5 mt-0.5">
@@ -301,28 +305,27 @@ function KanbanContratoCard({
         </div>
         {card.sub_estado && <SubEstadoMini sub={card.sub_estado} />}
       </div>
-      {(card.consultor_nome || card.qtd_ambientes_sem_lote > 0) && (
-        <div className="flex items-center gap-1 px-2 pb-1.5 pt-0.5 border-t border-border/50 min-w-0">
-          <User className="w-2.5 h-2.5 text-text-muted flex-shrink-0" />
-          <span className="text-[10px] text-text-muted truncate flex-1 min-w-0">
-            {card.consultor_nome ?? "—"}
+      <div className="flex items-center gap-1 px-2 pb-1.5 pt-0.5 min-w-0 opacity-60">
+        <User className="w-2.5 h-2.5 text-text-muted flex-shrink-0" />
+        <span className="text-[10px] text-text-muted truncate flex-1 min-w-0">
+          {card.consultor_nome ?? "sem consultor"}
+        </span>
+        {card.qtd_ambientes_sem_lote > 0 && (
+          <span className="flex-shrink-0 text-[9px] font-mono text-text-muted">
+            {card.qtd_ambientes_sem_lote} s/l
           </span>
-          {card.qtd_ambientes_sem_lote > 0 && (
-            <span className="flex-shrink-0 text-[10px] font-mono text-text-muted">
-              {card.qtd_ambientes_sem_lote}s/l
-            </span>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </button>
   );
 }
 
 // ─── KanbanLoteCard ───────────────────────────────────────────────────────────
 function KanbanLoteCard({
-  card, isActive, onClick,
-}: { card: KanbanCard; isActive: boolean; onClick: () => void }) {
+  card, isActive, onClick, totalAmbientes,
+}: { card: KanbanCard; isActive: boolean; onClick: () => void; totalAmbientes: number }) {
   const codigo = formatCodigoCliente(card.cliente_codigo);
+  const loteChip = card.lote_numero ? `Lote ${card.lote_numero}` : "ÚNICO";
   return (
     <button
       onClick={onClick}
@@ -332,26 +335,45 @@ function KanbanLoteCard({
           : "border-border bg-surface hover:border-text-muted"
       }`}
     >
-      <div className="flex items-start gap-1 px-2 pt-2 pb-1 min-w-0">
-        <div className="flex-1 min-w-0 overflow-hidden">
-          <div className="flex items-baseline gap-1 min-w-0 overflow-hidden">
-            {codigo && (
-              <span className="font-mono font-bold text-[11px] text-text-primary flex-shrink-0">{codigo}</span>
-            )}
-            {codigo && <span className="text-text-muted text-[10px] flex-shrink-0">·</span>}
-            <span className="text-[11px] text-text-secondary truncate leading-tight">{card.cliente_nome}</span>
-          </div>
+      {/* Topo: código · nome + chip de lote */}
+      <div className="flex items-center gap-1 px-2 pt-2 pb-1 min-w-0">
+        <div className="flex-1 flex items-baseline gap-1 min-w-0 overflow-hidden">
+          {codigo && (
+            <span className="font-mono font-bold text-[11px] text-text-primary flex-shrink-0">{codigo}</span>
+          )}
+          {codigo && <span className="text-text-muted text-[10px] flex-shrink-0">·</span>}
+          <span className="text-[11px] text-text-secondary truncate leading-tight flex-1 min-w-0">
+            {card.cliente_nome}
+          </span>
         </div>
+        <span className="flex-shrink-0 text-[9px] font-semibold px-1.5 py-px rounded bg-[var(--color-success-light)] text-[var(--color-success-text)] border border-[var(--color-success)] leading-none ml-1">
+          {loteChip}
+        </span>
+      </div>
+
+      {/* Consultor */}
+      <div className="flex items-center gap-1 px-2 py-0.5 min-w-0">
+        <User className="w-2.5 h-2.5 text-text-muted flex-shrink-0" />
+        <span className="text-[10px] text-text-muted truncate flex-1 min-w-0">
+          {card.consultor_nome ?? "—"}
+        </span>
         {card.tem_ressalva && (
-          <span className="flex-shrink-0 text-[10px] text-[var(--color-warning)] font-bold">⚠</span>
+          <span className="flex-shrink-0 text-[10px] text-[var(--color-warning)] font-bold" title="Com ressalva">⚠</span>
         )}
       </div>
-      {card.consultor_nome && (
-        <div className="flex items-center gap-1 px-2 pb-1.5 pt-0.5 border-t border-border/50 min-w-0">
-          <User className="w-2.5 h-2.5 text-text-muted flex-shrink-0" />
-          <span className="text-[10px] text-text-muted truncate">{card.consultor_nome}</span>
+
+      {/* Mini-cards: Ambientes */}
+      <div className="px-2 pb-2 pt-1">
+        <div className="rounded bg-accent-light/60 border border-border/50 px-1.5 py-1">
+          <p className="text-[9px] uppercase tracking-wide text-text-muted font-semibold leading-none mb-0.5">Ambientes</p>
+          <p className="text-[11px] font-mono font-bold text-text-primary leading-none">
+            {card.qtd_itens}
+            {totalAmbientes > 0 && (
+              <span className="text-text-muted font-normal">/{totalAmbientes}</span>
+            )}
+          </p>
         </div>
-      )}
+      </div>
     </button>
   );
 }
@@ -467,7 +489,7 @@ function SubLinhaRow({ sub, highlight }: { sub: SubLinha; highlight: boolean }) 
 
 // ─── ContratosWorkspace ───────────────────────────────────────────────────────
 function ContratosWorkspace() {
-  const { id: selectedId } = Route.useSearch();
+  const { id: selectedId, tab: initialTab, lote: initialLoteId } = Route.useSearch();
   const navigate = useNavigate();
   const { globalRole } = useAuth();
   const isAdmin = globalRole === "admin" || globalRole === "superadmin";
@@ -602,6 +624,16 @@ function ContratosWorkspace() {
     [filteredRows]
   );
 
+  // Total de ambientes por contrato (sem_lote + todos os lotes) — para mini-card "n/total"
+  const totalAmbientesByContrato = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const c of cards) {
+      const n = c.tipo_card === "contrato" ? (c.qtd_ambientes_sem_lote ?? 0) : (c.qtd_itens ?? 0);
+      map.set(c.contrato_id, (map.get(c.contrato_id) ?? 0) + n);
+    }
+    return map;
+  }, [cards]);
+
   // ── Handlers ─────────────────────────────────────────────────────────────
   function updateFilter<K extends keyof FilterState>(k: K, v: FilterState[K]) {
     setFilters((prev) => ({ ...prev, [k]: v }));
@@ -629,6 +661,10 @@ function ContratosWorkspace() {
 
   function selectContrato(id: string) {
     navigate({ to: "/contratos", search: id === selectedId ? {} : { id } });
+  }
+
+  function selectLote(contratoId: string, loteId: string) {
+    navigate({ to: "/contratos", search: { id: contratoId, tab: "lotes", lote: loteId } });
   }
 
   function toggleView(v: ViewMode) {
@@ -794,6 +830,8 @@ function ContratosWorkspace() {
           key={selectedId}
           contratoId={selectedId}
           onClose={() => navigate({ to: "/contratos", search: {} })}
+          initialTab={initialTab}
+          initialLoteId={initialLoteId}
         />
       </div>
     );
@@ -1071,21 +1109,21 @@ function ContratosWorkspace() {
                               </div>
                             ) : (
                               colCards.map((c) => {
-                                const id = c.contrato_id;
-                                const isActive = selectedId === id;
+                                const isActive = selectedId === c.contrato_id;
                                 return c.tipo_card === "contrato" ? (
                                   <KanbanContratoCard
                                     key={c.contrato_id}
                                     card={c}
                                     isActive={isActive}
-                                    onClick={() => selectContrato(id)}
+                                    onClick={() => selectContrato(c.contrato_id)}
                                   />
                                 ) : (
                                   <KanbanLoteCard
                                     key={c.lote_id}
                                     card={c}
                                     isActive={isActive}
-                                    onClick={() => selectContrato(id)}
+                                    totalAmbientes={totalAmbientesByContrato.get(c.contrato_id) ?? 0}
+                                    onClick={() => selectLote(c.contrato_id, c.lote_id!)}
                                   />
                                 );
                               })
@@ -1126,21 +1164,21 @@ function ContratosWorkspace() {
                       </div>
                     ) : (
                       colCards.map((c) => {
-                        const id = c.contrato_id;
-                        const isActive = selectedId === id;
+                        const isActive = selectedId === c.contrato_id;
                         return c.tipo_card === "contrato" ? (
                           <KanbanContratoCard
                             key={c.contrato_id}
                             card={c}
                             isActive={isActive}
-                            onClick={() => selectContrato(id)}
+                            onClick={() => selectContrato(c.contrato_id)}
                           />
                         ) : (
                           <KanbanLoteCard
                             key={c.lote_id}
                             card={c}
                             isActive={isActive}
-                            onClick={() => selectContrato(id)}
+                            totalAmbientes={totalAmbientesByContrato.get(c.contrato_id) ?? 0}
+                            onClick={() => selectLote(c.contrato_id, c.lote_id!)}
                           />
                         );
                       })

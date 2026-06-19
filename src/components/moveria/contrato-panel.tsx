@@ -687,13 +687,19 @@ function DialogExcluirContrato({
 export function ContratoPanel({
   contratoId,
   onClose,
+  initialTab,
+  initialLoteId,
 }: {
   contratoId: string;
   onClose?: () => void;
+  initialTab?: string;
+  initialLoteId?: string;
 }) {
   const { profile, globalRole } = useAuth();
   const isAdmin = globalRole === "admin" || globalRole === "superadmin";
   const qc = useQueryClient();
+
+  const [activeTab, setActiveTab] = useState(initialTab ?? "ambientes");
 
   // ── Draft de designação (estado local, não salvo no banco ainda) ──
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -1026,7 +1032,7 @@ export function ContratoPanel({
       </div>
 
       {/* ── Abas ── */}
-      <Tabs defaultValue="ambientes" className="flex-1 flex flex-col overflow-hidden">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
         <TabsList className="flex-shrink-0 rounded-none border-b border-border bg-transparent h-auto px-5 py-0 gap-0 justify-start">
           <TabsTrigger value="ambientes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent px-3 py-2.5 text-sm">
             Ambientes
@@ -1100,7 +1106,7 @@ export function ContratoPanel({
 
         {/* ── Lotes ── */}
         <TabsContent value="lotes" className="flex-1 overflow-y-auto px-5 py-4 mt-0">
-          <LotesTab contratoId={contratoId} />
+          <LotesTab contratoId={contratoId} initialExpandedId={initialLoteId} />
         </TabsContent>
 
         {/* ── Conexão com o Comercial ── */}
