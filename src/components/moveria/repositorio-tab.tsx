@@ -16,7 +16,7 @@ type Interessado = {
   nome: string;
   telefone: string | null;
   email: string | null;
-  papel: "arquiteto" | "proprietario" | "comprador";
+  papel: "especificador" | "responsavel_obra" | "proprietario_delegado" | "outro";
   criado_em: string;
 };
 
@@ -41,9 +41,10 @@ type ContratoEnderecos = {
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 const PAPEL_LABEL: Record<string, string> = {
-  arquiteto:    "Arquiteto",
-  proprietario: "Proprietário",
-  comprador:    "Comprador",
+  especificador:         "Especificador",
+  responsavel_obra:      "Responsável pela obra",
+  proprietario_delegado: "Proprietário/Delegado",
+  outro:                 "Outro",
 };
 
 const DEFAULT_FORM = { nome: "", telefone: "", email: "", papel: "" };
@@ -396,9 +397,10 @@ export function RepositorioTab({
                           <SelectValue placeholder="Selecionar…" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="arquiteto">Arquiteto</SelectItem>
-                          <SelectItem value="proprietario">Proprietário</SelectItem>
-                          <SelectItem value="comprador">Comprador</SelectItem>
+                          <SelectItem value="especificador">Especificador</SelectItem>
+                          <SelectItem value="responsavel_obra">Responsável pela obra</SelectItem>
+                          <SelectItem value="proprietario_delegado">Proprietário/Delegado</SelectItem>
+                          <SelectItem value="outro">Outro</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
