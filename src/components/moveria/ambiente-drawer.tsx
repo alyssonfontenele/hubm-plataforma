@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { LoaderCircle, Upload, ExternalLink, X } from "lucide-react";
+import { LoaderCircle, Upload, ExternalLink, X, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -34,23 +34,86 @@ const EMPTY_FORM: FormQ = {
   eletros:     { opcao_id: "", valor: "" },
 };
 
+type AnexoRow = { id: string; item_id: string; path: string; tipo: string };
+
 type DrawerProps = {
   item: AmbienteRow | null;
-  canEdit: boolean; // consultor designado ou admin
+  canEdit: boolean;
   isAdmin: boolean;
   open: boolean;
   onClose: () => void;
   onAptidaoChange: () => void;
 };
 
+// ── Grid de anexos (desenhos ou fotos) ───────────────────────────────────────
+function AnexoGrid({
+  items,
+  canEdit,
+  uploading,
+  onUploadClick,
+  onView,
+  onDelete,
+}: {
+  items: AnexoRow[];
+  canEdit: boolean;
+  uploading: boolean;
+  onUploadClick: () => void;
+  onView: (path: string) => void;
+  onDelete: (d: AnexoRow) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map((d) => {
+        const name = d.path.split("/").slice(1).join("/") || d.path;
+        const isPdf = d.path.toLowerCase().endsWith(".pdf");
+        return (
+          <div key={d.id} className="relative w-20 h-20 rounded-lg border border-border overflow-hidden bg-accent-light flex flex-col">
+            <button
+              onClick={() => onView(d.path)}
+              className="flex-1 flex items-center justify-center text-text-muted hover:bg-border transition-colors"
+              title={name}
+            >
+              {isPdf
+                ? <span className="text-[10px] font-bold text-text-muted tracking-wide">PDF</span>
+                : <ExternalLink className="w-5 h-5" />
+              }
+            </button>
+            <div className="px-1.5 py-1 border-t border-border flex items-center justify-between gap-1">
+              <span className="text-[9px] text-text-muted truncate flex-1">{name}</span>
+              {canEdit && (
+                <button
+                  onClick={() => onDelete(d)}
+                  className="text-[var(--color-danger)] hover:opacity-70 flex-shrink-0"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+      {canEdit && (
+        <button
+          onClick={() => !uploading && onUploadClick()}
+          className="w-20 h-20 rounded-lg border-2 border-dashed border-border flex items-center justify-center text-text-muted hover:border-text-muted transition-colors text-2xl"
+        >
+          +
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── AmbienteDrawer ───────────────────────────────────────────────────────────
 export function AmbienteDrawer({ item, canEdit, isAdmin, open, onClose, onAptidaoChange }: DrawerProps) {
   const { profile } = useAuth();
   const qc = useQueryClient();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileRefDesenho = useRef<HTMLInputElement>(null);
+  const fileRefFoto    = useRef<HTMLInputElement>(null);
 
   const [obs, setObs] = useState("");
   const [savingObs, setSavingObs] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] = useState<"desenho" | "foto" | null>(null);
   const [form, setForm] = useState<FormQ>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
 
@@ -101,7 +164,6 @@ export function AmbienteDrawer({ item, canEdit, isAdmin, open, onClose, onAptida
         .update({ aptidao })
         .eq("id", item!.id);
       if (error) throw error;
-      // Auditoria se admin corrige fora de medição
       if (isAdmin && aptidao !== item?.aptidao) {
         const contrId = await supabase
           .from("moveria_itens_contrato")
@@ -136,25 +198,32 @@ export function AmbienteDrawer({ item, canEdit, isAdmin, open, onClose, onAptida
     else onAptidaoChange();
   }
 
-  // ── Desenhos ──
-  const { data: desenhos = [], refetch: refetchDesenhos } = useQuery({
+  // ── Anexos: query única, filtrada em render ──
+  const { data: todos = [], refetch: refetchAnexos } = useQuery({
     queryKey: ["moveria_desenhos", item?.id],
     enabled: !!item?.id,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("moveria_desenhos_medicao")
-        .select("id, item_id, path")
+        .select("id, item_id, path, tipo")
         .eq("item_id", item!.id)
         .order("criado_em");
       if (error) throw error;
-      return (data ?? []) as { id: string; item_id: string; path: string }[];
+      return (data ?? []) as AnexoRow[];
     },
   });
 
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  const desenhos = todos.filter((d) => d.tipo === "desenho");
+  const fotos    = todos.filter((d) => d.tipo === "foto");
+
+  async function handleUpload(
+    tipo: "desenho" | "foto",
+    e: React.ChangeEvent<HTMLInputElement>,
+    ref: React.RefObject<HTMLInputElement>,
+  ) {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
-    setUploading(true);
+    setUploading(tipo);
     let n = 0;
     try {
       for (const file of files) {
@@ -164,25 +233,25 @@ export function AmbienteDrawer({ item, canEdit, isAdmin, open, onClose, onAptida
         if (upErr) throw upErr;
         const { error: dbErr } = await supabase
           .from("moveria_desenhos_medicao")
-          .insert({ item_id: item!.id, path, enviado_por: profile!.id });
+          .insert({ item_id: item!.id, path, enviado_por: profile!.id, tipo });
         if (dbErr) throw dbErr;
         n++;
       }
-      await refetchDesenhos();
-      toast.success(`${n} desenho(s) enviado(s)`);
-    } catch (e: any) {
-      toast.error(e.message ?? "Erro no upload");
+      await refetchAnexos();
+      toast.success(`${n} ${tipo === "foto" ? "foto(s)" : "desenho(s)"} enviado(s)`);
+    } catch (err: any) {
+      toast.error(err.message ?? "Erro no upload");
     } finally {
-      setUploading(false);
-      if (fileRef.current) fileRef.current.value = "";
+      setUploading(null);
+      if (ref.current) ref.current.value = "";
     }
   }
 
-  async function handleDelete(d: { id: string; path: string }) {
+  async function handleDelete(d: AnexoRow) {
     await supabase.storage.from("moveria-medicoes").remove([d.path]);
     await supabase.from("moveria_desenhos_medicao").delete().eq("id", d.id);
-    await refetchDesenhos();
-    toast.success("Desenho removido");
+    await refetchAnexos();
+    toast.success(d.tipo === "foto" ? "Foto removida" : "Desenho removido");
   }
 
   async function handleView(path: string) {
@@ -226,8 +295,7 @@ export function AmbienteDrawer({ item, canEdit, isAdmin, open, onClose, onAptida
   if (!item) return null;
 
   const isInapto = item.aptidao === "inapto";
-  const isApto = item.aptidao === "apto" || item.aptidao === "apto_ressalva";
-  const temDesenho = desenhos.length > 0;
+  const isApto   = item.aptidao === "apto" || item.aptidao === "apto_ressalva";
   const nomeDisplay = item.ambiente || item.descricao || item.codigo;
 
   return (
@@ -274,7 +342,7 @@ export function AmbienteDrawer({ item, canEdit, isAdmin, open, onClose, onAptida
             )}
           </div>
 
-          {/* ── Motivo/Observação ── */}
+          {/* ── Observação / Ressalva ── */}
           {!isInapto && (
             <div>
               <Label className="text-[10px] uppercase tracking-wider text-text-muted mb-1.5 block">
@@ -289,7 +357,11 @@ export function AmbienteDrawer({ item, canEdit, isAdmin, open, onClose, onAptida
                 onChange={(e) => setObs(e.target.value)}
                 onBlur={saveObs}
               />
-              {savingObs && <p className="text-xs text-text-muted mt-1 flex items-center gap-1"><LoaderCircle className="w-3 h-3 animate-spin" />Salvando…</p>}
+              {savingObs && (
+                <p className="text-xs text-text-muted mt-1 flex items-center gap-1">
+                  <LoaderCircle className="w-3 h-3 animate-spin" />Salvando…
+                </p>
+              )}
             </div>
           )}
 
@@ -315,72 +387,92 @@ export function AmbienteDrawer({ item, canEdit, isAdmin, open, onClose, onAptida
 
           <Separator />
 
-          {/* ── Desenhos ── (escondido se inapto) */}
+          {/* ── Desenhos + Fotos (oculto se inapto) ── */}
           {!isInapto && (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <Label className="text-[10px] uppercase tracking-wider text-text-muted">
-                  Desenho de Medição
-                  {isApto && <span className="text-[var(--color-danger)] ml-1">*</span>}
-                </Label>
-                {canEdit && (
-                  <button
-                    onClick={() => !uploading && fileRef.current?.click()}
-                    className="flex items-center gap-1.5 text-xs font-medium text-text-secondary border border-border rounded-md px-2.5 py-1 hover:bg-accent-light transition-colors"
-                    disabled={uploading}
-                  >
-                    {uploading ? <LoaderCircle className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                    Enviar
-                  </button>
+            <>
+              {/* Desenhos de medição (image/* + PDF) */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-[10px] uppercase tracking-wider text-text-muted">
+                    Desenho de Medição
+                    {isApto && <span className="text-[var(--color-danger)] ml-1">*</span>}
+                  </Label>
+                  {canEdit && (
+                    <button
+                      onClick={() => uploading !== "desenho" && fileRefDesenho.current?.click()}
+                      disabled={uploading === "desenho"}
+                      className="flex items-center gap-1.5 text-xs font-medium text-text-secondary border border-border rounded-md px-2.5 py-1 hover:bg-accent-light transition-colors"
+                    >
+                      {uploading === "desenho"
+                        ? <LoaderCircle className="w-3.5 h-3.5 animate-spin" />
+                        : <Upload className="w-3.5 h-3.5" />
+                      }
+                      Enviar
+                    </button>
+                  )}
+                  <input
+                    ref={fileRefDesenho}
+                    type="file"
+                    multiple
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={(e) => handleUpload("desenho", e, fileRefDesenho)}
+                  />
+                </div>
+                {isApto && desenhos.length === 0 && (
+                  <p className="text-xs text-[var(--color-danger)] mb-2">Desenho obrigatório para conformar o lote.</p>
                 )}
-                <input
-                  ref={fileRef}
-                  type="file"
-                  multiple
-                  accept="image/*,.pdf,.dwg"
-                  className="hidden"
-                  onChange={handleUpload}
+                <AnexoGrid
+                  items={desenhos}
+                  canEdit={canEdit}
+                  uploading={uploading === "desenho"}
+                  onUploadClick={() => fileRefDesenho.current?.click()}
+                  onView={handleView}
+                  onDelete={handleDelete}
                 />
               </div>
 
-              {isApto && !temDesenho && (
-                <p className="text-xs text-[var(--color-danger)] mb-2">Desenho obrigatório para conformar o lote.</p>
-              )}
-
-              <div className="flex flex-wrap gap-2">
-                {desenhos.map((d) => {
-                  const name = d.path.split("/").slice(1).join("/") || d.path;
-                  return (
-                    <div key={d.id} className="relative group w-20 h-20 rounded-lg border border-border overflow-hidden bg-accent-light flex flex-col">
-                      <button
-                        onClick={() => handleView(d.path)}
-                        className="flex-1 flex items-center justify-center text-text-muted hover:bg-border transition-colors"
-                        title={name}
-                      >
-                        <ExternalLink className="w-5 h-5" />
-                      </button>
-                      <div className="px-1.5 py-1 border-t border-border flex items-center justify-between gap-1">
-                        <span className="text-[9px] text-text-muted truncate flex-1">{name}</span>
-                        {canEdit && (
-                          <button onClick={() => handleDelete(d)} className="text-[var(--color-danger)] hover:opacity-70 flex-shrink-0">
-                            <X className="w-3 h-3" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-                {canEdit && (
-                  <button
-                    onClick={() => !uploading && fileRef.current?.click()}
-                    className="w-20 h-20 rounded-lg border-2 border-dashed border-border flex items-center justify-center text-text-muted hover:border-text-muted transition-colors text-2xl"
-                  >+</button>
-                )}
+              {/* Fotos do ambiente (somente image/*) */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-[10px] uppercase tracking-wider text-text-muted">
+                    Fotos do Ambiente
+                  </Label>
+                  {canEdit && (
+                    <button
+                      onClick={() => uploading !== "foto" && fileRefFoto.current?.click()}
+                      disabled={uploading === "foto"}
+                      className="flex items-center gap-1.5 text-xs font-medium text-text-secondary border border-border rounded-md px-2.5 py-1 hover:bg-accent-light transition-colors"
+                    >
+                      {uploading === "foto"
+                        ? <LoaderCircle className="w-3.5 h-3.5 animate-spin" />
+                        : <Camera className="w-3.5 h-3.5" />
+                      }
+                      Enviar
+                    </button>
+                  )}
+                  <input
+                    ref={fileRefFoto}
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleUpload("foto", e, fileRefFoto)}
+                  />
+                </div>
+                <AnexoGrid
+                  items={fotos}
+                  canEdit={canEdit}
+                  uploading={uploading === "foto"}
+                  onUploadClick={() => fileRefFoto.current?.click()}
+                  onView={handleView}
+                  onDelete={handleDelete}
+                />
               </div>
-            </div>
+            </>
           )}
 
-          {/* ── Questionário ── (só se apto ou apto_ressalva) */}
+          {/* ── Questionário (só se apto ou apto_ressalva) ── */}
           {isApto && questData && (
             <>
               <Separator />
