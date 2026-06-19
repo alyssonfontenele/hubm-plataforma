@@ -21,9 +21,10 @@ type ItemRow = {
   descricao: string | null;
   aptidao: string;
   lote_id: string;
+  valor_item: number | null;
 };
 
-const LOTE_GRID = "20px 48px minmax(80px,120px) minmax(0,1fr) 36px 80px";
+const LOTE_GRID = "20px 48px minmax(80px,120px) minmax(0,1fr) 36px minmax(100px,140px) 80px";
 
 function AptidaoMini({ aptidao }: { aptidao: string }) {
   const cls =
@@ -42,9 +43,11 @@ function AptidaoMini({ aptidao }: { aptidao: string }) {
 export function LotesTab({
   contratoId,
   initialExpandedId,
+  valorTotalDeclarado,
 }: {
   contratoId: string;
   initialExpandedId?: string;
+  valorTotalDeclarado?: number | null;
 }) {
   const [expandedLoteIds, setExpandedLoteIds] = useState<Set<string>>(
     () => new Set(initialExpandedId ? [initialExpandedId] : [])
@@ -82,7 +85,7 @@ export function LotesTab({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("moveria_itens_contrato")
-        .select("id, codigo, descricao, aptidao, lote_id")
+        .select("id, codigo, descricao, aptidao, lote_id, valor_item")
         .eq("contrato_id", contratoId)
         .not("lote_id", "is", null)
         .is("deletado_em", null)
@@ -98,6 +101,16 @@ export function LotesTab({
       const arr = map.get(item.lote_id) ?? [];
       arr.push(item);
       map.set(item.lote_id, arr);
+    }
+    return map;
+  }, [itens]);
+
+  const valorByLote = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const item of itens) {
+      if (item.valor_item != null) {
+        map.set(item.lote_id, (map.get(item.lote_id) ?? 0) + item.valor_item);
+      }
     }
     return map;
   }, [itens]);
@@ -127,6 +140,7 @@ export function LotesTab({
         <div>Status</div>
         <div>Consultor</div>
         <div>Amb.</div>
+        <div>Valor</div>
         <div>Conformado</div>
       </div>
 
@@ -136,6 +150,13 @@ export function LotesTab({
           ? new Date(l.conformado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" })
           : new Date(l.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
         const loteItens = itensByLote.get(l.id) ?? [];
+        const loteValor = valorByLote.get(l.id) ?? null;
+        const pct = loteValor != null && valorTotalDeclarado != null && valorTotalDeclarado > 0
+          ? Math.round(loteValor / valorTotalDeclarado * 100)
+          : null;
+        const valorFmt = loteValor != null
+          ? loteValor.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
+          : null;
 
         return (
           <div key={l.id} className="border-b border-border last:border-0">
@@ -157,6 +178,18 @@ export function LotesTab({
               <div><EtapaBadge etapa={l.status} /></div>
               <div className="text-text-secondary text-xs truncate min-w-0 overflow-hidden">{l.consultor_nome ?? "—"}</div>
               <div className="font-mono text-text-secondary">{l.qtd_itens}</div>
+              <div className="min-w-0">
+                {valorFmt ? (
+                  <span className="font-mono text-[10px] text-text-secondary">
+                    {valorFmt}
+                    {pct != null && (
+                      <span className="text-text-muted"> · {pct}%</span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-text-muted text-xs">—</span>
+                )}
+              </div>
               <div className="font-mono text-xs text-text-muted">{dia}</div>
             </div>
 
@@ -179,6 +212,11 @@ export function LotesTab({
                       <span className="flex-1 min-w-0 truncate text-text-secondary">
                         {item.descricao || "—"}
                       </span>
+                      {item.valor_item != null && (
+                        <span className="flex-shrink-0 font-mono text-[10px] text-text-muted">
+                          {item.valor_item.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </span>
+                      )}
                       <AptidaoMini aptidao={item.aptidao} />
                     </div>
                   ))

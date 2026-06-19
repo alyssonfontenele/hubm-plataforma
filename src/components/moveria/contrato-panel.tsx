@@ -1106,7 +1106,7 @@ export function ContratoPanel({
 
         {/* ── Lotes ── */}
         <TabsContent value="lotes" className="flex-1 overflow-y-auto px-5 py-4 mt-0">
-          <LotesTab contratoId={contratoId} initialExpandedId={initialLoteId} />
+          <LotesTab contratoId={contratoId} initialExpandedId={initialLoteId} valorTotalDeclarado={contrato?.valor_total_declarado ?? null} />
         </TabsContent>
 
         {/* ── Conexão com o Comercial ── */}

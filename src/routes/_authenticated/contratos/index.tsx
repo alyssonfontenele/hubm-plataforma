@@ -63,6 +63,7 @@ type KanbanCard = {
   vendedor_nome: string | null;
   data_contrato: string | null;
   valor_total_declarado: number | null;
+  valor_lote: number | null;
 };
 
 type SubLinhaSemLote = {
@@ -362,15 +363,23 @@ function KanbanLoteCard({
         )}
       </div>
 
-      {/* Mini-cards: Ambientes */}
-      <div className="px-2 pb-2 pt-1">
-        <div className="rounded bg-accent-light/60 border border-border/50 px-1.5 py-1">
+      {/* Mini-cards: Ambientes + Valor */}
+      <div className="flex gap-1.5 px-2 pb-2 pt-1">
+        <div className="flex-1 rounded bg-accent-light px-1.5 py-1">
           <p className="text-[9px] uppercase tracking-wide text-text-muted font-semibold leading-none mb-0.5">Ambientes</p>
           <p className="text-[11px] font-mono font-bold text-text-primary leading-none">
             {card.qtd_itens}
             {totalAmbientes > 0 && (
               <span className="text-text-muted font-normal">/{totalAmbientes}</span>
             )}
+          </p>
+        </div>
+        <div className="flex-1 rounded bg-accent-light px-1.5 py-1">
+          <p className="text-[9px] uppercase tracking-wide text-text-muted font-semibold leading-none mb-0.5">Valor</p>
+          <p className="text-[11px] font-mono font-bold text-text-primary leading-none">
+            {card.valor_lote != null && card.valor_total_declarado != null && card.valor_total_declarado > 0
+              ? `${Math.round(card.valor_lote / card.valor_total_declarado * 100)}%`
+              : "—"}
           </p>
         </div>
       </div>
@@ -508,7 +517,7 @@ function ContratosWorkspace() {
           "tipo_card, etapa, contrato_id, contrato_numero, cliente_nome, cliente_codigo, cliente_id, " +
           "lote_id, lote_numero, consultor_id, consultor_nome, status, conformado_em, tem_ressalva, " +
           "qtd_itens, qtd_ambientes_sem_lote, sub_estado, data_prevista_max, tem_atraso, " +
-          "vendedor_id, vendedor_nome, data_contrato, valor_total_declarado"
+          "vendedor_id, vendedor_nome, data_contrato, valor_total_declarado, valor_lote"
         );
       if (error) throw error;
       return (data ?? []) as KanbanCard[];
