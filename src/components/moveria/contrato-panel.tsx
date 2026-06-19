@@ -127,7 +127,7 @@ function DesignacaoBlock({
 // ─── Lista de ambientes inline com aptidão + Select de rascunho (admin) ───────
 function AmbientesInline({
   ambientes, isLoading, canEdit, isAdmin, isVendedor, consultores, contratoId,
-  draft, onDraftChange, redesignando, onRedesignarConfirm, travaAtiva, refetch,
+  draft, onDraftChange, redesignando, onRedesignarConfirm, travaAtiva, reaberto, refetch,
 }: {
   ambientes: AmbienteRow[];
   isLoading: boolean;
