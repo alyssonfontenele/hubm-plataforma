@@ -196,7 +196,7 @@ function AmbientesInline({
           <div>Ambiente</div>
           {isAdmin && <div>Consultor</div>}
           <div className="text-right">Valor</div>
-          {!isVendedor && <div className="text-right pr-2">Aptidão</div>}
+          {!isVendedor && <div className="pr-2">Aptidão</div>}
           <div />
         </div>
 
@@ -239,27 +239,29 @@ function AmbientesInline({
                   {podeRedesignarNow ? (
                     jaDesignado ? (
                       // Já designado e salvo → READ-ONLY + botão Redesignar (travado quando travaAtiva)
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-xs text-text-secondary truncate">
+                      <div className="flex items-center justify-between gap-1.5 w-full min-w-0">
+                        <span className="text-xs text-text-secondary truncate flex-1 min-w-0">
                           {nomeConsultor(a.consultor_designado ?? "")}
                         </span>
-                        {savedItemIds.has(a.id) && (
-                          <span className="flex-shrink-0 flex items-center gap-0.5 text-[10px] font-semibold text-[var(--color-success-text)] bg-[var(--color-success-light)] border border-[var(--color-success)] rounded px-1.5 py-0.5">
-                            <Check className="w-2.5 h-2.5" /> Salvo
-                          </span>
-                        )}
-                        <button
-                          onClick={() => !travaAtiva && setPendingRedesignarItem(a)}
-                          disabled={travaAtiva}
-                          className={`flex-shrink-0 p-0.5 rounded transition-colors ${
-                            travaAtiva
-                              ? "text-text-muted opacity-30 cursor-not-allowed"
-                              : "text-text-muted hover:text-text-primary hover:bg-accent-light"
-                          }`}
-                          title={travaAtiva ? "Reabra a designação para editar" : "Redesignar"}
-                        >
-                          <RotateCcw className="w-3 h-3" />
-                        </button>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {savedItemIds.has(a.id) && (
+                            <span className="flex items-center gap-0.5 text-[10px] font-semibold text-[var(--color-success-text)] bg-[var(--color-success-light)] border border-[var(--color-success)] rounded px-1.5 py-0.5">
+                              <Check className="w-2.5 h-2.5" /> Salvo
+                            </span>
+                          )}
+                          <button
+                            onClick={() => !travaAtiva && setPendingRedesignarItem(a)}
+                            disabled={travaAtiva}
+                            className={`p-0.5 rounded transition-colors ${
+                              travaAtiva
+                                ? "text-text-muted opacity-30 cursor-not-allowed"
+                                : "text-text-muted hover:text-text-primary hover:bg-accent-light"
+                            }`}
+                            title={travaAtiva ? "Reabra a designação para editar" : "Redesignar"}
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       // Não designado ou desbloqueado para redesignação → Select editável
@@ -304,7 +306,9 @@ function AmbientesInline({
 
               {/* Col Valor */}
               <div className="text-xs font-mono text-right text-text-muted pr-1">
-                {(a.valor_item ?? 0) > 0 ? fmtBRL(a.valor_item!) : "—"}
+                {(a.valor_item ?? 0) > 0
+                  ? (a.valor_item!).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                  : "—"}
               </div>
 
               {/* Col 3: Aptidão inline ou badge (bloqueado se item em lote) */}

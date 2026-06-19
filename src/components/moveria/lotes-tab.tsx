@@ -177,9 +177,9 @@ export function LotesTab({
           <div>Lote</div>
           <div>Status</div>
           <div>Consultor</div>
-          <div>Amb.</div>
-          <div>Valor</div>
-          <div>Conformado</div>
+          <div className="text-right">Amb.</div>
+          <div className="text-right">Valor</div>
+          <div className="text-right">Conformado</div>
           {isAdmin && <div />}
         </div>
 
@@ -194,7 +194,7 @@ export function LotesTab({
             ? Math.round(loteValor / valorTotalDeclarado * 100)
             : null;
           const valorFmt = loteValor != null
-            ? loteValor.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
+            ? loteValor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
             : null;
 
           return (
@@ -216,8 +216,8 @@ export function LotesTab({
                 </div>
                 <div><EtapaBadge etapa={l.status} /></div>
                 <div className="text-text-secondary text-xs truncate min-w-0 overflow-hidden">{l.consultor_nome ?? "—"}</div>
-                <div className="font-mono text-text-secondary">{l.qtd_itens}</div>
-                <div className="min-w-0">
+                <div className="font-mono text-right text-text-secondary">{l.qtd_itens}</div>
+                <div className="min-w-0 text-right">
                   {valorFmt ? (
                     <span className="font-mono text-[10px] text-text-secondary">
                       {valorFmt}
@@ -229,7 +229,7 @@ export function LotesTab({
                     <span className="text-text-muted text-xs">—</span>
                   )}
                 </div>
-                <div className="font-mono text-xs text-text-muted">{dia}</div>
+                <div className="font-mono text-xs text-text-muted text-right">{dia}</div>
                 {isAdmin && (
                   <div className="flex items-center justify-center">
                     <button
@@ -257,20 +257,29 @@ export function LotesTab({
                     loteItens.map((item) => (
                       <div
                         key={item.id}
-                        className="flex items-center gap-3 px-4 pl-10 py-1.5 border-b border-border/30 last:border-b-0 text-[11px]"
+                        className="grid gap-x-2 px-4 py-1.5 border-b border-border/30 last:border-b-0 items-center"
+                        style={{ gridTemplateColumns: loteGrid }}
                       >
-                        <span className="font-mono text-[10px] text-text-muted flex-shrink-0 w-14 truncate">
-                          {item.codigo}
-                        </span>
-                        <span className="flex-1 min-w-0 truncate text-text-secondary">
-                          {item.descricao || "—"}
-                        </span>
-                        {item.valor_item != null && (
-                          <span className="flex-shrink-0 font-mono text-[10px] text-text-muted">
-                            {item.valor_item.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                          </span>
-                        )}
-                        <AptidaoMini aptidao={item.aptidao} />
+                        {/* indent — under chevron col */}
+                        <div />
+                        {/* under Lote col */}
+                        <div className="font-mono text-[10px] text-text-muted truncate min-w-0">{item.codigo}</div>
+                        {/* under Status col */}
+                        <div><AptidaoMini aptidao={item.aptidao} /></div>
+                        {/* under Consultor col (widest text col) */}
+                        <div className="text-[11px] text-text-secondary truncate min-w-0 overflow-hidden">{item.descricao || "—"}</div>
+                        {/* under Amb. col — empty */}
+                        <div />
+                        {/* under Valor col — right-aligned, sem centavos */}
+                        <div className="font-mono text-[10px] text-text-muted text-right">
+                          {item.valor_item != null
+                            ? item.valor_item.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                            : "—"}
+                        </div>
+                        {/* under Conformado col — empty */}
+                        <div />
+                        {/* under admin col — empty */}
+                        {isAdmin && <div />}
                       </div>
                     ))
                   )}
