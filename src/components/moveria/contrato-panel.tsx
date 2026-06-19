@@ -141,6 +141,7 @@ function AmbientesInline({
   redesignando: Set<string>;
   onRedesignarConfirm: (itemId: string) => void;
   travaAtiva: boolean;
+  reaberto: boolean;
   refetch: () => void;
 }) {
   const [selectedItem, setSelectedItem] = useState<AmbienteRow | null>(null);
@@ -202,6 +203,8 @@ function AmbientesInline({
           const temRascunho = draft[a.id] !== undefined && draft[a.id] !== (a.consultor_designado ?? "");
           const showDesc = a.descricao && a.descricao !== a.codigo;
           const jaDesignado = !!a.consultor_designado && !redesignando.has(a.id);
+          // Admin com designação reaberta pode redesignar qualquer item (inclusive apto/apto_ressalva/em lote)
+          const podeRedesignarNow = podeDesignar(a) || (isAdmin && reaberto);
 
           return (
             <div
@@ -224,7 +227,7 @@ function AmbientesInline({
               {/* Col 2: consultor (só admin) */}
               {isAdmin && (
                 <div className="pr-2">
-                  {podeDesignar(a) ? (
+                  {podeRedesignarNow ? (
                     jaDesignado ? (
                       // Já designado e salvo → READ-ONLY + botão Redesignar (travado quando travaAtiva)
                       <div className="flex items-center gap-1.5 min-w-0">
@@ -270,7 +273,7 @@ function AmbientesInline({
                       </Select>
                     )
                   ) : (
-                    // Item em lote ou apto/ressalva: mostra nome do consultor sem Select
+                    // Consultor read-only: não-admin, ou admin sem reabrir
                     <span className="text-xs text-text-muted truncate block">
                       {nomeConsultor(consultorExibido)}
                     </span>
@@ -778,9 +781,15 @@ export function ContratoPanel({
 
   function aplicarTodos(consultorId: string) {
     const updates: Record<string, string> = { ...draft };
-    ambientes
-      .filter((a) => podeDesignar(a) && (!a.consultor_designado || redesignando.has(a.id)))
-      .forEach((a) => { updates[a.id] = consultorId; });
+    if (reaberto && isAdmin) {
+      // Admin com designação reaberta: reatribui todos os itens sem exceção
+      // (inclusive apto/apto_ressalva e itens em lote conformado)
+      ambientes.forEach((a) => { updates[a.id] = consultorId; });
+    } else {
+      ambientes
+        .filter((a) => podeDesignar(a) && (!a.consultor_designado || redesignando.has(a.id)))
+        .forEach((a) => { updates[a.id] = consultorId; });
+    }
     setDraft(updates);
   }
 
@@ -1027,6 +1036,7 @@ export function ContratoPanel({
             redesignando={redesignando}
             onRedesignarConfirm={(id) => setRedesignando((prev) => new Set([...prev, id]))}
             travaAtiva={travaAtiva}
+            reaberto={reaberto}
             refetch={refetchAmbientes}
           />
         </TabsContent>
