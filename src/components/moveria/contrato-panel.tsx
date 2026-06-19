@@ -182,8 +182,8 @@ function AmbientesInline({
   // Colunas: [nome] [consultor — só admin] [valor] [aptidão] [seta]
   // Valor: 90px (espaço seguro para "R$ 99.999,99"); gap-x-2 entre colunas
   const gridCols = isAdmin
-    ? "minmax(0,1fr) minmax(120px,180px) 90px auto auto"
-    : "minmax(0,1fr) 90px auto auto";
+    ? "minmax(0,1fr) minmax(120px,180px) 90px minmax(130px,160px) 36px"
+    : "minmax(0,1fr) 90px minmax(130px,160px) 36px";
 
   return (
     <>

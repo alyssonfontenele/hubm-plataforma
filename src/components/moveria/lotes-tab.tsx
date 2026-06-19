@@ -216,15 +216,13 @@ export function LotesTab({
                 </div>
                 <div><EtapaBadge etapa={l.status} /></div>
                 <div className="text-text-secondary text-xs truncate min-w-0 overflow-hidden">{l.consultor_nome ?? "—"}</div>
-                <div className="font-mono text-right text-text-secondary">{l.qtd_itens}</div>
-                <div className="min-w-0 text-right">
+                <div className="font-mono text-xs text-right text-text-secondary">{l.qtd_itens}</div>
+                <div className="min-w-0 flex items-center justify-end gap-1">
+                  {pct != null && (
+                    <span className="font-mono text-[10px] text-text-muted whitespace-nowrap">· {pct}%</span>
+                  )}
                   {valorFmt ? (
-                    <span className="font-mono text-[10px] text-text-secondary">
-                      {valorFmt}
-                      {pct != null && (
-                        <span className="text-text-muted"> · {pct}%</span>
-                      )}
-                    </span>
+                    <span className="font-mono text-xs text-text-secondary tabular-nums whitespace-nowrap">{valorFmt}</span>
                   ) : (
                     <span className="text-text-muted text-xs">—</span>
                   )}

@@ -518,12 +518,12 @@ function SubLinhaRow({ sub, highlight }: { sub: SubLinha; highlight: boolean }) 
       <div />
 
       {/* Col 10: Fechamento (lotes conformados) */}
-      <div className="font-mono text-xs text-text-muted truncate">
+      <div className="font-mono text-xs text-text-muted truncate text-right">
         {conformadoFmt ?? ""}
       </div>
 
       {/* Col 11: Prev. medição (sem-lote) */}
-      <div className="font-mono text-xs text-text-muted truncate">
+      <div className="font-mono text-xs text-text-muted truncate text-right">
         {prevFmt ?? ""}
       </div>
     </div>
@@ -732,8 +732,12 @@ function ContratosWorkspace() {
         <div>Consultor</div>
         <div>Vendedor</div>
         <div className="text-right">Valor</div>
-        <SortHeaderBtn field="data_contrato" label="Fechamento" filters={filters} onToggle={toggleSort} />
-        <SortHeaderBtn field="prazo_critico" label="Prev. medição" filters={filters} onToggle={toggleSort} />
+        <div className="flex justify-end">
+          <SortHeaderBtn field="data_contrato" label="Fechamento" filters={filters} onToggle={toggleSort} />
+        </div>
+        <div className="flex justify-end">
+          <SortHeaderBtn field="prazo_critico" label="Prev. medição" filters={filters} onToggle={toggleSort} />
+        </div>
       </div>
 
       {/* Zero results */}
@@ -826,10 +830,10 @@ function ContratosWorkspace() {
               <div className="text-xs text-text-secondary text-right truncate min-w-0">
                 {valorFmt}
               </div>
-              <div className="text-xs text-text-muted truncate min-w-0">
+              <div className="font-mono text-xs text-text-muted truncate min-w-0 text-right">
                 {dataFmt}
               </div>
-              <div className="text-xs text-text-muted truncate min-w-0">
+              <div className="font-mono text-xs text-text-muted truncate min-w-0 text-right">
                 {prevFmt}
               </div>
             </div>
