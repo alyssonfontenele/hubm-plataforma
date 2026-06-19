@@ -1,8 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
-import { LoaderCircle, ChevronRight } from "lucide-react";
+import { LoaderCircle, ChevronRight, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { EtapaBadge } from "./status-badge";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type LoteRow = {
   id: string;
@@ -24,7 +30,8 @@ type ItemRow = {
   valor_item: number | null;
 };
 
-const LOTE_GRID = "20px 48px minmax(80px,120px) minmax(0,1fr) 36px minmax(100px,140px) 80px";
+const LOTE_GRID_BASE = "20px 48px minmax(80px,120px) minmax(0,1fr) 36px minmax(100px,140px) 80px";
+const LOTE_GRID_ADMIN = LOTE_GRID_BASE + " 28px";
 
 function AptidaoMini({ aptidao }: { aptidao: string }) {
   const cls =
@@ -44,14 +51,20 @@ export function LotesTab({
   contratoId,
   initialExpandedId,
   valorTotalDeclarado,
+  isAdmin = false,
 }: {
   contratoId: string;
   initialExpandedId?: string;
   valorTotalDeclarado?: number | null;
+  isAdmin?: boolean;
 }) {
+  const qc = useQueryClient();
+
   const [expandedLoteIds, setExpandedLoteIds] = useState<Set<string>>(
     () => new Set(initialExpandedId ? [initialExpandedId] : [])
   );
+  const [dissolveTarget, setDissolveTarget] = useState<{ id: string; numero: string } | null>(null);
+  const [dissolving, setDissolving] = useState(false);
 
   useEffect(() => {
     if (initialExpandedId) {
@@ -115,6 +128,30 @@ export function LotesTab({
     return map;
   }, [itens]);
 
+  async function handleDissolve() {
+    if (!dissolveTarget) return;
+    setDissolving(true);
+    try {
+      const { error } = await supabase
+        .from("moveria_lotes")
+        .delete()
+        .eq("id", dissolveTarget.id);
+      if (error) throw error;
+      toast.success(`Lote ${dissolveTarget.numero} desfeito`);
+      setDissolveTarget(null);
+      qc.invalidateQueries({ queryKey: ["moveria_lotes_tab", contratoId] });
+      qc.invalidateQueries({ queryKey: ["moveria_lote_itens_detail", contratoId] });
+      qc.invalidateQueries({ queryKey: ["moveria_kanban"] });
+      qc.invalidateQueries({ queryKey: ["moveria_ambientes", contratoId] });
+    } catch (err: any) {
+      toast.error(err.message ?? "Erro ao desfazer lote");
+    } finally {
+      setDissolving(false);
+    }
+  }
+
+  const loteGrid = isAdmin ? LOTE_GRID_ADMIN : LOTE_GRID_BASE;
+
   if (isLoading) return (
     <div className="flex justify-center py-12">
       <LoaderCircle className="w-5 h-5 animate-spin text-text-muted" />
@@ -129,103 +166,160 @@ export function LotesTab({
   );
 
   return (
-    <div className="rounded-lg border border-border overflow-hidden">
-      {/* Header */}
-      <div
-        className="grid gap-x-2 bg-accent-light px-4 py-2.5 border-b border-border text-[10px] font-semibold uppercase tracking-wider text-text-muted"
-        style={{ gridTemplateColumns: LOTE_GRID }}
-      >
-        <div />
-        <div>Lote</div>
-        <div>Status</div>
-        <div>Consultor</div>
-        <div>Amb.</div>
-        <div>Valor</div>
-        <div>Conformado</div>
+    <>
+      <div className="rounded-lg border border-border overflow-hidden">
+        {/* Header */}
+        <div
+          className="grid gap-x-2 bg-accent-light px-4 py-2.5 border-b border-border text-[10px] font-semibold uppercase tracking-wider text-text-muted"
+          style={{ gridTemplateColumns: loteGrid }}
+        >
+          <div />
+          <div>Lote</div>
+          <div>Status</div>
+          <div>Consultor</div>
+          <div>Amb.</div>
+          <div>Valor</div>
+          <div>Conformado</div>
+          {isAdmin && <div />}
+        </div>
+
+        {lotes.map((l) => {
+          const isExpanded = expandedLoteIds.has(l.id);
+          const dia = l.conformado_em
+            ? new Date(l.conformado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" })
+            : new Date(l.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+          const loteItens = itensByLote.get(l.id) ?? [];
+          const loteValor = valorByLote.get(l.id) ?? null;
+          const pct = loteValor != null && valorTotalDeclarado != null && valorTotalDeclarado > 0
+            ? Math.round(loteValor / valorTotalDeclarado * 100)
+            : null;
+          const valorFmt = loteValor != null
+            ? loteValor.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
+            : null;
+
+          return (
+            <div key={l.id} className="border-b border-border last:border-0">
+              {/* Lote row */}
+              <div
+                className="grid gap-x-2 px-4 py-3 items-center text-sm hover:bg-accent-light/60 transition-colors cursor-pointer select-none"
+                style={{ gridTemplateColumns: loteGrid }}
+                onClick={() => toggleLote(l.id)}
+              >
+                <ChevronRight
+                  className={`w-3 h-3 text-text-muted transition-transform duration-150 flex-shrink-0 ${
+                    isExpanded ? "rotate-90" : ""
+                  }`}
+                />
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono font-bold text-text-primary">{l.numero}</span>
+                  {l.tem_ressalva && <span className="text-[var(--color-warning)] text-xs">⚠</span>}
+                </div>
+                <div><EtapaBadge etapa={l.status} /></div>
+                <div className="text-text-secondary text-xs truncate min-w-0 overflow-hidden">{l.consultor_nome ?? "—"}</div>
+                <div className="font-mono text-text-secondary">{l.qtd_itens}</div>
+                <div className="min-w-0">
+                  {valorFmt ? (
+                    <span className="font-mono text-[10px] text-text-secondary">
+                      {valorFmt}
+                      {pct != null && (
+                        <span className="text-text-muted"> · {pct}%</span>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="text-text-muted text-xs">—</span>
+                  )}
+                </div>
+                <div className="font-mono text-xs text-text-muted">{dia}</div>
+                {isAdmin && (
+                  <div className="flex items-center justify-center">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDissolveTarget({ id: l.id, numero: l.numero });
+                      }}
+                      title={`Desfazer Lote ${l.numero}`}
+                      className="p-1 rounded text-text-muted hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-light)] transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Ambientes expandidos */}
+              {isExpanded && (
+                <div className="bg-background/40 border-t border-border/50">
+                  {loteItens.length === 0 ? (
+                    <div className="px-10 py-2 text-[11px] text-text-muted italic">
+                      Nenhum ambiente neste lote.
+                    </div>
+                  ) : (
+                    loteItens.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-3 px-4 pl-10 py-1.5 border-b border-border/30 last:border-b-0 text-[11px]"
+                      >
+                        <span className="font-mono text-[10px] text-text-muted flex-shrink-0 w-14 truncate">
+                          {item.codigo}
+                        </span>
+                        <span className="flex-1 min-w-0 truncate text-text-secondary">
+                          {item.descricao || "—"}
+                        </span>
+                        {item.valor_item != null && (
+                          <span className="flex-shrink-0 font-mono text-[10px] text-text-muted">
+                            {item.valor_item.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                          </span>
+                        )}
+                        <AptidaoMini aptidao={item.aptidao} />
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      {lotes.map((l) => {
-        const isExpanded = expandedLoteIds.has(l.id);
-        const dia = l.conformado_em
-          ? new Date(l.conformado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" })
-          : new Date(l.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
-        const loteItens = itensByLote.get(l.id) ?? [];
-        const loteValor = valorByLote.get(l.id) ?? null;
-        const pct = loteValor != null && valorTotalDeclarado != null && valorTotalDeclarado > 0
-          ? Math.round(loteValor / valorTotalDeclarado * 100)
-          : null;
-        const valorFmt = loteValor != null
-          ? loteValor.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
-          : null;
-
-        return (
-          <div key={l.id} className="border-b border-border last:border-0">
-            {/* Lote row */}
-            <div
-              className="grid gap-x-2 px-4 py-3 items-center text-sm hover:bg-accent-light/60 transition-colors cursor-pointer select-none"
-              style={{ gridTemplateColumns: LOTE_GRID }}
-              onClick={() => toggleLote(l.id)}
+      {/* Dialog de confirmação de dissolução — fora do .map(), instância única */}
+      <AlertDialog
+        open={dissolveTarget !== null}
+        onOpenChange={(open) => { if (!open) setDissolveTarget(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Desfazer Lote {dissolveTarget?.numero}?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-text-secondary">
+                <p>
+                  Os ambientes deste lote voltarão a ficar <strong>sem lote</strong> e estarão
+                  disponíveis para uma nova conformação.
+                </p>
+                <p>
+                  As <strong>medições e aptidões</strong> de cada ambiente são preservadas — nenhum
+                  dado de medição é perdido.
+                </p>
+                <p className="text-[var(--color-danger)] font-medium">
+                  Esta ação desfaz o agrupamento e não pode ser desfeita.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={dissolving}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDissolve}
+              disabled={dissolving}
+              className="bg-[var(--color-danger)] text-white hover:bg-[var(--color-danger)]/90"
             >
-              <ChevronRight
-                className={`w-3 h-3 text-text-muted transition-transform duration-150 flex-shrink-0 ${
-                  isExpanded ? "rotate-90" : ""
-                }`}
-              />
-              <div className="flex items-center gap-1.5">
-                <span className="font-mono font-bold text-text-primary">{l.numero}</span>
-                {l.tem_ressalva && <span className="text-[var(--color-warning)] text-xs">⚠</span>}
-              </div>
-              <div><EtapaBadge etapa={l.status} /></div>
-              <div className="text-text-secondary text-xs truncate min-w-0 overflow-hidden">{l.consultor_nome ?? "—"}</div>
-              <div className="font-mono text-text-secondary">{l.qtd_itens}</div>
-              <div className="min-w-0">
-                {valorFmt ? (
-                  <span className="font-mono text-[10px] text-text-secondary">
-                    {valorFmt}
-                    {pct != null && (
-                      <span className="text-text-muted"> · {pct}%</span>
-                    )}
-                  </span>
-                ) : (
-                  <span className="text-text-muted text-xs">—</span>
-                )}
-              </div>
-              <div className="font-mono text-xs text-text-muted">{dia}</div>
-            </div>
-
-            {/* Ambientes expandidos */}
-            {isExpanded && (
-              <div className="bg-background/40 border-t border-border/50">
-                {loteItens.length === 0 ? (
-                  <div className="px-10 py-2 text-[11px] text-text-muted italic">
-                    Nenhum ambiente neste lote.
-                  </div>
-                ) : (
-                  loteItens.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-3 px-4 pl-10 py-1.5 border-b border-border/30 last:border-b-0 text-[11px]"
-                    >
-                      <span className="font-mono text-[10px] text-text-muted flex-shrink-0 w-14 truncate">
-                        {item.codigo}
-                      </span>
-                      <span className="flex-1 min-w-0 truncate text-text-secondary">
-                        {item.descricao || "—"}
-                      </span>
-                      {item.valor_item != null && (
-                        <span className="flex-shrink-0 font-mono text-[10px] text-text-muted">
-                          {item.valor_item.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                        </span>
-                      )}
-                      <AptidaoMini aptidao={item.aptidao} />
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
+              {dissolving && <LoaderCircle className="w-3.5 h-3.5 animate-spin mr-1.5" />}
+              Desfazer lote
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
