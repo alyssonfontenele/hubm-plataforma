@@ -58,7 +58,6 @@ function fmtBRL(v: number) {
 // ─── Bloco "Aplicar a todos" (preenchimento de rascunho) ──────────────────────
 function DesignacaoBlock({
   consultores, dataPrevista, onDataPrevistaChange, onAplicarTodos, travaAtiva, onReabrir,
-  hasDraft, isPending, onSalvar,
 }: {
   consultores: ConsultorItem[];
   dataPrevista: string;
@@ -66,9 +65,6 @@ function DesignacaoBlock({
   onAplicarTodos: (consultorId: string) => void;
   travaAtiva: boolean;
   onReabrir: () => void;
-  hasDraft: boolean;
-  isPending: boolean;
-  onSalvar: () => void;
 }) {
   const [consultorId, setConsultorId] = useState("");
 
@@ -123,20 +119,6 @@ function DesignacaoBlock({
         >
           Aplicar a todos
         </Button>
-        {hasDraft && (
-          <Button
-            size="sm"
-            disabled={isPending}
-            onClick={onSalvar}
-            className="flex items-center gap-1.5"
-          >
-            {isPending
-              ? <LoaderCircle className="w-3.5 h-3.5 animate-spin" />
-              : <Check className="w-3.5 h-3.5" />
-            }
-            Salvar designações
-          </Button>
-        )}
       </div>
     </div>
   );
@@ -145,7 +127,7 @@ function DesignacaoBlock({
 // ─── Lista de ambientes inline com aptidão + Select de rascunho (admin) ───────
 function AmbientesInline({
   ambientes, isLoading, canEdit, isAdmin, isVendedor, consultores, contratoId,
-  draft, onDraftChange, redesignando, onRedesignarConfirm, travaAtiva, reaberto, savedItemIds, refetch,
+  draft, onDraftChange, redesignando, onRedesignarSave, travaAtiva, reaberto, savedItemIds, refetch,
 }: {
   ambientes: AmbienteRow[];
   isLoading: boolean;
@@ -157,7 +139,7 @@ function AmbientesInline({
   draft: Record<string, string>;
   onDraftChange: (itemId: string, consultorId: string) => void;
   redesignando: Set<string>;
-  onRedesignarConfirm: (itemId: string) => void;
+  onRedesignarSave: (itemId: string, consultorId: string) => void;
   travaAtiva: boolean;
   reaberto: boolean;
   savedItemIds: Set<string>;
@@ -166,6 +148,7 @@ function AmbientesInline({
   const [selectedItem, setSelectedItem] = useState<AmbienteRow | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [pendingRedesignarItem, setPendingRedesignarItem] = useState<AmbienteRow | null>(null);
+  const [redesignarConsultorId, setRedesignarConsultorId] = useState("");
 
   const aptMut = useMutation({
     mutationFn: async ({ id, aptidao }: { id: string; aptidao: Aptidao }) => {
@@ -370,26 +353,46 @@ function AmbientesInline({
         onAptidaoChange={refetch}
       />
 
-      <AlertDialog open={!!pendingRedesignarItem} onOpenChange={(o) => { if (!o) setPendingRedesignarItem(null); }}>
+      <AlertDialog open={!!pendingRedesignarItem} onOpenChange={(o) => {
+        if (!o) { setPendingRedesignarItem(null); setRedesignarConsultorId(""); }
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Redesignar ambiente</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que quer alterar a designação já definida para{" "}
+              Selecione o novo consultor para{" "}
               <span className="font-semibold">
                 {pendingRedesignarItem?.codigo}
                 {pendingRedesignarItem?.descricao && pendingRedesignarItem.descricao !== pendingRedesignarItem.codigo
                   ? ` · ${pendingRedesignarItem.descricao}` : ""}
-              </span>?
+              </span>.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="px-6 py-2">
+            <Select value={redesignarConsultorId} onValueChange={setRedesignarConsultorId}>
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder="Selecionar consultor…" />
+              </SelectTrigger>
+              <SelectContent>
+                {consultores.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.full_name ?? c.id}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => {
-              if (pendingRedesignarItem) onRedesignarConfirm(pendingRedesignarItem.id);
-              setPendingRedesignarItem(null);
-            }}>
-              Sim, redesignar
+            <AlertDialogAction
+              disabled={!redesignarConsultorId}
+              onClick={() => {
+                if (pendingRedesignarItem && redesignarConsultorId) {
+                  onRedesignarSave(pendingRedesignarItem.id, redesignarConsultorId);
+                }
+                setPendingRedesignarItem(null);
+                setRedesignarConsultorId("");
+              }}
+            >
+              Confirmar redesignação
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -899,6 +902,25 @@ export function ContratoPanel({
     onError: (e: any) => toast.error(e.message ?? "Erro ao designar"),
   });
 
+  // ── Mutation individual (↺ → dialog → aplica na hora) ─────────────
+  const designarUm = useMutation({
+    mutationFn: async ({ itemId, consultorId }: { itemId: string; consultorId: string }) => {
+      const { data, error } = await supabase.rpc("moveria_fn_designar_itens_lote", {
+        p_designacoes: [{ item_id: itemId, consultor_id: consultorId, data_prevista: dataPrevista || null }],
+      });
+      if (error) throw error;
+      return itemId;
+    },
+    onSuccess: (itemId) => {
+      toast.success("Designação salva");
+      qc.invalidateQueries({ queryKey: ["moveria_ambientes", contratoId] });
+      qc.invalidateQueries({ queryKey: ["moveria_kanban"] });
+      setSavedItemIds((prev) => new Set([...prev, itemId]));
+      setTimeout(() => setSavedItemIds((prev) => { const s = new Set(prev); s.delete(itemId); return s; }), 2500);
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao redesignar"),
+  });
+
   // ── Fechar com proteção de rascunho ───────────────────────────────
   function handleClose() {
     if (hasDraft) {
@@ -1031,10 +1053,19 @@ export function ContratoPanel({
               onAplicarTodos={aplicarTodos}
               travaAtiva={travaAtiva}
               onReabrir={() => setReaberto(true)}
-              hasDraft={hasDraft}
-              isPending={designarLote.isPending}
-              onSalvar={() => designarLote.mutate()}
             />
+          )}
+
+          {/* Banner "Confirmar designações" para o fluxo "Aplicar a todos" */}
+          {isAdmin && hasDraft && (
+            <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-[var(--color-info)] bg-[var(--color-info-light)] px-4 py-3">
+              <p className="text-xs text-[var(--color-info-text)] font-medium">
+                {entradasDialog.length} designação{entradasDialog.length !== 1 ? "ões" : ""} não salva{entradasDialog.length !== 1 ? "s" : ""}
+              </p>
+              <Button size="sm" onClick={() => setConfirmDesigOpen(true)}>
+                Confirmar designações →
+              </Button>
+            </div>
           )}
 
           {/* Sessão de medição (consultor ou admin) */}
@@ -1059,7 +1090,7 @@ export function ContratoPanel({
             draft={draft}
             onDraftChange={setItemDraft}
             redesignando={redesignando}
-            onRedesignarConfirm={(id) => setRedesignando((prev) => new Set([...prev, id]))}
+            onRedesignarSave={(itemId, consultorId) => designarUm.mutate({ itemId, consultorId })}
             travaAtiva={travaAtiva}
             reaberto={reaberto}
             savedItemIds={savedItemIds}
