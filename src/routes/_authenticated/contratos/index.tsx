@@ -265,12 +265,18 @@ function persistViewMode(v: ViewMode) {
 // ─── SubEstadoMini ────────────────────────────────────────────────────────────
 function SubEstadoMini({ sub }: { sub: "designado" | "em_rodadas" }) {
   return sub === "em_rodadas" ? (
-    <span className="flex-shrink-0 text-[9px] font-semibold px-1 py-px rounded bg-[var(--color-warning-light)] text-[var(--color-warning-text)] border border-[var(--color-warning)] leading-none">
-      rodadas
+    <span
+      title="Já houve medição; restam ambientes a conformar"
+      className="flex-shrink-0 text-[9px] font-semibold px-1.5 py-px rounded bg-[var(--color-warning-light)] text-[var(--color-warning-text)] border border-[var(--color-warning)] leading-none cursor-help whitespace-nowrap"
+    >
+      Em medição
     </span>
   ) : (
-    <span className="flex-shrink-0 text-[9px] font-semibold px-1 py-px rounded bg-[var(--color-info-light)] text-[var(--color-info-text)] border border-[var(--color-info)] leading-none">
-      desig.
+    <span
+      title="Consultor designado, medição ainda não realizada"
+      className="flex-shrink-0 text-[9px] font-semibold px-1.5 py-px rounded bg-[var(--color-info-light)] text-[var(--color-info-text)] border border-[var(--color-info)] leading-none cursor-help whitespace-nowrap"
+    >
+      Designado
     </span>
   );
 }
@@ -440,9 +446,20 @@ function SubLinhaRow({ sub, highlight }: { sub: SubLinha; highlight: boolean }) 
 
       {/* Col 2: Cód. — identificador do agrupamento */}
       <div className="min-w-0">
-        <span className="text-[9px] font-semibold uppercase tracking-wide text-text-muted bg-surface border border-border rounded px-1.5 py-0.5 inline-block max-w-full truncate">
-          {sub.tipo === "sem_lote" ? "sem lote" : (sub.lote_numero || "lote")}
-        </span>
+        {sub.tipo === "sem_lote" ? (
+          <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded bg-[var(--color-warning-light)] text-[var(--color-warning-text)] border border-[var(--color-warning)] leading-none whitespace-nowrap">
+            SEM LOTE
+          </span>
+        ) : /^\d+$/.test(sub.lote_numero) ? (
+          <span className="inline-flex items-baseline gap-0.5 px-2 py-0.5 rounded bg-[var(--color-success-light)] text-[var(--color-success-text)] border border-[var(--color-success)] leading-none whitespace-nowrap">
+            <span className="text-[8px] font-medium opacity-70">Lote</span>
+            <span className="text-[11px] font-bold">{sub.lote_numero}</span>
+          </span>
+        ) : (
+          <span className="inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded bg-[var(--color-success-light)] text-[var(--color-success-text)] border border-[var(--color-success)] leading-none whitespace-nowrap">
+            {sub.lote_numero || "LOTE"}
+          </span>
+        )}
       </div>
 
       {/* Col 3: Nome — badges de estado */}
@@ -465,8 +482,25 @@ function SubLinhaRow({ sub, highlight }: { sub: SubLinha; highlight: boolean }) 
       </div>
 
       {/* Col 6: Amb. */}
-      <div className="font-mono text-right pr-2 text-text-muted">
-        {qtd > 0 ? qtd : "—"}
+      <div className="text-right pr-2">
+        {qtd > 0 ? (
+          <span
+            title={
+              sub.tipo === "sem_lote"
+                ? "Ambientes sem medição válida (pendentes + inaptos)"
+                : "Ambientes neste lote"
+            }
+            className={`font-mono font-bold text-xs tabular-nums cursor-help ${
+              sub.tipo === "sem_lote"
+                ? "text-[var(--color-warning-text)]"
+                : "text-[var(--color-success-text)]"
+            }`}
+          >
+            {qtd}
+          </span>
+        ) : (
+          <span className="font-mono text-[11px] text-text-muted">—</span>
+        )}
       </div>
 
       {/* Col 7: Consultor */}
