@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { LoaderCircle, Upload, ExternalLink, X, Camera } from "lucide-react";
+import { LoaderCircle, Upload, ExternalLink, X, Camera, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -40,6 +40,7 @@ type DrawerProps = {
   item: AmbienteRow | null;
   canEdit: boolean;
   isAdmin: boolean;
+  loteNumero?: string | null;
   open: boolean;
   onClose: () => void;
   onAptidaoChange: () => void;
@@ -105,7 +106,8 @@ function AnexoGrid({
 }
 
 // ── AmbienteDrawer ───────────────────────────────────────────────────────────
-export function AmbienteDrawer({ item, canEdit, isAdmin, open, onClose, onAptidaoChange }: DrawerProps) {
+export function AmbienteDrawer({ item, canEdit, isAdmin, loteNumero, open, onClose, onAptidaoChange }: DrawerProps) {
+  const canEditAptidao = canEdit && !loteNumero;
   const { profile } = useAuth();
   const qc = useQueryClient();
   const fileRefDesenho = useRef<HTMLInputElement>(null);
@@ -310,10 +312,21 @@ export function AmbienteDrawer({ item, canEdit, isAdmin, open, onClose, onAptida
 
         <div className="flex-1 px-5 py-4 flex flex-col gap-5 overflow-y-auto">
 
+          {/* ── Banner: lote bloqueado ── */}
+          {loteNumero && (
+            <div className="flex items-start gap-2 rounded-lg border border-border bg-accent-light px-3 py-2.5 text-xs text-text-secondary">
+              <Lock className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-text-muted" />
+              <span>
+                Ambiente conformado no <span className="font-semibold">Lote {loteNumero}</span> — aptidão bloqueada.
+                Desfaça o lote para editar.
+              </span>
+            </div>
+          )}
+
           {/* ── Aptidão ── */}
           <div>
             <Label className="text-[10px] uppercase tracking-wider text-text-muted mb-2 block">Aptidão do Ambiente</Label>
-            {canEdit ? (
+            {canEditAptidao ? (
               <div className="flex gap-2">
                 {(["apto", "apto_ressalva", "inapto"] as Aptidao[]).map((a) => {
                   const labels: Record<Aptidao, string> = { apto: "Apto", apto_ressalva: "Apto c/ ressalva", inapto: "Inapto", pendente: "Pendente" };
@@ -351,7 +364,7 @@ export function AmbienteDrawer({ item, canEdit, isAdmin, open, onClose, onAptida
               </Label>
               <Textarea
                 rows={3}
-                disabled={!canEdit}
+                disabled={!canEditAptidao}
                 placeholder={item.aptidao === "apto_ressalva" ? "Descreva a ressalva (obrigatório)…" : "Observação sobre a aptidão…"}
                 value={obs}
                 onChange={(e) => setObs(e.target.value)}
@@ -373,13 +386,13 @@ export function AmbienteDrawer({ item, canEdit, isAdmin, open, onClose, onAptida
               </Label>
               <Textarea
                 rows={3}
-                disabled={!canEdit}
+                disabled={!canEditAptidao}
                 placeholder="Descreva o motivo da inaptidão (obrigatório)…"
                 value={obs}
                 onChange={(e) => setObs(e.target.value)}
                 onBlur={saveObs}
               />
-              {!obs.trim() && canEdit && (
+              {!obs.trim() && canEditAptidao && (
                 <p className="text-xs text-[var(--color-danger)] mt-1">Motivo obrigatório para ambientes inaptos.</p>
               )}
             </div>

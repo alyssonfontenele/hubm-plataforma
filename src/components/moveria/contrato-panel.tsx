@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { LoaderCircle, ChevronRight, X, UserPlus, RotateCcw, Trash2, Check } from "lucide-react";
+import { LoaderCircle, ChevronRight, X, UserPlus, RotateCcw, Trash2, Check, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,6 +33,7 @@ type AmbienteRow = {
   id: string; codigo: string; descricao: string;
   ambiente: string | null; aptidao: Aptidao; aptidao_obs: string | null;
   ordem: number | null; consultor_designado: string | null; lote_id: string | null;
+  moveria_lotes: { numero: string } | null;
   valor_unitario: number | null; valor_item: number | null;
 };
 type MedicaoRow = { id: string; contrato_id: string; consultor_id: string; data_visita: string; status: string; sequencia: string };
@@ -216,12 +217,18 @@ function AmbientesInline({
               }`}
               style={{ gridTemplateColumns: gridCols }}
             >
-              {/* Col 1: código · descrição */}
+              {/* Col 1: código · descrição · badge lote */}
               <div className="min-w-0 overflow-hidden">
-                <p className="text-sm font-medium text-text-primary truncate">
+                <p className="text-sm font-medium text-text-primary truncate flex items-center gap-1.5">
                   <span className="font-mono">{a.codigo}</span>
                   {showDesc && (
                     <span className="font-normal text-text-secondary"> · {a.descricao}</span>
+                  )}
+                  {a.lote_id && (
+                    <span className="inline-flex items-center gap-0.5 flex-shrink-0 text-[9px] font-semibold text-text-muted bg-accent-light border border-border px-1.5 py-0.5 rounded">
+                      <Lock className="w-2.5 h-2.5" />
+                      Lote {a.moveria_lotes?.numero ?? "?"}
+                    </span>
                   )}
                 </p>
               </div>
@@ -300,8 +307,8 @@ function AmbientesInline({
                 {(a.valor_item ?? 0) > 0 ? fmtBRL(a.valor_item!) : "—"}
               </div>
 
-              {/* Col 3: Aptidão inline ou badge */}
-              {!isVendedor && canEdit ? (
+              {/* Col 3: Aptidão inline ou badge (bloqueado se item em lote) */}
+              {!isVendedor && canEdit && !a.lote_id ? (
                 <div className="flex gap-1 pr-2">
                   {(["apto", "apto_ressalva", "inapto"] as Aptidao[]).map((apt) => {
                     const labels: Record<Aptidao, string> = { apto: "Apto", apto_ressalva: "Ressalva", inapto: "Inapto", pendente: "—" };
@@ -348,6 +355,7 @@ function AmbientesInline({
         item={selectedItem}
         canEdit={canEdit}
         isAdmin={isAdmin}
+        loteNumero={selectedItem?.moveria_lotes?.numero ?? null}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         onAptidaoChange={refetch}
@@ -755,7 +763,7 @@ export function ContratoPanel({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("moveria_itens_contrato")
-        .select("id, codigo, descricao, ambiente, aptidao, aptidao_obs, ordem, consultor_designado, lote_id, valor_unitario, valor_item")
+        .select("id, codigo, descricao, ambiente, aptidao, aptidao_obs, ordem, consultor_designado, lote_id, moveria_lotes(numero), valor_unitario, valor_item")
         .eq("contrato_id", contratoId).is("deletado_em", null)
         .order("ordem");
       if (error) throw error;
