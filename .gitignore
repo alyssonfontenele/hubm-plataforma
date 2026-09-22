@@ -41,3 +41,5 @@ pdfs-calibracao/
 
 # Supabase CLI temp (gerado automaticamente por supabase link/db push)
 supabase/.temp/
+.vercel
+.env*

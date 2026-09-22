@@ -22,8 +22,8 @@ VALUES
     'consultor@moveria.test',
     crypt('Teste@1234', gen_salt('bf')),
     now(), now(), now(),
-    '{"global_role": "member"}'::jsonb,
-    '{"provider": "google", "providers": ["google"]}'::jsonb,
+    '{}'::jsonb,
+    '{"provider": "google", "providers": ["google"], "global_role": "member"}'::jsonb,
     false, '', ''
   ),
   (
@@ -33,8 +33,8 @@ VALUES
     'vendedor@moveria.test',
     crypt('Teste@1234', gen_salt('bf')),
     now(), now(), now(),
-    '{"global_role": "member"}'::jsonb,
-    '{"provider": "google", "providers": ["google"]}'::jsonb,
+    '{}'::jsonb,
+    '{"provider": "google", "providers": ["google"], "global_role": "member"}'::jsonb,
     false, '', ''
   ),
   (
@@ -44,8 +44,8 @@ VALUES
     '52998224725@hubm.internal',
     crypt('Teste@1234', gen_salt('bf')),
     now(), now(), now(),
-    '{"global_role": "member"}'::jsonb,
-    '{"provider": "cpf", "providers": ["cpf"]}'::jsonb,
+    '{}'::jsonb,
+    '{"provider": "cpf", "providers": ["cpf"], "global_role": "member"}'::jsonb,
     false, '', ''
   )
 ON CONFLICT (id) DO NOTHING;

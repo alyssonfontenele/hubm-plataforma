@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { Settings2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,37 +9,26 @@ export const Route = createFileRoute("/superadmin")({
 });
 
 function SuperadminLayout() {
-  const { session, loading, globalRole, profile, signOut } = useAuth();
+  const { session, loading, signOut } = useAuth();
   const navigate = useNavigate();
-  const fallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  console.log('superadmin guard:', { loading, hasSession: !!session, globalRole, profile: profile?.global_role });
+  // A checagem de superadmin lê app_metadata direto da sessão (claim do JWT,
+  // síncrono, nunca editável pelo próprio usuário) — não depende de nenhum
+  // fetch a profiles. Isso evita a corrida que causava o loop:
+  // /superadmin (globalRole via profiles ainda não carregado) -> timeout ->
+  // /login -> login.tsx manda de volta pro /superadmin incondicionalmente em
+  // modo superadmin -> remonta -> fetch de profiles reinicia -> nunca termina
+  // a tempo -> loop infinito.
+  const isSuperadmin = session?.user?.app_metadata?.global_role === "superadmin";
 
-  // Guard: no session after load → /login
+  // Guard: sem sessão -> /login (única navegação deste guard; usuário
+  // autenticado mas sem permissão nunca navega, só vê a tela de acesso
+  // restrito abaixo — sem loop, sem tela em branco).
   useEffect(() => {
     if (!loading && !session) {
       void navigate({ to: "/login" });
     }
   }, [loading, session, navigate]);
-
-  // Guard: wrong role after load → /app
-  useEffect(() => {
-    if (!loading && session && globalRole !== null && globalRole !== "superadmin") {
-      void navigate({ to: "/app" });
-    }
-  }, [loading, session, globalRole, navigate]);
-
-  // Fallback: profile still null 500ms after auth loaded → /login
-  useEffect(() => {
-    if (!loading && session && globalRole === null) {
-      fallbackRef.current = setTimeout(() => {
-        void navigate({ to: "/login" });
-      }, 500);
-    }
-    return () => {
-      if (fallbackRef.current) clearTimeout(fallbackRef.current);
-    };
-  }, [loading, session, globalRole, navigate]);
 
   if (loading) {
     return (
@@ -51,15 +40,22 @@ function SuperadminLayout() {
 
   if (!session) return null;
 
-  if (globalRole === null) {
+  if (!isSuperadmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="h-3 w-24 bg-accent-light rounded animate-pulse" />
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background px-4 text-center">
+        <p className="text-sm text-text-secondary">
+          Acesso restrito a superadmin. Sua conta ({session.user.email}) não tem essa permissão.
+        </p>
+        <button
+          type="button"
+          onClick={() => void signOut()}
+          className="h-10 px-4 rounded-md border border-border text-sm text-text-primary hover:bg-accent-light transition-colors"
+        >
+          Sair
+        </button>
       </div>
     );
   }
-
-  if (globalRole !== "superadmin") return null;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

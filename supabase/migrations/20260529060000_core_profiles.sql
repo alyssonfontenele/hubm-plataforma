@@ -46,7 +46,8 @@ CREATE POLICY "profiles_core_access"
 -- auth_type='cpf') como bootstrap de superadmin — a conta real ficou em
 -- produção usando esse CPF conhecido como identificador. Nunca semeie contas
 -- privilegiadas com CPFs de teste públicos. O acesso superadmin ao Core deve
--- vir da conta Google real do responsável, com user_metadata.global_role =
+-- vir da conta Google real do responsável, com app_metadata.global_role =
 -- 'superadmin' setado via Admin API após o primeiro login (auth_is_superadmin()
--- lê esse claim do JWT, não a coluna global_role de profiles).
+-- lê esse claim do JWT, não a coluna global_role de profiles). Nunca
+-- user_metadata — é editável pelo próprio usuário via updateUser().
 -- ---------------------------------------------------------------------------

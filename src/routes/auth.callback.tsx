@@ -71,10 +71,15 @@ function AuthCallbackPage() {
       return;
     }
 
-    // 2. Error params in URL search
+    // 2. Error params in URL search (ex.: access_denied de before_user_created
+    //    hook rejeitado, ou do próprio provider OAuth). error_description traz
+    //    o motivo real — mostrar em vez de sempre "link inválido".
     const search = new URLSearchParams(window.location.search);
     if (search.get("error") || search.get("error_code")) {
-      toast.error("Link inválido ou expirado. Solicite um novo.");
+      const description = search.get("error_description");
+      toast.error(
+        description ? decodeURIComponent(description.replace(/\+/g, " ")) : "Login não autorizado. Tente novamente."
+      );
       window.location.replace("/login");
       return;
     }

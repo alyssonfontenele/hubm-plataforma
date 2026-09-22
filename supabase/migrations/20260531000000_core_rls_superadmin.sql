@@ -4,8 +4,11 @@
 -- Objetivo : Substituir USING(true) por auth_is_superadmin() em todas as
 --            tabelas do core, com policies granulares por operação.
 --
--- O role 'superadmin' fica em user_metadata.global_role no JWT Supabase
--- (campo raw_user_meta_data no auth.users).
+-- O role 'superadmin' fica em app_metadata.global_role no JWT Supabase
+-- (campo raw_app_meta_data no auth.users — só editável via Admin API).
+-- ATUALIZAÇÃO 2026-09-22: auth_is_superadmin() originalmente lia
+-- user_metadata (editável pelo próprio usuário via updateUser() — falha de
+-- segurança). Corrigido na migration 20260922140000_auth_is_superadmin_app_metadata.
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -47,6 +50,8 @@ DROP POLICY IF EXISTS "profiles_core_access"         ON public.profiles;
 --    Retorna true para:
 --    - Chamadas via service_role key (backend interno)
 --    - Sessões JWT com user_metadata.global_role = 'superadmin'
+--    (definição original abaixo — substituída por app_metadata na migration
+--    20260922140000_auth_is_superadmin_app_metadata, que roda depois)
 -- =============================================================================
 CREATE OR REPLACE FUNCTION public.auth_is_superadmin()
 RETURNS boolean

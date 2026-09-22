@@ -30,7 +30,7 @@ A variável `VITE_COMPANY_SLUG` (configurada por ambiente no Vercel) determina q
 
 - **CPF:** usuários operacionais autenticam com CPF + senha. O CPF é armazenado apenas como hash bcrypt (`cpf_hash`). O email no Supabase Auth é `<digits>@hubm.internal`.
 - **Google OAuth:** usuários com domínio corporativo autorizado podem usar Google Sign-In. O acesso fica pendente até aprovação de um admin.
-- **SuperAdmin:** autentica diretamente no hubm-core com CPF. O `global_role = 'superadmin'` é verificado via JWT claim `user_metadata.global_role`.
+- **SuperAdmin:** autentica diretamente no hubm-core. O `global_role = 'superadmin'` é verificado via JWT claim `app_metadata.global_role` (setado só via Admin API/service_role — nunca `user_metadata`, que o próprio usuário pode editar via `updateUser()`).
 
 ## Edge Functions
 

@@ -84,6 +84,19 @@ Se o projeto Vercel for perdido:
 
 **Tempo estimado:** 5–10 minutos.
 
+### Deploy específico do SuperAdmin (hubm-core)
+
+O painel SuperAdmin é servido pelo mesmo repositório, em um projeto Vercel **separado**:
+
+- **Projeto Vercel:** `hubm-plataforma`
+- **Domínio de produção:** `https://admin.mowig.ind.br`
+- **Variáveis extras (além das listadas acima):**
+  - `VITE_IS_SUPERADMIN=true`
+  - `VITE_SUPABASE_CORE_URL` (URL do projeto hubm-core)
+  - `VITE_SUPABASE_CORE_ANON_KEY`
+- **OAuth Google dedicado:** o Core usa um OAuth Client **próprio** no Google Cloud Console ("HubM Core"), separado do client usado por Mowig/Moveria. Redirect URI: `https://vtirfoafpmolffzgszhp.supabase.co/auth/v1/callback`. Origem autorizada: `https://admin.mowig.ind.br`. Client ID/secret ficam só no cofre de secrets (Supabase Auth config do projeto Core) — nunca no git.
+- **Allowlist de cadastro:** o Core bloqueia qualquer criação de usuário fora da tabela `public.core_signup_allowlist` via Auth Hook `before_user_created` (`hook_core_signup_allowlist`) — não há autocadastro livre, nem por Google nem por e-mail/senha.
+
 ---
 
 ## Tempo total estimado de DR completo
