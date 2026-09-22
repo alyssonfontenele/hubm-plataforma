@@ -1,4 +1,9 @@
+// supabase/functions/revoke-sessions/index.ts
+// Admin-only function to force-logout a user by invalidating every active
+// session, without touching their profile. Used by the offboarding flow —
+// deactivation stays reversible (deactivated_at); this only kills sessions.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import postgres from 'https://deno.land/x/postgresjs@v3.4.5/mod.js'
 
 const rawOrigins = Deno.env.get("ALLOWED_ORIGINS") ?? "";
 const allowedOrigins = rawOrigins.split(",").map(o => o.trim()).filter(Boolean);
@@ -10,15 +15,6 @@ function corsHeaders(origin: string) {
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
 }
-
-// Ban de ~100 anos: revoga o acesso sem apagar a linha de auth.users (apagar
-// cascatearia de auth.users -> profiles -> SET NULL em admin_logs/access_logs,
-// que é bloqueado pelo trigger de imutabilidade dos logs).
-const PERMANENT_BAN_DURATION = "876000h";
-
-// Placeholder usado para marcar um perfil como excluído. admin-reactivate-user
-// e a UI usam esse mesmo valor para identificar perfis irreversivelmente excluídos.
-const DELETED_USER_PLACEHOLDER_NAME = "Usuário excluído";
 
 Deno.serve(async (req) => {
   const origin = req.headers.get("origin") ?? "";
@@ -66,68 +62,49 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: "Requisição inválida" }), { status: 400, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } })
   }
 
-  // Anonimização total e irreversível: apaga todo dado pessoal do perfil e
-  // preserva apenas a linha (referenciada por admin_logs/access_logs, que são
-  // imutáveis). Não há caminho de volta — admin-reactivate-user rejeita
-  // perfis com deleted_at preenchido.
-  const { data: updatedProfile, error: profileError } = await supabaseAdmin
+  const { data: targetProfile } = await supabaseAdmin
     .from('profiles')
-    .update({
-      full_name: DELETED_USER_PLACEHOLDER_NAME,
-      display_name: null,
-      avatar_url: null,
-      cpf_hash: null,
-      recovery_email: null,
-      cellphone: null,
-      active: false,
-      deleted_at: new Date().toISOString(),
-    })
-    .eq('id', user_id)
     .select('id')
+    .eq('id', user_id)
     .maybeSingle()
 
-  if (profileError) {
-    return new Response(
-      JSON.stringify({ error: 'Falha ao anonimizar perfil: ' + profileError.message }),
-      { status: 400, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
-    )
-  }
-
-  if (!updatedProfile) {
+  if (!targetProfile) {
     return new Response(
       JSON.stringify({ error: 'Usuário não encontrado' }),
       { status: 404, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
     )
   }
 
-  // Anonimiza o e-mail no Auth (pode conter o CPF, ex.: 39053344705@hubm.internal)
-  // e bane permanentemente, em vez de apagar a linha.
-  const anonymizedEmail = `deleted-${user_id}@invalid.local`
-  const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(user_id, {
-    email: anonymizedEmail,
-    ban_duration: PERMANENT_BAN_DURATION,
-  })
-
-  if (authUpdateError) {
+  // Apaga as sessões diretamente em auth.sessions (não exposto via PostgREST) —
+  // é o mesmo efeito de um signOut global: refresh tokens invalidados
+  // imediatamente; o access token já emitido continua válido até expirar.
+  const sql = postgres(Deno.env.get('SUPABASE_DB_URL')!, { prepare: false })
+  let sessionsRevoked = 0
+  try {
+    const rows = await sql`DELETE FROM auth.sessions WHERE user_id = ${user_id} RETURNING id`
+    sessionsRevoked = rows.length
+  } catch (err) {
     return new Response(
-      JSON.stringify({ error: 'Falha ao revogar acesso: ' + authUpdateError.message }),
+      JSON.stringify({ error: 'Falha ao revogar sessões: ' + (err as Error).message }),
       { status: 400, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
     )
+  } finally {
+    await sql.end({ timeout: 5 }).catch(() => {})
   }
 
   try {
     await supabaseAdmin.from('admin_logs').insert({
       admin_id:    caller.id,
-      action:      'user_deleted',
+      action:      'revoke_sessions',
       target_type: 'security_event',
       target_id:   user_id,
-      event_type:  'user_deleted',
-      metadata:    {},
+      event_type:  'sessions_revoked',
+      metadata:    { sessions_revoked: sessionsRevoked },
     });
   } catch { /* silently ignore logging errors */ }
 
   return new Response(
-    JSON.stringify({ success: true }),
+    JSON.stringify({ success: true, sessions_revoked: sessionsRevoked }),
     { status: 200, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
   )
 })

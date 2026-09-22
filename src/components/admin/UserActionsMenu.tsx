@@ -23,6 +23,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { logAdminAction, type AdminAction } from "@/lib/admin-log";
+import { extractEdgeFunctionErrorMessage } from "@/lib/errors";
+import { isProfileDeleted } from "@/lib/user-lifecycle";
 import { DeleteUserDialog } from "@/components/admin/DeleteUserDialog";
 
 type ConfirmDef = {
@@ -156,6 +158,7 @@ export function UserActionsMenu({
   };
 
   const isInactive = !!profile.deleted_at;
+  const isDeleted = isProfileDeleted(profile);
   const canForcePw = profile.auth_type === "cpf" && !isInactive;
   const canResend = profile.auth_type === "cpf" && profile.must_change_password && !isInactive;
 
@@ -180,7 +183,7 @@ export function UserActionsMenu({
               Inativar
             </DropdownMenuItem>
           )}
-          {(!profile.active || isInactive) && (
+          {(!profile.active || isInactive) && !isDeleted && (
             <DropdownMenuItem onSelect={reactivate}>Reativar</DropdownMenuItem>
           )}
           {canForcePw && (
@@ -316,7 +319,9 @@ export function UserActionsMenu({
                   const { error: fnErr } = await supabase.functions.invoke("delete-user", {
                     body: { user_id: profile.id },
                   });
-                  if (fnErr) throw fnErr;
+                  if (fnErr) {
+                    throw new Error(await extractEdgeFunctionErrorMessage(fnErr, "Falha ao excluir usuário."));
+                  }
                   await logAdminAction({
                     adminId,
                     action: "delete_user",

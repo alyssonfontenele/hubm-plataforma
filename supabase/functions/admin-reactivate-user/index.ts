@@ -52,62 +52,10 @@ Deno.serve(async (req) => {
     return json({ error: "forbidden" }, 403);
   }
 
-  // 3) Input
-  let body: {
-    recovery_email?: string;
-    full_name?: string;
-    global_role?: string;
-  };
-  try {
-    body = await req.json();
-  } catch {
-    return json({ error: "invalid_body" }, 400);
-  }
-  const fullName = (body.full_name ?? "").trim();
-  const globalRole = (body.global_role ?? "").trim();
-  if (!fullName || !globalRole) {
-    return json({ error: "invalid_body" }, 400);
-  }
-
-  // 4) Find deleted profile (bypasses RLS via service role)
-  const { data: deleted, error: findErr } = await admin
-    .from("profiles")
-    .select("id")
-    .eq("company_id", callerProfile.company_id)
-    .not("deleted_at", "is", null)
-    .eq("full_name", "Usuário removido")
-    .order("deleted_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (findErr) {
-    console.error("admin-reactivate-user: find error", findErr);
-    return json({ error: "lookup_failed" }, 500);
-  }
-  if (!deleted) return json({ error: "not_found" }, 404);
-
-  // 5) Update profile
-  const { error: updErr } = await admin
-    .from("profiles")
-    .update({
-      deleted_at: null,
-      active: true,
-      full_name: fullName,
-      global_role: globalRole,
-    })
-    .eq("id", deleted.id);
-
-  if (updErr) {
-    console.error("admin-reactivate-user: update error", updErr);
-    return json({ error: "update_failed" }, 500);
-  }
-
-  // 6) Unban in Auth
-  try {
-    await admin.auth.admin.updateUserById(deleted.id, { ban_duration: "none" });
-  } catch (e) {
-    console.error("admin-reactivate-user: unban failed", e);
-  }
-
-  return json({ success: true, user_id: deleted.id });
+  // 3) Exclusão agora é irreversível (anonimização total via delete-user).
+  // Qualquer perfil que este endpoint encontraria (deleted_at preenchido) foi
+  // excluído por esse fluxo e não pode ser restaurado — os dados pessoais já
+  // foram apagados permanentemente. Mantido apenas para retornar essa mensagem
+  // de forma explícita a quem tentar reativar.
+  return json({ error: "Usuário excluído não pode ser reativado." }, 400);
 });

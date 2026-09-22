@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logAdminAction } from "@/lib/admin-log";
+import { extractEdgeFunctionErrorMessage } from "@/lib/errors";
 import { adminProfilesQueryKey } from "./useAdminUsers";
 
 export interface DeleteUserParams {
@@ -17,7 +18,9 @@ export function useDeleteUser(companyId: string) {
       const { error } = await supabase.functions.invoke("delete-user", {
         body: { user_id: userId },
       });
-      if (error) throw error;
+      if (error) {
+        throw new Error(await extractEdgeFunctionErrorMessage(error, "Falha ao excluir usuário."));
+      }
     },
     onSuccess: async (_data, vars) => {
       await logAdminAction({

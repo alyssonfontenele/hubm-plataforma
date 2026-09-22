@@ -15,6 +15,7 @@ import { logAdminAction } from "@/lib/admin-log";
 import { logSecurityEvent } from "@/lib/security-log";
 import { classifyError } from "@/lib/errors";
 import { handleError } from "@/lib/error-handler";
+import { useRevokeSessions } from "@/hooks/useRevokeSessions";
 
 interface OffboardingModalProps {
   profile: Profile;
@@ -32,11 +33,12 @@ export function OffboardingModal({
   onDone,
 }: OffboardingModalProps) {
   const [loading, setLoading] = useState(false);
+  const revokeSessions = useRevokeSessions();
 
   const handleConfirm = async () => {
     setLoading(true);
     try {
-      // 1. Setar deactivated_at e active = false no perfil
+      // 1. Setar deactivated_at e active = false no perfil (reversível)
       const { error: profileErr } = await supabase
         .from("profiles")
         .update({
@@ -47,13 +49,9 @@ export function OffboardingModal({
 
       if (profileErr) throw profileErr;
 
-      // 2. Revogar sessões ativas via Edge Function delete-user
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-      await fetch(`${supabaseUrl}/functions/v1/delete-user`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: profile.id }),
-      });
+      // 2. Revogar sessões ativas via Edge Function revoke-sessions
+      // (não toca no perfil nem anonimiza dados — só invalida sessões)
+      await revokeSessions.mutateAsync({ userId: profile.id });
 
       // 3. Registrar no audit log
       await logAdminAction({

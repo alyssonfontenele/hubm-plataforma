@@ -37,10 +37,12 @@ export function DeleteUserDialog({
     <AlertDialog open={open} onOpenChange={(o) => !busy && onOpenChange(o)}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Excluir usuário?</AlertDialogTitle>
+          <AlertDialogTitle>Excluir usuário permanentemente?</AlertDialogTitle>
           <AlertDialogDescription>
-            {profile.full_name} será removido da plataforma. Os registros de auditoria serão
-            preservados.
+            Esta ação é <strong>permanente e não pode ser desfeita</strong>. Todos os dados pessoais
+            de {profile.full_name} (nome, e-mail, telefone, CPF) serão apagados e o acesso será
+            revogado definitivamente. Os registros de auditoria serão preservados, sem dados
+            pessoais associados.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

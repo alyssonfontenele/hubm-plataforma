@@ -51,6 +51,22 @@ function extractMessage(raw: unknown): string {
   return String(raw)
 }
 
+// Erros de supabase.functions.invoke() (FunctionsHttpError) só trazem uma mensagem
+// genérica em `.message` ("Edge Function returned a non-2xx status code"). O corpo
+// JSON real da resposta fica em `.context`, que é um Response e precisa ser lido à parte.
+export async function extractEdgeFunctionErrorMessage(raw: unknown, fallback: string): Promise<string> {
+  const context = (raw as { context?: { json?: () => Promise<unknown> } } | null)?.context
+  if (context?.json) {
+    try {
+      const body = await context.json()
+      if (body && typeof body === 'object' && typeof (body as Record<string, unknown>)['error'] === 'string') {
+        return (body as Record<string, unknown>)['error'] as string
+      }
+    } catch { /* corpo não é JSON ou já foi consumido */ }
+  }
+  return raw instanceof Error ? raw.message : fallback
+}
+
 export function classifyError(raw: unknown): HubMError {
   const message = extractMessage(raw)
   const status = extractStatus(raw)
