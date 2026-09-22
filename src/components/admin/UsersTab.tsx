@@ -4,6 +4,7 @@ import { Check, ChevronDown, Clock, Plus, UserCog, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase, type GlobalRole, type Profile } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { UserList } from "@/components/admin/UserList";
 import { UserActionsMenu } from "@/components/admin/UserActionsMenu";
@@ -138,10 +139,11 @@ export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
   const [approveTarget, setApproveTarget] = useState<PendingRow | null>(null);
   const [approveRole, setApproveRole]     = useState<GlobalRole>("member");
   const [approveCargoId, setApproveCargoId] = useState<string | null>(null);
+  const [showDeleted, setShowDeleted] = useState(false);
 
   const profilesQueryKey = adminProfilesQueryKey(companyId);
 
-  const { data: profiles = [], isLoading: loadingProfiles } = useAdminUsers(companyId);
+  const { data: profiles = [], isLoading: loadingProfiles } = useAdminUsers(companyId, showDeleted);
 
   const { data: sectors = [], isLoading: loadingSectors } = useQuery({
     queryKey: ["admin-sectors", companyId] as const,
@@ -331,12 +333,18 @@ export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
           </p>
           <p className="text-xs text-text-muted">Gerencie os acessos da sua organização.</p>
         </div>
-        <Button
-          onClick={() => setModalOpen(true)}
-          className="bg-text-primary text-background hover:bg-text-primary/90"
-        >
-          <Plus className="w-4 h-4 mr-2" /> Novo usuário
-        </Button>
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
+            <Switch checked={showDeleted} onCheckedChange={setShowDeleted} />
+            Mostrar excluídos
+          </label>
+          <Button
+            onClick={() => setModalOpen(true)}
+            className="bg-text-primary text-background hover:bg-text-primary/90"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Novo usuário
+          </Button>
+        </div>
       </header>
 
       {pending.length > 0 && (

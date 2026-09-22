@@ -68,12 +68,14 @@ export function UserList({ profiles, loading, cargosMap, renderActions }: UserLi
                 <TableCell>
                   <span
                     className={`text-xs px-2 py-0.5 rounded-full border ${
-                      p.active && !p.deleted_at
-                        ? "border-border text-text-primary bg-background"
-                        : "border-border text-text-muted bg-surface"
+                      p.anonymized_at
+                        ? "border-destructive/30 text-destructive-foreground bg-destructive/10"
+                        : p.active && !p.deleted_at
+                          ? "border-border text-text-primary bg-background"
+                          : "border-border text-text-muted bg-surface"
                     }`}
                   >
-                    {p.deleted_at ? "Inativo" : p.active ? "Ativo" : "Suspenso"}
+                    {p.anonymized_at ? "Excluído" : p.deleted_at ? "Inativo" : p.active ? "Ativo" : "Suspenso"}
                   </span>
                 </TableCell>
                 <TableCell className="text-right">{renderActions(p)}</TableCell>
