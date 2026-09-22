@@ -11,11 +11,18 @@ export const Route = createFileRoute("/auth/callback")({
 });
 
 async function handleSession(session: Session) {
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("must_change_password")
     .eq("id", session.user.id)
     .maybeSingle();
+
+  if (profileError) {
+    console.error("[auth.callback] falha ao consultar profile", profileError);
+    toast.error("Falha ao carregar seu perfil. Tente novamente.");
+    window.location.replace("/login");
+    return;
+  }
 
   // New Google user with no profile → send to request-access
   if (!profile) {
@@ -24,6 +31,9 @@ async function handleSession(session: Session) {
     if (isGoogle && await isGoogleDomainAllowed(domain)) {
       window.location.replace("/request-access");
       return;
+    }
+    if (isGoogle) {
+      toast.error("Seu domínio de e-mail não tem acesso autorizado.");
     }
     window.location.replace("/login");
     return;
@@ -69,36 +79,43 @@ function AuthCallbackPage() {
       return;
     }
 
-    // 3. PKCE flow: wait for Supabase to exchange the code and emit SIGNED_IN.
-    //    getSession() called too early returns null while the SDK is still
-    //    exchanging the ?code= param — use onAuthStateChange instead.
+    // 3. PKCE flow: aguarda o Supabase trocar o ?code= pela sessão.
+    //    `detectSessionInUrl` roda na inicialização do client (module load),
+    //    ou seja, ANTES deste efeito montar e assinar onAuthStateChange — a
+    //    troca pode terminar antes da assinatura, e o listener só recebe
+    //    INITIAL_SESSION (com sessão já presente), nunca SIGNED_IN. O código
+    //    antigo só tratava SIGNED_IN, então esse caso ficava 10s parado e
+    //    caía no /login sem nenhum profile criado nem mensagem de erro.
     let settled = false;
+
+    const finish = (session: Session) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      subscription.unsubscribe();
+      void handleSession(session);
+    };
 
     const timeout = setTimeout(() => {
       if (!settled) {
         settled = true;
+        subscription.unsubscribe();
+        toast.error("Não foi possível concluir o login. Tente novamente.");
         window.location.replace("/login");
       }
     }, 10_000);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (settled) return;
-      if (event === "SIGNED_IN" && session) {
-        settled = true;
-        clearTimeout(timeout);
-        subscription.unsubscribe();
-        void handleSession(session);
-      } else if (event === "SIGNED_OUT" || (event === "INITIAL_SESSION" && !session)) {
-        // No session arrived — check once more synchronously then give up
-        supabase.auth.getSession().then(({ data }) => {
-          if (data.session && !settled) {
-            settled = true;
-            clearTimeout(timeout);
-            subscription.unsubscribe();
-            void handleSession(data.session);
-          }
-        });
+      if (session && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
+        finish(session);
       }
+    });
+
+    // Checagem imediata: cobre o caso da sessão já ter sido estabelecida por
+    // detectSessionInUrl antes mesmo do listener acima ser assinado.
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session && !settled) finish(data.session);
     });
 
     return () => {

@@ -41,28 +41,12 @@ CREATE POLICY "profiles_core_access"
   );
 
 -- ---------------------------------------------------------------------------
--- Registro inicial: SuperAdmin
--- Guard: em dev local, profiles.company_id é NOT NULL (baseline_schema) →
--- não inserir aqui. Em produção core, a coluna é nullable → inserir.
+-- Registro inicial de SuperAdmin REMOVIDO (sessão de segurança 2026-09-22).
+-- Este bloco inseria um profile com CPF de teste público (111.444.777-35,
+-- auth_type='cpf') como bootstrap de superadmin — a conta real ficou em
+-- produção usando esse CPF conhecido como identificador. Nunca semeie contas
+-- privilegiadas com CPFs de teste públicos. O acesso superadmin ao Core deve
+-- vir da conta Google real do responsável, com user_metadata.global_role =
+-- 'superadmin' setado via Admin API após o primeiro login (auth_is_superadmin()
+-- lê esse claim do JWT, não a coluna global_role de profiles).
 -- ---------------------------------------------------------------------------
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public'
-      AND table_name   = 'profiles'
-      AND column_name  = 'company_id'
-      AND is_nullable  = 'YES'
-  ) THEN
-    INSERT INTO public.profiles (id, full_name, display_name, global_role, active, auth_type)
-    VALUES (
-      '49b6bb17-6c08-4568-afd7-61bf52978dda',
-      'Super Admin',
-      'Alysson',
-      'superadmin',
-      true,
-      'cpf'
-    )
-    ON CONFLICT (id) DO NOTHING;
-  END IF;
-END $$;

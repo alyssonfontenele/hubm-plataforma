@@ -30,7 +30,7 @@ async function enforceLoginRules(): Promise<boolean | "request-access"> {
 
   const { data: prof, error } = await supabase
     .from("profiles")
-    .select("id, active, auth_type, deleted_at")
+    .select("id, active, auth_type, deleted_at, anonymized_at")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -43,7 +43,7 @@ async function enforceLoginRules(): Promise<boolean | "request-access"> {
     return false;
   }
 
-  if (prof.auth_type === "google" && !prof.active && !prof.deleted_at) {
+  if (prof.auth_type === "google" && !prof.active && !prof.deleted_at && !prof.anonymized_at) {
     await supabase.auth.signOut();
     toast.info("Seu acesso ainda está pendente de aprovação.");
     return false;

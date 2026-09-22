@@ -69,6 +69,7 @@ export interface Profile {
   active: boolean;
   must_change_password: boolean;
   deleted_at: string | null;
+  anonymized_at: string | null;
   last_login_at: string | null;
   consent_at: string | null;
 }

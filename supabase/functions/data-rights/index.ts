@@ -113,13 +113,13 @@ Deno.serve(async (req) => {
     const anonCpfHash = Array.from(buf).map(b => b.toString(16).padStart(2, "0")).join("");
 
     const { error } = await admin.from("profiles").update({
-      full_name:      "Usuário removido",
+      full_name:      "Usuário excluído",
       display_name:   null,
       recovery_email: anonEmail,
       cpf_hash:       anonCpfHash,
       cellphone:      null,
       avatar_url:     null,
-      deactivated_at: new Date().toISOString(),
+      anonymized_at:  new Date().toISOString(),
       active:         false,
       updated_at:     new Date().toISOString(),
     }).eq("id", userId);

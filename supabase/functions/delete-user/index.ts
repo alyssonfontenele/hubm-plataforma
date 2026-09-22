@@ -64,8 +64,9 @@ Deno.serve(async (req) => {
 
   // Anonimização total e irreversível: apaga todo dado pessoal do perfil e
   // preserva apenas a linha (referenciada por admin_logs/access_logs, que são
-  // imutáveis). Não há caminho de volta — admin-reactivate-user rejeita
-  // perfis com deleted_at preenchido.
+  // imutáveis). anonymized_at (não deleted_at) marca essa irreversibilidade —
+  // deleted_at é só inativação reversível. Não há caminho de volta —
+  // admin-reactivate-user rejeita perfis com anonymized_at preenchido.
   const { data: updatedProfile, error: profileError } = await supabaseAdmin
     .from('profiles')
     .update({
@@ -76,7 +77,7 @@ Deno.serve(async (req) => {
       recovery_email: null,
       cellphone: null,
       active: false,
-      deleted_at: new Date().toISOString(),
+      anonymized_at: new Date().toISOString(),
     })
     .eq('id', user_id)
     .select('id')
