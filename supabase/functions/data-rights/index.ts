@@ -5,6 +5,7 @@
 // action=correct : corrige nome e email de recuperação
 // action=delete  : anonimiza os dados (soft-delete LGPD)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { anonymizeAndBanAuthUser } from "../_shared/anonymize-auth-user.ts";
 
 const rawOrigins = Deno.env.get("ALLOWED_ORIGINS") ?? "";
 const allowedOrigins = rawOrigins.split(",").map(o => o.trim()).filter(Boolean);
@@ -124,6 +125,11 @@ Deno.serve(async (req) => {
     }).eq("id", userId);
 
     if (error) return json({ error: "anonymization_failed" }, 500);
+
+    // Anonimiza o e-mail no Auth e bane permanentemente — sem isso o usuário
+    // ainda conseguiria logar com a senha antiga após "se autoexcluir".
+    const { error: authError } = await anonymizeAndBanAuthUser(admin, userId);
+    if (authError) return json({ error: "auth_ban_failed" }, 500);
 
     try {
       await admin.from("audit_log").insert({

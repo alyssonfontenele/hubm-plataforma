@@ -3,7 +3,7 @@
 // session, without touching their profile. Used by the offboarding flow —
 // deactivation stays reversible (deactivated_at); this only kills sessions.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import postgres from 'https://deno.land/x/postgresjs@v3.4.5/mod.js'
+import { revokeAllSessions } from '../_shared/revoke-sessions.ts'
 
 const rawOrigins = Deno.env.get("ALLOWED_ORIGINS") ?? "";
 const allowedOrigins = rawOrigins.split(",").map(o => o.trim()).filter(Boolean);
@@ -75,21 +75,14 @@ Deno.serve(async (req) => {
     )
   }
 
-  // Apaga as sessões diretamente em auth.sessions (não exposto via PostgREST) —
-  // é o mesmo efeito de um signOut global: refresh tokens invalidados
-  // imediatamente; o access token já emitido continua válido até expirar.
-  const sql = postgres(Deno.env.get('SUPABASE_DB_URL')!, { prepare: false })
   let sessionsRevoked = 0
   try {
-    const rows = await sql`DELETE FROM auth.sessions WHERE user_id = ${user_id} RETURNING id`
-    sessionsRevoked = rows.length
+    sessionsRevoked = await revokeAllSessions(user_id)
   } catch (err) {
     return new Response(
       JSON.stringify({ error: 'Falha ao revogar sessões: ' + (err as Error).message }),
       { status: 400, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
     )
-  } finally {
-    await sql.end({ timeout: 5 }).catch(() => {})
   }
 
   try {

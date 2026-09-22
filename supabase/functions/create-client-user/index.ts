@@ -42,8 +42,35 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
+    // Valida o chamador (JWT) e exige perfil admin ativo
+    const authHeader = req.headers.get('authorization') ?? ''
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user: caller }, error: callerAuthError } = await supabase.auth.getUser(token)
+
+    if (callerAuthError || !caller) {
+      return new Response(
+        JSON.stringify({ error: 'Não autorizado' }),
+        { status: 401, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const { data: callerProfile } = await supabase
+      .from('profiles')
+      .select('global_role, active, company_id')
+      .eq('id', caller.id)
+      .single()
+
+    if (callerProfile?.global_role !== 'admin' || !callerProfile?.active) {
+      return new Response(
+        JSON.stringify({ error: 'Acesso negado' }),
+        { status: 403, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
+      )
+    }
+
     const body = await req.json()
-    const { full_name, cpf, email, recovery_email, company_id, initial_password } = body
+    const { full_name, cpf, email, recovery_email, initial_password } = body
+    // company_id nunca vem do body — sempre o da empresa do admin chamador
+    const company_id = callerProfile.company_id
 
     // CAMADA 2 — Segurança: global_role é SEMPRE 'cliente', nunca aceita override do caller
     const FORCED_ROLE = 'cliente'
@@ -248,7 +275,7 @@ Deno.serve(async (req) => {
 
     try {
       await supabase.from('admin_logs').insert({
-        admin_id:    null,
+        admin_id:    caller.id,
         action:      'user_created',
         target_type: 'client',
         target_id:   newAuthUser.user.id,

@@ -38,7 +38,34 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    const { full_name, cpf, recovery_email, cellphone, company_id, global_role, initial_password } = await req.json()
+    // Valida o chamador (JWT) e exige perfil admin ativo
+    const authHeader = req.headers.get('authorization') ?? ''
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user: caller }, error: callerAuthError } = await supabase.auth.getUser(token)
+
+    if (callerAuthError || !caller) {
+      return new Response(
+        JSON.stringify({ error: 'Não autorizado' }),
+        { status: 401, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const { data: callerProfile } = await supabase
+      .from('profiles')
+      .select('global_role, active, company_id')
+      .eq('id', caller.id)
+      .single()
+
+    if (callerProfile?.global_role !== 'admin' || !callerProfile?.active) {
+      return new Response(
+        JSON.stringify({ error: 'Acesso negado' }),
+        { status: 403, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const { full_name, cpf, recovery_email, cellphone, global_role, initial_password } = await req.json()
+    // company_id nunca vem do body — sempre o da empresa do admin chamador
+    const company_id = callerProfile.company_id
 
     if (typeof cpf !== 'string') {
       return new Response(JSON.stringify({ error: "Requisição inválida" }), { status: 400, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } })
@@ -167,7 +194,7 @@ Deno.serve(async (req) => {
 
     try {
       await supabase.from('admin_logs').insert({
-        admin_id:    null,
+        admin_id:    caller.id,
         action:      'user_created',
         target_type: 'security_event',
         target_id:   authUser.user.id,

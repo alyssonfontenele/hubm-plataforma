@@ -1,4 +1,5 @@
 ﻿import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { revokeAllSessions } from '../_shared/revoke-sessions.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -74,11 +75,17 @@ Deno.serve(async (req) => {
       .update({ must_change_password: true })
       .eq('id', user_id)
 
-    // Invalida todas as sessões ativas do usuário
-    await supabaseAdmin.auth.admin.signOut(user_id, 'others')
+    // Invalida todas as sessões ativas do usuário (signOut(user_id, ...) do SDK
+    // espera um JWT, não um user_id — nunca revogava nada de fato)
+    let sessionsRevoked = 0
+    try {
+      sessionsRevoked = await revokeAllSessions(user_id)
+    } catch (err) {
+      console.error('admin-update-password: revoke sessions failed', err)
+    }
 
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ success: true, sessions_revoked: sessionsRevoked }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 

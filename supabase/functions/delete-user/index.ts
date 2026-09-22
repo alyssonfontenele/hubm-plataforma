@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { anonymizeAndBanAuthUser } from '../_shared/anonymize-auth-user.ts'
 
 const rawOrigins = Deno.env.get("ALLOWED_ORIGINS") ?? "";
 const allowedOrigins = rawOrigins.split(",").map(o => o.trim()).filter(Boolean);
@@ -10,11 +11,6 @@ function corsHeaders(origin: string) {
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
 }
-
-// Ban de ~100 anos: revoga o acesso sem apagar a linha de auth.users (apagar
-// cascatearia de auth.users -> profiles -> SET NULL em admin_logs/access_logs,
-// que é bloqueado pelo trigger de imutabilidade dos logs).
-const PERMANENT_BAN_DURATION = "876000h";
 
 // Placeholder usado para marcar um perfil como excluído. admin-reactivate-user
 // e a UI usam esse mesmo valor para identificar perfis irreversivelmente excluídos.
@@ -102,11 +98,7 @@ Deno.serve(async (req) => {
 
   // Anonimiza o e-mail no Auth (pode conter o CPF, ex.: 39053344705@hubm.internal)
   // e bane permanentemente, em vez de apagar a linha.
-  const anonymizedEmail = `deleted-${user_id}@invalid.local`
-  const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(user_id, {
-    email: anonymizedEmail,
-    ban_duration: PERMANENT_BAN_DURATION,
-  })
+  const { error: authUpdateError } = await anonymizeAndBanAuthUser(supabaseAdmin, user_id)
 
   if (authUpdateError) {
     return new Response(
