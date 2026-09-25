@@ -32,12 +32,14 @@ MOVERIA_KEY="${HUBM_MOVERIA_KEY:-}"
 CORE_KEY="${HUBM_CORE_KEY:-}"
 
 # ─── Validação de variáveis ────────────────────────────────────────────────────
-missing=0
-[[ -z "$MOWIG_KEY" ]]   && { echo -e "${RED}Erro:${RESET} HUBM_MOWIG_KEY não definida";   missing=1; }
-[[ -z "$MOVERIA_KEY" ]] && { echo -e "${RED}Erro:${RESET} HUBM_MOVERIA_KEY não definida"; missing=1; }
-[[ -z "$CORE_KEY" ]]    && { echo -e "${RED}Erro:${RESET} HUBM_CORE_KEY não definida";    missing=1; }
-if [[ $missing -eq 1 ]]; then
+# Banco sem key definida é pulado (aviso), não aborta o script — só falha se
+# nenhuma das três estiver disponível.
+MOWIG_ENABLED=0;   [[ -n "$MOWIG_KEY" ]]   && MOWIG_ENABLED=1   || echo -e "${YELLOW}Aviso:${RESET} HUBM_MOWIG_KEY não definida — pulando mowig"
+MOVERIA_ENABLED=0; [[ -n "$MOVERIA_KEY" ]] && MOVERIA_ENABLED=1 || echo -e "${YELLOW}Aviso:${RESET} HUBM_MOVERIA_KEY não definida — pulando moveria"
+CORE_ENABLED=0;    [[ -n "$CORE_KEY" ]]    && CORE_ENABLED=1    || echo -e "${YELLOW}Aviso:${RESET} HUBM_CORE_KEY não definida — pulando core"
+if [[ $((MOWIG_ENABLED + MOVERIA_ENABLED + CORE_ENABLED)) -eq 0 ]]; then
   echo ""
+  echo -e "${RED}Erro:${RESET} nenhuma key definida (HUBM_MOWIG_KEY / HUBM_MOVERIA_KEY / HUBM_CORE_KEY)."
   echo "  Obtenha em: Supabase Dashboard → Project Settings → API → service_role"
   echo ""
   exit 1
@@ -82,13 +84,14 @@ fetch_applied() {
 echo ""
 echo -e "${DIM}Consultando bancos...${RESET}"
 
-MOWIG_APPLIED=$(fetch_applied   "$MOWIG_URL"   "$MOWIG_KEY")
-MOVERIA_APPLIED=$(fetch_applied "$MOVERIA_URL" "$MOVERIA_KEY")
-CORE_APPLIED=$(fetch_applied    "$CORE_URL"    "$CORE_KEY")
+MOWIG_APPLIED="";   [[ $MOWIG_ENABLED   -eq 1 ]] && MOWIG_APPLIED=$(fetch_applied   "$MOWIG_URL"   "$MOWIG_KEY")
+MOVERIA_APPLIED=""; [[ $MOVERIA_ENABLED -eq 1 ]] && MOVERIA_APPLIED=$(fetch_applied "$MOVERIA_URL" "$MOVERIA_KEY")
+CORE_APPLIED="";    [[ $CORE_ENABLED    -eq 1 ]] && CORE_APPLIED=$(fetch_applied    "$CORE_URL"    "$CORE_KEY")
 
-# Função: verifica se filename está na lista aplicada
+# Função: verifica se filename está na lista aplicada; "⏭️" quando o banco foi pulado
 is_applied() {
-  local filename="$1" applied_list="$2"
+  local filename="$1" applied_list="$2" bank_enabled="$3"
+  [[ "$bank_enabled" -eq 0 ]] && { echo "⏭️"; return; }
   echo "$applied_list" | grep -qx "$filename" && echo "✅" || echo "❌"
 }
 
@@ -111,9 +114,9 @@ all_synced=0
 divergent=()
 
 for filename in "${LOCAL_FILES[@]}"; do
-  m=$(is_applied "$filename" "$MOWIG_APPLIED")
-  v=$(is_applied "$filename" "$MOVERIA_APPLIED")
-  c=$(is_applied "$filename" "$CORE_APPLIED")
+  m=$(is_applied "$filename" "$MOWIG_APPLIED"   "$MOWIG_ENABLED")
+  v=$(is_applied "$filename" "$MOVERIA_APPLIED" "$MOVERIA_ENABLED")
+  c=$(is_applied "$filename" "$CORE_APPLIED"    "$CORE_ENABLED")
 
   # Trunca nome longo
   display="${filename:0:$NAME_W}"
@@ -132,8 +135,13 @@ echo ""
 echo -e "  $(printf '%.0s─' $(seq 1 70))"
 echo ""
 
+if [[ $((MOWIG_ENABLED + MOVERIA_ENABLED + CORE_ENABLED)) -lt 3 ]]; then
+  echo -e "  ${YELLOW}Nota:${RESET} banco(s) pulado(s) por falta de key não entram na checagem acima (⏭️)."
+  echo ""
+fi
+
 if [[ $all_synced -eq 0 ]]; then
-  echo -e "  ${GREEN}${BOLD}✅  $TOTAL/$TOTAL migrations aplicadas em todos os bancos.${RESET}"
+  echo -e "  ${GREEN}${BOLD}✅  $TOTAL/$TOTAL migrations aplicadas em todos os bancos verificados.${RESET}"
 else
   applied_all=$(( TOTAL - ${#divergent[@]} ))
   echo -e "  ${YELLOW}${BOLD}⚠️   $applied_all/$TOTAL migrations aplicadas em todos os bancos.${RESET}"
