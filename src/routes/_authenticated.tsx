@@ -4,6 +4,9 @@ import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopbar } from "@/components/app-topbar";
+import { FocusModeChrome } from "@/components/focus-mode-chrome";
+import { FocusModeHotCorner } from "@/components/focus-mode-hot-corner";
+import { useFocusMode } from "@/hooks/useFocusMode";
 import { useAuth } from "@/contexts/AuthContext";
 import { isGoogleDomainAllowed } from "@/lib/auth";
 
@@ -17,6 +20,7 @@ function AuthenticatedLayout() {
   const navigate = useNavigate();
   const href = useRouterState({ select: (r) => r.location.href });
   const [googleDomainAllowed, setGoogleDomainAllowed] = useState<boolean | null>(null);
+  const { focus, revealed, reveal, hide } = useFocusMode();
 
   useEffect(() => {
     if (!loading && !session) {
@@ -92,6 +96,20 @@ function AuthenticatedLayout() {
           </button>
         </div>
       </div>
+    );
+  }
+
+  if (focus) {
+    return (
+      <SidebarProvider>
+        <div className="min-h-screen w-full bg-background">
+          {!revealed && <FocusModeHotCorner onReveal={reveal} />}
+          <FocusModeChrome revealed={revealed} onHide={hide} />
+          <main className="h-screen w-screen overflow-hidden">
+            <Outlet />
+          </main>
+        </div>
+      </SidebarProvider>
     );
   }
 

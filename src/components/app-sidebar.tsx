@@ -24,7 +24,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useApps } from "@/hooks/useApps";
-import { useAutoCollapseSidebar } from "@/hooks/useAutoCollapseSidebar";
+import { cn } from "@/lib/utils";
 import {
   Collapsible,
   CollapsibleContent,
@@ -114,14 +114,13 @@ function usePersistentBool(key: string, defaultValue: boolean) {
   return [value, setValue] as const;
 }
 
-export function AppSidebar() {
+export function AppSidebar({ className }: { className?: string }) {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { company, sectorMemberships, globalRole, profile, signOut } = useAuth();
   const isMobile = useIsMobile();
   const { data: apps } = useApps();
-  useAutoCollapseSidebar();
 
   const isActive = (path: string) =>
     pathname === path || pathname.startsWith(path + "/");
@@ -195,7 +194,7 @@ export function AppSidebar() {
   }, [sectors]);
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" className={cn(className)}>
       <SidebarHeader className="border-b border-sidebar-border px-3 py-3">
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 rounded-md bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center text-sm font-bold">
