@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router"
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { isGoogleDomainAllowed } from "@/lib/auth";
+import { fetchRequestAccessCargos, type RequestAccessCargo } from "@/hooks/useRequestAccessCargos";
 
 export const Route = createFileRoute("/request-access")({
   ssr: false,
@@ -15,11 +16,7 @@ export const Route = createFileRoute("/request-access")({
   component: RequestAccessPage,
 });
 
-type CargoItem = {
-  id: string;
-  name: string;
-  description: string | null;
-};
+type CargoItem = RequestAccessCargo;
 
 function RequestAccessPage() {
   const navigate = useNavigate();
@@ -83,17 +80,14 @@ function RequestAccessPage() {
       setCompanyId(cId);
       setCompanyName(co?.name ?? null);
 
-      if (cId) {
-        const { data: rows } = await supabase
-          .from("cargos")
-          .select("id, name, description")
-          .eq("company_id", cId)
-          .order("name", { ascending: true });
-        const list = (rows ?? []) as CargoItem[];
+      try {
+        const list = await fetchRequestAccessCargos();
         setCargos(list);
         if (cargoParam && list.some((c) => c.id === cargoParam)) {
           setSelectedCargoId(cargoParam);
         }
+      } catch {
+        toast.error("Não foi possível carregar os cargos disponíveis.");
       }
 
       setReady(true);
