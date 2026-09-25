@@ -208,6 +208,7 @@ export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
         .eq("company_id", companyId)
         .eq("active", false)
         .is("deleted_at", null)
+        .is("anonymized_at", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as unknown as PendingRow[];
@@ -301,17 +302,27 @@ export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
   };
 
   const handleReject = async (id: string, name: string, email: string | null) => {
+    const { data, error } = await supabase.from("profiles").delete().eq("id", id).select("id");
+    if (error) {
+      handleError(classifyError(error));
+      return;
+    }
+    if (!data || data.length === 0) {
+      handleError({
+        kind: "unknown",
+        message: `reject_user: delete on profiles affected 0 rows (id=${id})`,
+        userMessage: `Não foi possível rejeitar "${name}": nenhum registro foi apagado. Verifique suas permissões.`,
+        raw: null,
+      });
+      return;
+    }
+
     await logAdminAction({
       adminId: currentUserId,
       action: "reject_user",
       targetId: id,
       targetName: name,
     });
-    const { error } = await supabase.from("profiles").delete().eq("id", id);
-    if (error) {
-      handleError(classifyError(error));
-      return;
-    }
     await sendNotificationEmail(
       email,
       "Solicitação de acesso ao HubMowig",
