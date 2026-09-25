@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import * as LucideIcons from "lucide-react";
 import {
   Home,
   Shield,
@@ -18,9 +19,12 @@ import {
   ChevronDown,
   ChevronRight,
   CheckSquare,
+  LayoutGrid,
 
   type LucideIcon,
 } from "lucide-react";
+import { useApps } from "@/hooks/useApps";
+import { useAutoCollapseSidebar } from "@/hooks/useAutoCollapseSidebar";
 import {
   Collapsible,
   CollapsibleContent,
@@ -67,6 +71,17 @@ function resolveIcon(name: string | null): LucideIcon {
   return Folder;
 }
 
+/** Ícone dinâmico por nome lucide (ex.: "layers" -> Layers), para apps.icon. */
+function resolveAppIcon(name: string | null): LucideIcon {
+  if (!name) return LayoutGrid;
+  const key = name
+    .split(/[-_\s]/)
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .join("");
+  const Comp = (LucideIcons as unknown as Record<string, LucideIcon>)[key];
+  return Comp ?? LayoutGrid;
+}
+
 interface SidebarSector {
   id: string;
   name: string;
@@ -105,6 +120,8 @@ export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { company, sectorMemberships, globalRole, profile, signOut } = useAuth();
   const isMobile = useIsMobile();
+  const { data: apps } = useApps();
+  useAutoCollapseSidebar();
 
   const isActive = (path: string) =>
     pathname === path || pathname.startsWith(path + "/");
@@ -241,6 +258,34 @@ export function AppSidebar() {
             </CollapsibleSectorGroup>
           );
         })}
+
+        {apps && apps.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Apps</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {apps.map((a) => {
+                  const Icon = resolveAppIcon(a.icon);
+                  const path = `/app/apps/${a.slug}`;
+                  return (
+                    <SidebarMenuItem key={a.id}>
+                      <SidebarMenuButton asChild isActive={isActive(path)}>
+                        <Link
+                          to="/app/apps/$slug"
+                          params={{ slug: a.slug }}
+                          className="flex items-center gap-2"
+                        >
+                          <Icon className="h-4 w-4" />
+                          {!collapsed && <span className="truncate">{a.name}</span>}
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {hasContratos && (
           <SidebarGroup>

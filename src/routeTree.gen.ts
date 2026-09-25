@@ -27,6 +27,7 @@ import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/ap
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedTarefasIndexRouteImport } from './routes/_authenticated/tarefas/index'
 import { Route as AuthenticatedContratosIndexRouteImport } from './routes/_authenticated/contratos/index'
+import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app/index'
 import { Route as AuthenticatedSectorsSlugRouteImport } from './routes/_authenticated/sectors.$slug'
 import { Route as AuthenticatedContratosMedicaoRouteImport } from './routes/_authenticated/contratos/medicao'
 import { Route as AuthenticatedContratosLotesRouteImport } from './routes/_authenticated/contratos/lotes'
@@ -34,6 +35,7 @@ import { Route as AuthenticatedContratosImportarRouteImport } from './routes/_au
 import { Route as AuthenticatedContratosBacklogRouteImport } from './routes/_authenticated/contratos/backlog'
 import { Route as AuthenticatedContratosLoteLoteIdRouteImport } from './routes/_authenticated/contratos/lote.$loteId'
 import { Route as AuthenticatedContratosContratoContratoIdRouteImport } from './routes/_authenticated/contratos/contrato.$contratoId'
+import { Route as AuthenticatedAppAppsSlugRouteImport } from './routes/_authenticated/app/apps.$slug'
 
 const SuperadminRoute = SuperadminRouteImport.update({
   id: '/superadmin',
@@ -126,6 +128,11 @@ const AuthenticatedContratosIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedContratosRoute,
   } as any)
+const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
 const AuthenticatedSectorsSlugRoute =
   AuthenticatedSectorsSlugRouteImport.update({
     id: '/sectors/$slug',
@@ -168,6 +175,12 @@ const AuthenticatedContratosContratoContratoIdRoute =
     path: '/contrato/$contratoId',
     getParentRoute: () => AuthenticatedContratosRoute,
   } as any)
+const AuthenticatedAppAppsSlugRoute =
+  AuthenticatedAppAppsSlugRouteImport.update({
+    id: '/apps/$slug',
+    path: '/apps/$slug',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -180,7 +193,7 @@ export interface FileRoutesByFullPath {
   '/setup-mfa': typeof SetupMfaRoute
   '/superadmin': typeof SuperadminRouteWithChildren
   '/admin': typeof AuthenticatedAdminRoute
-  '/app': typeof AuthenticatedAppRoute
+  '/app': typeof AuthenticatedAppRouteWithChildren
   '/contratos': typeof AuthenticatedContratosRouteWithChildren
   '/tarefas': typeof AuthenticatedTarefasRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
@@ -190,8 +203,10 @@ export interface FileRoutesByFullPath {
   '/contratos/lotes': typeof AuthenticatedContratosLotesRoute
   '/contratos/medicao': typeof AuthenticatedContratosMedicaoRoute
   '/sectors/$slug': typeof AuthenticatedSectorsSlugRoute
+  '/app/': typeof AuthenticatedAppIndexRoute
   '/contratos/': typeof AuthenticatedContratosIndexRoute
   '/tarefas/': typeof AuthenticatedTarefasIndexRoute
+  '/app/apps/$slug': typeof AuthenticatedAppAppsSlugRoute
   '/contratos/contrato/$contratoId': typeof AuthenticatedContratosContratoContratoIdRoute
   '/contratos/lote/$loteId': typeof AuthenticatedContratosLoteLoteIdRoute
 }
@@ -206,7 +221,6 @@ export interface FileRoutesByTo {
   '/setup-mfa': typeof SetupMfaRoute
   '/superadmin': typeof SuperadminRouteWithChildren
   '/admin': typeof AuthenticatedAdminRoute
-  '/app': typeof AuthenticatedAppRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/superadmin/dashboard': typeof SuperadminDashboardRoute
   '/contratos/backlog': typeof AuthenticatedContratosBacklogRoute
@@ -214,8 +228,10 @@ export interface FileRoutesByTo {
   '/contratos/lotes': typeof AuthenticatedContratosLotesRoute
   '/contratos/medicao': typeof AuthenticatedContratosMedicaoRoute
   '/sectors/$slug': typeof AuthenticatedSectorsSlugRoute
+  '/app': typeof AuthenticatedAppIndexRoute
   '/contratos': typeof AuthenticatedContratosIndexRoute
   '/tarefas': typeof AuthenticatedTarefasIndexRoute
+  '/app/apps/$slug': typeof AuthenticatedAppAppsSlugRoute
   '/contratos/contrato/$contratoId': typeof AuthenticatedContratosContratoContratoIdRoute
   '/contratos/lote/$loteId': typeof AuthenticatedContratosLoteLoteIdRoute
 }
@@ -232,7 +248,7 @@ export interface FileRoutesById {
   '/setup-mfa': typeof SetupMfaRoute
   '/superadmin': typeof SuperadminRouteWithChildren
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
-  '/_authenticated/app': typeof AuthenticatedAppRoute
+  '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/_authenticated/contratos': typeof AuthenticatedContratosRouteWithChildren
   '/_authenticated/tarefas': typeof AuthenticatedTarefasRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
@@ -242,8 +258,10 @@ export interface FileRoutesById {
   '/_authenticated/contratos/lotes': typeof AuthenticatedContratosLotesRoute
   '/_authenticated/contratos/medicao': typeof AuthenticatedContratosMedicaoRoute
   '/_authenticated/sectors/$slug': typeof AuthenticatedSectorsSlugRoute
+  '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/_authenticated/contratos/': typeof AuthenticatedContratosIndexRoute
   '/_authenticated/tarefas/': typeof AuthenticatedTarefasIndexRoute
+  '/_authenticated/app/apps/$slug': typeof AuthenticatedAppAppsSlugRoute
   '/_authenticated/contratos/contrato/$contratoId': typeof AuthenticatedContratosContratoContratoIdRoute
   '/_authenticated/contratos/lote/$loteId': typeof AuthenticatedContratosLoteLoteIdRoute
 }
@@ -270,8 +288,10 @@ export interface FileRouteTypes {
     | '/contratos/lotes'
     | '/contratos/medicao'
     | '/sectors/$slug'
+    | '/app/'
     | '/contratos/'
     | '/tarefas/'
+    | '/app/apps/$slug'
     | '/contratos/contrato/$contratoId'
     | '/contratos/lote/$loteId'
   fileRoutesByTo: FileRoutesByTo
@@ -286,7 +306,6 @@ export interface FileRouteTypes {
     | '/setup-mfa'
     | '/superadmin'
     | '/admin'
-    | '/app'
     | '/auth/callback'
     | '/superadmin/dashboard'
     | '/contratos/backlog'
@@ -294,8 +313,10 @@ export interface FileRouteTypes {
     | '/contratos/lotes'
     | '/contratos/medicao'
     | '/sectors/$slug'
+    | '/app'
     | '/contratos'
     | '/tarefas'
+    | '/app/apps/$slug'
     | '/contratos/contrato/$contratoId'
     | '/contratos/lote/$loteId'
   id:
@@ -321,8 +342,10 @@ export interface FileRouteTypes {
     | '/_authenticated/contratos/lotes'
     | '/_authenticated/contratos/medicao'
     | '/_authenticated/sectors/$slug'
+    | '/_authenticated/app/'
     | '/_authenticated/contratos/'
     | '/_authenticated/tarefas/'
+    | '/_authenticated/app/apps/$slug'
     | '/_authenticated/contratos/contrato/$contratoId'
     | '/_authenticated/contratos/lote/$loteId'
   fileRoutesById: FileRoutesById
@@ -469,6 +492,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedContratosIndexRouteImport
       parentRoute: typeof AuthenticatedContratosRoute
     }
+    '/_authenticated/app/': {
+      id: '/_authenticated/app/'
+      path: '/'
+      fullPath: '/app/'
+      preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/sectors/$slug': {
       id: '/_authenticated/sectors/$slug'
       path: '/sectors/$slug'
@@ -518,8 +548,28 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedContratosContratoContratoIdRouteImport
       parentRoute: typeof AuthenticatedContratosRoute
     }
+    '/_authenticated/app/apps/$slug': {
+      id: '/_authenticated/app/apps/$slug'
+      path: '/apps/$slug'
+      fullPath: '/app/apps/$slug'
+      preLoaderRoute: typeof AuthenticatedAppAppsSlugRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
   }
 }
+
+interface AuthenticatedAppRouteChildren {
+  AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
+  AuthenticatedAppAppsSlugRoute: typeof AuthenticatedAppAppsSlugRoute
+}
+
+const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
+  AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
+  AuthenticatedAppAppsSlugRoute: AuthenticatedAppAppsSlugRoute,
+}
+
+const AuthenticatedAppRouteWithChildren =
+  AuthenticatedAppRoute._addFileChildren(AuthenticatedAppRouteChildren)
 
 interface AuthenticatedContratosRouteChildren {
   AuthenticatedContratosBacklogRoute: typeof AuthenticatedContratosBacklogRoute
@@ -562,7 +612,7 @@ const AuthenticatedTarefasRouteWithChildren =
 
 interface AuthenticatedRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
-  AuthenticatedAppRoute: typeof AuthenticatedAppRoute
+  AuthenticatedAppRoute: typeof AuthenticatedAppRouteWithChildren
   AuthenticatedContratosRoute: typeof AuthenticatedContratosRouteWithChildren
   AuthenticatedTarefasRoute: typeof AuthenticatedTarefasRouteWithChildren
   AuthenticatedSectorsSlugRoute: typeof AuthenticatedSectorsSlugRoute
@@ -570,7 +620,7 @@ interface AuthenticatedRouteChildren {
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
-  AuthenticatedAppRoute: AuthenticatedAppRoute,
+  AuthenticatedAppRoute: AuthenticatedAppRouteWithChildren,
   AuthenticatedContratosRoute: AuthenticatedContratosRouteWithChildren,
   AuthenticatedTarefasRoute: AuthenticatedTarefasRouteWithChildren,
   AuthenticatedSectorsSlugRoute: AuthenticatedSectorsSlugRoute,
