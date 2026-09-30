@@ -285,11 +285,12 @@ export function UsersTab({ companyId, currentUserId }: UsersTabProps) {
       details: { cargo_id: approveCargoId, role: approveRole },
     });
 
+    const siteUrl = import.meta.env.VITE_SITE_URL ?? "https://hubm.mowig.ind.br";
     await sendNotificationEmail(
       approveTarget.recovery_email,
       "Seu acesso ao HubMowig foi aprovado",
       `<p>Olá, <strong>${approveTarget.full_name}</strong>!</p>
-   <p>Seu acesso ao <strong>HubMowig</strong> foi aprovado. Você já pode fazer login em <a href="https://hubm.mowig.ind.br">hubm.mowig.ind.br</a>.</p>`,
+   <p>Seu acesso ao <strong>HubMowig</strong> foi aprovado. Você já pode fazer login em <a href="${siteUrl}">${siteUrl.replace(/^https?:\/\//, "")}</a>.</p>`,
       company?.name ?? undefined,
       company?.email_sender ?? undefined,
     );

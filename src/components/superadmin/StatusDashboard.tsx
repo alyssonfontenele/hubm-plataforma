@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 const DOMAINS = [
-  { label: "Mowig",      url: "https://hubm.mowig.ind.br" },
+  { label: "Mowig",      url: import.meta.env.VITE_MOWIG_URL ?? "https://hubm.mowig.ind.br" },
   { label: "Moveria",    url: "https://moveria.app.br" },
   { label: "SuperAdmin", url: "https://admin.mowig.ind.br" },
 ];
