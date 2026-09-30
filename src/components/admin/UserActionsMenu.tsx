@@ -26,6 +26,7 @@ import { logAdminAction, type AdminAction } from "@/lib/admin-log";
 import { extractEdgeFunctionErrorMessage } from "@/lib/errors";
 import { isProfileDeleted } from "@/lib/user-lifecycle";
 import { DeleteUserDialog } from "@/components/admin/DeleteUserDialog";
+import { ChangeCargoDialog } from "@/components/admin/ChangeCargoDialog";
 
 type ConfirmDef = {
   title: string;
@@ -57,6 +58,7 @@ export function UserActionsMenu({
   const [confirm, setConfirm] = useState<ConfirmDef | null>(null);
   const [simpleDeleteOpen, setSimpleDeleteOpen] = useState(false);
   const [offboardingOpen, setOffboardingOpen] = useState(false);
+  const [cargoOpen, setCargoOpen] = useState(false);
 
   const updateProfile = async (
     patch: Record<string, unknown>,
@@ -172,6 +174,9 @@ export function UserActionsMenu({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuItem onSelect={onEdit}>Editar</DropdownMenuItem>
+          {!isInactive && profile.global_role !== "cliente" && (
+            <DropdownMenuItem onSelect={() => setCargoOpen(true)}>Alterar cargo</DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           {!isInactive && profile.active && (
             <DropdownMenuItem disabled={isSelf} onSelect={suspend}>
@@ -238,6 +243,15 @@ export function UserActionsMenu({
         companyId={companyId}
         adminId={adminId}
         onDeleted={onChanged}
+      />
+
+      <ChangeCargoDialog
+        open={cargoOpen}
+        onOpenChange={setCargoOpen}
+        profile={profile}
+        companyId={companyId}
+        adminId={adminId}
+        onChanged={onChanged}
       />
 
       <OffboardingModal

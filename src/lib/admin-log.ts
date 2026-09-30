@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 export type AdminAction =
   | "create_user"
   | "edit_user"
+  | "update_cargo"
   | "suspend_user"
   | "inactivate_user"
   | "reactivate_user"
@@ -22,6 +23,7 @@ export type AdminAction =
 export const ADMIN_ACTION_LABEL: Record<AdminAction, string> = {
   create_user:         "Criação de usuário",
   edit_user:           "Edição de usuário",
+  update_cargo:        "Alteração de cargo",
   suspend_user:        "Suspensão de usuário",
   inactivate_user:     "Inativação de usuário",
   reactivate_user:     "Reativação de usuário",
