@@ -108,9 +108,9 @@ Para verificar ou setar via CLI: `export SUPABASE_ACCESS_TOKEN=<token>` e então
 | `SUPABASE_URL` | URL do projeto hubm-mowig |
 | `SUPABASE_SERVICE_ROLE_KEY` / `SERVICE_ROLE_KEY` | Service role key do hubm-mowig |
 | `INTERNAL_SECRET` | Segredo interno (diferente do core) |
-| `ALLOWED_ORIGINS` | `https://hubm.mowig.ind.br` |
+| `ALLOWED_ORIGINS` | `https://mowig.ind.br` (domínio antigo `https://hubm.mowig.ind.br` passou a redirecionar 308 pra este, ver `docs/monitoring.md`) |
 | `ANON_KEY_JWT` | Anon key do hubm-mowig |
-| `SITE_URL` | `https://hubm.mowig.ind.br` |
+| `SITE_URL` | `https://mowig.ind.br` |
 | `BREVO_API_KEY` | Chave da API Brevo para envio de emails |
 
 ### hubm-moveria (`fzgasvcfxufhrbrdakow`)

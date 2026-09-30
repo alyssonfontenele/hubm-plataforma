@@ -132,7 +132,9 @@ $$;
 -- Existem dois caminhos dependendo do tipo de login:
 --
 -- A) Login Google (corporativo):
---    O usuário faz login em hubm.mowig.ind.br com o e-mail corporativo.
+--    O usuário faz login no domínio da empresa (ex.: mowig.ind.br —
+--    hubm.mowig.ind.br é o domínio antigo da Mowig, mantido só como
+--    redirect 308) com o e-mail corporativo.
 --    Um perfil pendente é criado automaticamente via /request-access.
 --    O admin existente (ou você via SQL abaixo) aprova e promove a global_role:
 --

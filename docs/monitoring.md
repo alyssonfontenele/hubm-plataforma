@@ -8,7 +8,7 @@ UptimeRobot (https://uptimerobot.com) oferece plano gratuito com até 50 monitor
 
 | Monitor | URL | Tipo |
 |---|---|---|
-| HubM Mowig | `https://hubm.mowig.ind.br` | HTTP(s) |
+| HubM Mowig | `https://mowig.ind.br` (domínio antigo `https://hubm.mowig.ind.br` mantido como redirect 308 — vale monitorar os dois) | HTTP(s) |
 | Moveria | `https://moveria.app.br` | HTTP(s) |
 | Admin / SuperAdmin | `https://admin.mowig.ind.br` | HTTP(s) |
 
