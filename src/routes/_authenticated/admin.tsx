@@ -11,6 +11,7 @@ import { AuditLogTab } from "@/components/admin/AuditLogTab";
 import { SettingsTab } from "@/components/admin/SettingsTab";
 import { ImportTab } from "@/components/admin/ImportTab";
 import { ClientsTab } from "@/components/admin/ClientsTab";
+import { AppsTab } from "@/components/admin/AppsTab";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   ssr: false,
@@ -47,6 +48,7 @@ function AdminPage() {
           <TabsTrigger value="clients">Clientes</TabsTrigger>
           <TabsTrigger value="sectors">Setores</TabsTrigger>
           <TabsTrigger value="cargos">Cargos</TabsTrigger>
+          <TabsTrigger value="apps">Apps</TabsTrigger>
           <TabsTrigger value="import">Importar</TabsTrigger>
           <TabsTrigger value="history">Histórico de ações</TabsTrigger>
           <TabsTrigger value="audit">Auditoria</TabsTrigger>
@@ -67,6 +69,10 @@ function AdminPage() {
 
         <TabsContent value="cargos" className="mt-0">
           <CargosTab companyId={company.id} />
+        </TabsContent>
+
+        <TabsContent value="apps" className="mt-0">
+          <AppsTab companyId={company.id} />
         </TabsContent>
 
         <TabsContent value="import" className="mt-0">
