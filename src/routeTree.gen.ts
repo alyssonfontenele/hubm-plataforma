@@ -9,67 +9,41 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SuperadminRouteImport } from './routes/superadmin'
-import { Route as SetupMfaRouteImport } from './routes/setup-mfa'
-import { Route as RequestAccessRouteImport } from './routes/request-access'
-import { Route as MfaChallengeRouteImport } from './routes/mfa-challenge'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as CompleteProfileRouteImport } from './routes/complete-profile'
-import { Route as ClientPortalRouteImport } from './routes/client-portal'
-import { Route as ChangePasswordRouteImport } from './routes/change-password'
-import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as SuperadminDashboardRouteImport } from './routes/superadmin/dashboard'
-import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
-import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticated/tarefas'
-import { Route as AuthenticatedContratosRouteImport } from './routes/_authenticated/contratos'
-import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
+import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as ChangePasswordRouteImport } from './routes/change-password'
+import { Route as ClientPortalRouteImport } from './routes/client-portal'
+import { Route as CompleteProfileRouteImport } from './routes/complete-profile'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as MfaChallengeRouteImport } from './routes/mfa-challenge'
+import { Route as RequestAccessRouteImport } from './routes/request-access'
+import { Route as SetupMfaRouteImport } from './routes/setup-mfa'
+import { Route as SuperadminRouteImport } from './routes/superadmin'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
-import { Route as AuthenticatedTarefasIndexRouteImport } from './routes/_authenticated/tarefas/index'
-import { Route as AuthenticatedContratosIndexRouteImport } from './routes/_authenticated/contratos/index'
+import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
+import { Route as AuthenticatedContratosRouteImport } from './routes/_authenticated/contratos'
+import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticated/tarefas'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as SuperadminDashboardRouteImport } from './routes/superadmin/dashboard'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app/index'
-import { Route as AuthenticatedSectorsSlugRouteImport } from './routes/_authenticated/sectors.$slug'
-import { Route as AuthenticatedContratosMedicaoRouteImport } from './routes/_authenticated/contratos/medicao'
-import { Route as AuthenticatedContratosLotesRouteImport } from './routes/_authenticated/contratos/lotes'
-import { Route as AuthenticatedContratosImportarRouteImport } from './routes/_authenticated/contratos/importar'
+import { Route as AuthenticatedContratosIndexRouteImport } from './routes/_authenticated/contratos/index'
 import { Route as AuthenticatedContratosBacklogRouteImport } from './routes/_authenticated/contratos/backlog'
-import { Route as AuthenticatedContratosLoteLoteIdRouteImport } from './routes/_authenticated/contratos/lote.$loteId'
-import { Route as AuthenticatedContratosContratoContratoIdRouteImport } from './routes/_authenticated/contratos/contrato.$contratoId'
+import { Route as AuthenticatedContratosImportarRouteImport } from './routes/_authenticated/contratos/importar'
+import { Route as AuthenticatedContratosLotesRouteImport } from './routes/_authenticated/contratos/lotes'
+import { Route as AuthenticatedContratosMedicaoRouteImport } from './routes/_authenticated/contratos/medicao'
+import { Route as AuthenticatedSectorsSlugRouteImport } from './routes/_authenticated/sectors.$slug'
+import { Route as AuthenticatedTarefasIndexRouteImport } from './routes/_authenticated/tarefas/index'
 import { Route as AuthenticatedAppAppsSlugRouteImport } from './routes/_authenticated/app/apps.$slug'
+import { Route as AuthenticatedContratosContratoContratoIdRouteImport } from './routes/_authenticated/contratos/contrato.$contratoId'
+import { Route as AuthenticatedContratosLoteLoteIdRouteImport } from './routes/_authenticated/contratos/lote.$loteId'
 
-const SuperadminRoute = SuperadminRouteImport.update({
-  id: '/superadmin',
-  path: '/superadmin',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SetupMfaRoute = SetupMfaRouteImport.update({
-  id: '/setup-mfa',
-  path: '/setup-mfa',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RequestAccessRoute = RequestAccessRouteImport.update({
-  id: '/request-access',
-  path: '/request-access',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MfaChallengeRoute = MfaChallengeRouteImport.update({
-  id: '/mfa-challenge',
-  path: '/mfa-challenge',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CompleteProfileRoute = CompleteProfileRouteImport.update({
-  id: '/complete-profile',
-  path: '/complete-profile',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ClientPortalRoute = ClientPortalRouteImport.update({
-  id: '/client-portal',
-  path: '/client-portal',
+const AuthenticatedRoute = AuthenticatedRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChangePasswordRoute = ChangePasswordRouteImport.update({
@@ -77,33 +51,44 @@ const ChangePasswordRoute = ChangePasswordRouteImport.update({
   path: '/change-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedRoute = AuthenticatedRouteImport.update({
-  id: '/_authenticated',
+const ClientPortalRoute = ClientPortalRouteImport.update({
+  id: '/client-portal',
+  path: '/client-portal',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const CompleteProfileRoute = CompleteProfileRouteImport.update({
+  id: '/complete-profile',
+  path: '/complete-profile',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SuperadminDashboardRoute = SuperadminDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => SuperadminRoute,
-} as any)
-const AuthCallbackRoute = AuthCallbackRouteImport.update({
-  id: '/auth/callback',
-  path: '/auth/callback',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedTarefasRoute = AuthenticatedTarefasRouteImport.update({
-  id: '/tarefas',
-  path: '/tarefas',
-  getParentRoute: () => AuthenticatedRoute,
+const MfaChallengeRoute = MfaChallengeRouteImport.update({
+  id: '/mfa-challenge',
+  path: '/mfa-challenge',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedContratosRoute = AuthenticatedContratosRouteImport.update({
-  id: '/contratos',
-  path: '/contratos',
+const RequestAccessRoute = RequestAccessRouteImport.update({
+  id: '/request-access',
+  path: '/request-access',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SetupMfaRoute = SetupMfaRouteImport.update({
+  id: '/setup-mfa',
+  path: '/setup-mfa',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SuperadminRoute = SuperadminRouteImport.update({
+  id: '/superadmin',
+  path: '/superadmin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
@@ -111,50 +96,35 @@ const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
   path: '/app',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
+const AuthenticatedContratosRoute = AuthenticatedContratosRouteImport.update({
+  id: '/contratos',
+  path: '/contratos',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedTarefasIndexRoute =
-  AuthenticatedTarefasIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AuthenticatedTarefasRoute,
-  } as any)
-const AuthenticatedContratosIndexRoute =
-  AuthenticatedContratosIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AuthenticatedContratosRoute,
-  } as any)
+const AuthenticatedTarefasRoute = AuthenticatedTarefasRouteImport.update({
+  id: '/tarefas',
+  path: '/tarefas',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SuperadminDashboardRoute = SuperadminDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => SuperadminRoute,
+} as any)
 const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
-const AuthenticatedSectorsSlugRoute =
-  AuthenticatedSectorsSlugRouteImport.update({
-    id: '/sectors/$slug',
-    path: '/sectors/$slug',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
-const AuthenticatedContratosMedicaoRoute =
-  AuthenticatedContratosMedicaoRouteImport.update({
-    id: '/medicao',
-    path: '/medicao',
-    getParentRoute: () => AuthenticatedContratosRoute,
-  } as any)
-const AuthenticatedContratosLotesRoute =
-  AuthenticatedContratosLotesRouteImport.update({
-    id: '/lotes',
-    path: '/lotes',
-    getParentRoute: () => AuthenticatedContratosRoute,
-  } as any)
-const AuthenticatedContratosImportarRoute =
-  AuthenticatedContratosImportarRouteImport.update({
-    id: '/importar',
-    path: '/importar',
+const AuthenticatedContratosIndexRoute =
+  AuthenticatedContratosIndexRouteImport.update({
+    id: '/',
+    path: '/',
     getParentRoute: () => AuthenticatedContratosRoute,
   } as any)
 const AuthenticatedContratosBacklogRoute =
@@ -163,11 +133,41 @@ const AuthenticatedContratosBacklogRoute =
     path: '/backlog',
     getParentRoute: () => AuthenticatedContratosRoute,
   } as any)
-const AuthenticatedContratosLoteLoteIdRoute =
-  AuthenticatedContratosLoteLoteIdRouteImport.update({
-    id: '/lote/$loteId',
-    path: '/lote/$loteId',
+const AuthenticatedContratosImportarRoute =
+  AuthenticatedContratosImportarRouteImport.update({
+    id: '/importar',
+    path: '/importar',
     getParentRoute: () => AuthenticatedContratosRoute,
+  } as any)
+const AuthenticatedContratosLotesRoute =
+  AuthenticatedContratosLotesRouteImport.update({
+    id: '/lotes',
+    path: '/lotes',
+    getParentRoute: () => AuthenticatedContratosRoute,
+  } as any)
+const AuthenticatedContratosMedicaoRoute =
+  AuthenticatedContratosMedicaoRouteImport.update({
+    id: '/medicao',
+    path: '/medicao',
+    getParentRoute: () => AuthenticatedContratosRoute,
+  } as any)
+const AuthenticatedSectorsSlugRoute =
+  AuthenticatedSectorsSlugRouteImport.update({
+    id: '/sectors/$slug',
+    path: '/sectors/$slug',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedTarefasIndexRoute =
+  AuthenticatedTarefasIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedTarefasRoute,
+  } as any)
+const AuthenticatedAppAppsSlugRoute =
+  AuthenticatedAppAppsSlugRouteImport.update({
+    id: '/apps/$slug',
+    path: '/apps/$slug',
+    getParentRoute: () => AuthenticatedAppRoute,
   } as any)
 const AuthenticatedContratosContratoContratoIdRoute =
   AuthenticatedContratosContratoContratoIdRouteImport.update({
@@ -175,11 +175,11 @@ const AuthenticatedContratosContratoContratoIdRoute =
     path: '/contrato/$contratoId',
     getParentRoute: () => AuthenticatedContratosRoute,
   } as any)
-const AuthenticatedAppAppsSlugRoute =
-  AuthenticatedAppAppsSlugRouteImport.update({
-    id: '/apps/$slug',
-    path: '/apps/$slug',
-    getParentRoute: () => AuthenticatedAppRoute,
+const AuthenticatedContratosLoteLoteIdRoute =
+  AuthenticatedContratosLoteLoteIdRouteImport.update({
+    id: '/lote/$loteId',
+    path: '/lote/$loteId',
+    getParentRoute: () => AuthenticatedContratosRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -366,60 +366,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/superadmin': {
-      id: '/superadmin'
-      path: '/superadmin'
-      fullPath: '/superadmin'
-      preLoaderRoute: typeof SuperadminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/setup-mfa': {
-      id: '/setup-mfa'
-      path: '/setup-mfa'
-      fullPath: '/setup-mfa'
-      preLoaderRoute: typeof SetupMfaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/request-access': {
-      id: '/request-access'
-      path: '/request-access'
-      fullPath: '/request-access'
-      preLoaderRoute: typeof RequestAccessRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mfa-challenge': {
-      id: '/mfa-challenge'
-      path: '/mfa-challenge'
-      fullPath: '/mfa-challenge'
-      preLoaderRoute: typeof MfaChallengeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/complete-profile': {
-      id: '/complete-profile'
-      path: '/complete-profile'
-      fullPath: '/complete-profile'
-      preLoaderRoute: typeof CompleteProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/client-portal': {
-      id: '/client-portal'
-      path: '/client-portal'
-      fullPath: '/client-portal'
-      preLoaderRoute: typeof ClientPortalRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/change-password': {
-      id: '/change-password'
-      path: '/change-password'
-      fullPath: '/change-password'
-      preLoaderRoute: typeof ChangePasswordRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -429,39 +380,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/change-password': {
+      id: '/change-password'
+      path: '/change-password'
+      fullPath: '/change-password'
+      preLoaderRoute: typeof ChangePasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/superadmin/dashboard': {
-      id: '/superadmin/dashboard'
-      path: '/dashboard'
-      fullPath: '/superadmin/dashboard'
-      preLoaderRoute: typeof SuperadminDashboardRouteImport
-      parentRoute: typeof SuperadminRoute
-    }
-    '/auth/callback': {
-      id: '/auth/callback'
-      path: '/auth/callback'
-      fullPath: '/auth/callback'
-      preLoaderRoute: typeof AuthCallbackRouteImport
+    '/client-portal': {
+      id: '/client-portal'
+      path: '/client-portal'
+      fullPath: '/client-portal'
+      preLoaderRoute: typeof ClientPortalRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/tarefas': {
-      id: '/_authenticated/tarefas'
-      path: '/tarefas'
-      fullPath: '/tarefas'
-      preLoaderRoute: typeof AuthenticatedTarefasRouteImport
-      parentRoute: typeof AuthenticatedRoute
+    '/complete-profile': {
+      id: '/complete-profile'
+      path: '/complete-profile'
+      fullPath: '/complete-profile'
+      preLoaderRoute: typeof CompleteProfileRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/contratos': {
-      id: '/_authenticated/contratos'
-      path: '/contratos'
-      fullPath: '/contratos'
-      preLoaderRoute: typeof AuthenticatedContratosRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mfa-challenge': {
+      id: '/mfa-challenge'
+      path: '/mfa-challenge'
+      fullPath: '/mfa-challenge'
+      preLoaderRoute: typeof MfaChallengeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/request-access': {
+      id: '/request-access'
+      path: '/request-access'
+      fullPath: '/request-access'
+      preLoaderRoute: typeof RequestAccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/setup-mfa': {
+      id: '/setup-mfa'
+      path: '/setup-mfa'
+      fullPath: '/setup-mfa'
+      preLoaderRoute: typeof SetupMfaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/superadmin': {
+      id: '/superadmin'
+      path: '/superadmin'
+      fullPath: '/superadmin'
+      preLoaderRoute: typeof SuperadminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/app': {
@@ -471,26 +450,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/admin': {
-      id: '/_authenticated/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+    '/_authenticated/contratos': {
+      id: '/_authenticated/contratos'
+      path: '/contratos'
+      fullPath: '/contratos'
+      preLoaderRoute: typeof AuthenticatedContratosRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/tarefas/': {
-      id: '/_authenticated/tarefas/'
-      path: '/'
-      fullPath: '/tarefas/'
-      preLoaderRoute: typeof AuthenticatedTarefasIndexRouteImport
-      parentRoute: typeof AuthenticatedTarefasRoute
+    '/_authenticated/tarefas': {
+      id: '/_authenticated/tarefas'
+      path: '/tarefas'
+      fullPath: '/tarefas'
+      preLoaderRoute: typeof AuthenticatedTarefasRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/contratos/': {
-      id: '/_authenticated/contratos/'
-      path: '/'
-      fullPath: '/contratos/'
-      preLoaderRoute: typeof AuthenticatedContratosIndexRouteImport
-      parentRoute: typeof AuthenticatedContratosRoute
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/superadmin/dashboard': {
+      id: '/superadmin/dashboard'
+      path: '/dashboard'
+      fullPath: '/superadmin/dashboard'
+      preLoaderRoute: typeof SuperadminDashboardRouteImport
+      parentRoute: typeof SuperadminRoute
     }
     '/_authenticated/app/': {
       id: '/_authenticated/app/'
@@ -499,32 +485,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/sectors/$slug': {
-      id: '/_authenticated/sectors/$slug'
-      path: '/sectors/$slug'
-      fullPath: '/sectors/$slug'
-      preLoaderRoute: typeof AuthenticatedSectorsSlugRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/contratos/medicao': {
-      id: '/_authenticated/contratos/medicao'
-      path: '/medicao'
-      fullPath: '/contratos/medicao'
-      preLoaderRoute: typeof AuthenticatedContratosMedicaoRouteImport
-      parentRoute: typeof AuthenticatedContratosRoute
-    }
-    '/_authenticated/contratos/lotes': {
-      id: '/_authenticated/contratos/lotes'
-      path: '/lotes'
-      fullPath: '/contratos/lotes'
-      preLoaderRoute: typeof AuthenticatedContratosLotesRouteImport
-      parentRoute: typeof AuthenticatedContratosRoute
-    }
-    '/_authenticated/contratos/importar': {
-      id: '/_authenticated/contratos/importar'
-      path: '/importar'
-      fullPath: '/contratos/importar'
-      preLoaderRoute: typeof AuthenticatedContratosImportarRouteImport
+    '/_authenticated/contratos/': {
+      id: '/_authenticated/contratos/'
+      path: '/'
+      fullPath: '/contratos/'
+      preLoaderRoute: typeof AuthenticatedContratosIndexRouteImport
       parentRoute: typeof AuthenticatedContratosRoute
     }
     '/_authenticated/contratos/backlog': {
@@ -534,12 +499,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedContratosBacklogRouteImport
       parentRoute: typeof AuthenticatedContratosRoute
     }
-    '/_authenticated/contratos/lote/$loteId': {
-      id: '/_authenticated/contratos/lote/$loteId'
-      path: '/lote/$loteId'
-      fullPath: '/contratos/lote/$loteId'
-      preLoaderRoute: typeof AuthenticatedContratosLoteLoteIdRouteImport
+    '/_authenticated/contratos/importar': {
+      id: '/_authenticated/contratos/importar'
+      path: '/importar'
+      fullPath: '/contratos/importar'
+      preLoaderRoute: typeof AuthenticatedContratosImportarRouteImport
       parentRoute: typeof AuthenticatedContratosRoute
+    }
+    '/_authenticated/contratos/lotes': {
+      id: '/_authenticated/contratos/lotes'
+      path: '/lotes'
+      fullPath: '/contratos/lotes'
+      preLoaderRoute: typeof AuthenticatedContratosLotesRouteImport
+      parentRoute: typeof AuthenticatedContratosRoute
+    }
+    '/_authenticated/contratos/medicao': {
+      id: '/_authenticated/contratos/medicao'
+      path: '/medicao'
+      fullPath: '/contratos/medicao'
+      preLoaderRoute: typeof AuthenticatedContratosMedicaoRouteImport
+      parentRoute: typeof AuthenticatedContratosRoute
+    }
+    '/_authenticated/sectors/$slug': {
+      id: '/_authenticated/sectors/$slug'
+      path: '/sectors/$slug'
+      fullPath: '/sectors/$slug'
+      preLoaderRoute: typeof AuthenticatedSectorsSlugRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/tarefas/': {
+      id: '/_authenticated/tarefas/'
+      path: '/'
+      fullPath: '/tarefas/'
+      preLoaderRoute: typeof AuthenticatedTarefasIndexRouteImport
+      parentRoute: typeof AuthenticatedTarefasRoute
+    }
+    '/_authenticated/app/apps/$slug': {
+      id: '/_authenticated/app/apps/$slug'
+      path: '/apps/$slug'
+      fullPath: '/app/apps/$slug'
+      preLoaderRoute: typeof AuthenticatedAppAppsSlugRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/contratos/contrato/$contratoId': {
       id: '/_authenticated/contratos/contrato/$contratoId'
@@ -548,12 +548,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedContratosContratoContratoIdRouteImport
       parentRoute: typeof AuthenticatedContratosRoute
     }
-    '/_authenticated/app/apps/$slug': {
-      id: '/_authenticated/app/apps/$slug'
-      path: '/apps/$slug'
-      fullPath: '/app/apps/$slug'
-      preLoaderRoute: typeof AuthenticatedAppAppsSlugRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
+    '/_authenticated/contratos/lote/$loteId': {
+      id: '/_authenticated/contratos/lote/$loteId'
+      path: '/lote/$loteId'
+      fullPath: '/contratos/lote/$loteId'
+      preLoaderRoute: typeof AuthenticatedContratosLoteLoteIdRouteImport
+      parentRoute: typeof AuthenticatedContratosRoute
     }
   }
 }
