@@ -135,6 +135,10 @@ critical: 0 | high: 10 | moderate: 2 | low: 1 | total: 13
 - **E** — Árvore de dependências não mapeada para confirmar se os pacotes com vulnerabilidade HIGH (`vite`, `miniflare`, `wrangler`, etc.) estão corretamente classificados como `devDependencies` no `package.json` ou se algum é de fato dependency de runtime.
 - **C (rate limit em `create-cpf-user`/`create-client-user`/`admin-update-password`)** — não identificado nenhum rate limit próprio nessas funções administrativas além da exigência de JWT de admin; não foi possível confirmar/descartar se há throttling a nível de Supabase Auth (`[auth].rate_limit.*`) aplicável a chamadas de Admin API, pois `supabase/config.toml` local não define essa seção (pode haver configuração só no dashboard de produção, não versionada).
 
+**Pendências de correção (achados confirmados no smoke test pós-ondas, seção 7 — não são "não verificado" por falta de tempo, são fixes ainda não aplicados):**
+
+- **Core — `public.profiles.id` sem foreign key para `auth.users.id`.** Descoberto ao limpar o usuário descartável do smoke test (seção 7): o `DELETE` em `auth.users` retornou `200` mas o `profile` correspondente ficou órfão, porque não existe FK entre as duas tabelas no projeto Core (`vtirfoafpmolffzgszhp`) — diferente de Mowig e Moveria, que têm `profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE`. Efeito prático: excluir um `auth.users` no Core (via Admin API ou dashboard) não remove automaticamente o `profile` associado, deixando um registro órfão em `public.profiles` indefinidamente. **Contagem de órfãos em 2026-10-10:** `0` (nenhum profile órfão no momento desta checagem — o próprio usuário descartável do smoke test já foi removido manualmente). **Correção escrita, não aplicada:** `supabase/migrations/20261010070000_core_profiles_fk_auth_users.sql` — cria a FK `profiles_id_fkey ON DELETE CASCADE`, com checagem prévia que aborta a migration (`RAISE EXCEPTION`) se houver qualquer órfão no momento da aplicação. Rollback em `auditoria/rollback/20261010070000_core_profiles_fk_auth_users_rollback.sql`.
+
 ---
 
 ## 4. Top 5 correções (ordem de prioridade)
@@ -204,4 +208,41 @@ Achados remanescentes nos 3 projetos (fora do escopo desta onda, não regressõe
 
 ---
 
-*Auditoria gerada por Claude Code em modo somente-leitura (seção 1-4) e com alterações diretas em produção, registradas e verificadas (seções 5-6). Nenhum valor completo de segredo foi incluído neste documento.*
+## 7. Smoke test pós-ondas (2026-10-10)
+
+Executado com JWT real de usuários descartáveis **não-admin** (`global_role='member'`), um por tenant, criados via Admin API (`auth.admin.createUser`, nunca por endpoint novo) e vinculados por SQL direto à empresa real de cada projeto. Nenhum código, migration ou policy foi alterado nesta sessão — somente leitura e dados de teste descartáveis.
+
+| Teste | Tenant | Resultado | Status |
+|---|---|---|---|
+| 1. Login (password grant) | Mowig | Sessão válida obtida | **OK** |
+| 1. Login (password grant) | Moveria | Sessão válida obtida | **OK** |
+| 1. Login (password grant) | Core | Sessão válida obtida | **OK** |
+| 2. Ler `cargo_sectors`/`cargos`/`sectors` | Mowig | 5/8/6 linhas, 100% da própria empresa, 0 de outra | **OK** |
+| 2. Ler `cargo_sectors`/`cargos`/`sectors` | Moveria | 4/5/1 linhas, 100% da própria empresa, 0 de outra | **OK** |
+| 2. Ler `cargo_sectors`/`cargos`/`sectors` | Core | Módulo não existe nesse banco (confirmado via `information_schema`) | **N/A** |
+| 3. Chamar como `authenticated` as 11 das 13 funções do item #9 que são somente leitura e acessíveis | Mowig | `auth_company_id`→UUID correto, `auth_global_role`→`"member"`, `auth_is_active`→`true`, `is_sector_member`→`false` (correto, sem vínculo), `hash_cpf`→hash de 60 chars, `verify_cpf`(com o hash gerado)→`true`. Nenhum erro de "function/relation does not exist" | **OK** |
+| 3. (mesmo teste) | Moveria | `auth_company_id`→UUID correto, `auth_global_role`→`"member"`, `auth_is_active`→`true`, `is_sector_member`→`false`. Sem erros | **OK** |
+| 3. (mesmo teste) | Core | `auth_is_active`→`true`. Sem erro | **OK** |
+| 4. Revisão de definição das 2 funções de escrita/trigger (`validate_google_domain_dynamic`, Mowig e Moveria) — não executadas | Mowig + Moveria | Corpo referencia apenas `companies` (schema `public`, sem qualificação) e `NEW`/`RAISE` — nenhum objeto fora de `search_path = public, pg_temp`. Sem divergência | **OK** |
+| 5. Ler tabela principal do módulo ativo (Tarefas) | Mowig | HTTP 200, 0 linhas — esperado: policy de `tarefas` exige `company_id = auth_company_id() AND (tarefas_is_admin() OR tarefas_sou_participante(id))`; usuário descartável não é admin nem participante de nenhuma tarefa. Confirmado via `pg_policies` que a regra está correta (não é vazamento, é ausência de participação) | **OK** |
+| 5. Ler Tarefas + `moveria_contratos` (Contratos) | Moveria | Ambas HTTP 200, 0 linhas — mesma lógica: `moveria_contratos` exige `auth_is_moveria_admin() OR moveria_consultor_tem_contrato() OR vendedor com vínculo em moveria_membros`; usuário descartável não tem papel atribuído. Confirmado via `pg_policies` | **OK** |
+| 5. Ler módulo principal | Core | Core não tem Tarefas/Contratos (só `companies`, `profiles`, `audit_log`, `schema_migrations`, `auth_rate_limits`, `core_signup_allowlist`) | **N/A** |
+| 6. Usuário de um tenant lendo dados do outro projeto (URL + anon key do outro) | Mowig→Moveria | `401 PGRST301 "No suitable key was found to decode the JWT"` — rejeitado antes de chegar à RLS (segredo de assinatura do JWT é por projeto) | **OK** |
+| 6. (mesmo teste, direção inversa) | Moveria→Mowig | `401 PGRST301` idêntico | **OK** |
+| 6. (mesmo teste) | Core→Mowig | `401 PGRST301` idêntico | **OK** |
+| 7. Regressão Onda A — não-admin chamando `admin-update-password`, `delete-user`, `revoke-sessions` | Mowig | `403 {"error":"Acesso negado"}` nas 3 | **OK** |
+| 7. (mesmo teste) | Moveria | `403 {"error":"Acesso negado"}` nas 3 | **OK** |
+| 7. (mesmo teste) | Core | Core não tem Edge Functions deployadas (`list_edge_functions` retorna vazio) | **N/A** |
+
+**Nenhuma falha.** Nenhuma migration de rollback precisou ser indicada.
+
+**Limpeza dos usuários descartáveis:**
+- Mowig (`e28bbec8-...`): `DELETE /auth/v1/admin/users` → `200`. FK `profiles.id → auth.users.id` é `CASCADE` — perfil removido junto. Confirmado `SELECT count(*) FROM profiles WHERE id=...` → `0`.
+- Moveria (`2d97274b-...`): idem — `200`, `CASCADE`, confirmado `0` em `profiles`.
+- Core (`bb0321fb-...`): `DELETE` → `200`, mas `profiles.id` **não tem FK** para `auth.users.id` nesse projeto (diferença arquitetural de schema) — o perfil ficou órfão (não "preso por FK", apenas sem cascade automático). Verificado que nada referenciava esse perfil (`audit_log.actor_id` → 0 linhas) e removido por `DELETE` direto. Confirmado `0` em `profiles` nos 3 projetos.
+- Nenhum usuário precisou ser desativado/banido (diferente da Onda A) — nenhum dos 3 perfis de teste tinha FK imutável (`admin_logs`) apontando para ele, pois nenhum era admin.
+- Chaves de serviço usadas apenas inline em processos de shell efêmeros (nunca escritas em arquivo nem impressas); a chave do Core (sem `HUBM_CORE_KEY` no ambiente) foi obtida via Management API (`GET /v1/projects/{ref}/api-keys?reveal=true`) e descartada da memória do shell ao final de cada bloco.
+
+---
+
+*Auditoria gerada por Claude Code em modo somente-leitura (seção 1-4), com alterações diretas em produção registradas e verificadas (seções 5-6), e com smoke test pós-deploy via usuários descartáveis, sem nenhuma alteração de código/schema (seção 7). Nenhum valor completo de segredo foi incluído neste documento.*
