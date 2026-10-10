@@ -1,3 +1,4 @@
+-- projeto: mowig,moveria
 -- =============================================================================
 -- MIGRATION: tarefas_c3_escrita
 -- Aplica em: bancos Mowig + Moveria (Core: sem global_role → guard no-op)

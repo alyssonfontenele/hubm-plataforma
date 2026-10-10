@@ -1,3 +1,4 @@
+-- projeto: mowig,core,moveria
 -- =============================================================================
 -- Migration: auth_hooks_reject_non_google
 -- Bancos: Mowig/Moveria (hook_restrict_google_signup_by_domain) e Core

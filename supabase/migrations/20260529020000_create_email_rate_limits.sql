@@ -1,3 +1,4 @@
+-- projeto: mowig,moveria
 CREATE TABLE email_rate_limits (
   id      UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   email   TEXT        NOT NULL,

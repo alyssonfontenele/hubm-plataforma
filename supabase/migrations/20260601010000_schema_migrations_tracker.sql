@@ -1,3 +1,4 @@
+-- projeto: mowig,core,moveria
 -- Tabela interna de rastreamento de migrations aplicadas em cada banco.
 -- Permite auditar divergências entre o repositório e os bancos de produção.
 -- RLS desabilitado — tabela de sistema, não dados de usuário.

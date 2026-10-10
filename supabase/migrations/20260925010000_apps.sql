@@ -1,3 +1,4 @@
+-- projeto: mowig,moveria
 -- =============================================================================
 -- MIGRATION: apps
 -- Bancos   : empresa (Mowig/Moveria) — guardada por enum global_role, pulada

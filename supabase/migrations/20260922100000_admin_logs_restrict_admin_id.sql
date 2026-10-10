@@ -1,3 +1,4 @@
+-- projeto: mowig,moveria
 -- =============================================================================
 -- Migration: admin_logs_restrict_admin_id
 -- Bancos: Mowig + Moveria (Core não possui admin_logs — guard torna no-op lá).

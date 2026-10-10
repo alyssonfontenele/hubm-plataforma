@@ -1,3 +1,4 @@
+-- projeto: mowig,moveria
 -- =============================================================================
 -- BASELINE SCHEMA — HubMowig
 -- Extraído em 2026-05-29 do projeto xpoqiclaqkudznmshzal

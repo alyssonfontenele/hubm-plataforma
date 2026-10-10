@@ -1,3 +1,4 @@
+-- projeto: mowig,core,moveria
 -- =============================================================================
 -- Migration: auth_hooks_table_grants
 -- Bancos: Core (core_signup_allowlist) + Mowig/Moveria (companies).

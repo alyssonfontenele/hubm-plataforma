@@ -1,3 +1,4 @@
+-- projeto: mowig,core,moveria
 -- =============================================================================
 -- Migration: auth_is_superadmin_app_metadata
 -- Bancos: Core, Mowig, Moveria (auth_is_superadmin() existe idêntica nos 3 —

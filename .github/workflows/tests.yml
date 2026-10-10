@@ -14,6 +14,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Verifica isolamento de supabase/migrations/ (exclusiva Mowig)
+        run: |
+          set -e
+          BAD_SCOPE=$(grep -L -iE '^-- projeto: .*mowig' supabase/migrations/*.sql || true)
+          if [ -n "$BAD_SCOPE" ]; then
+            echo "Migration em supabase/migrations/ sem 'mowig' no cabeçalho -- projeto::"
+            echo "$BAD_SCOPE"
+            exit 1
+          fi
+          MISSING_HEADER=$(grep -L -iE '^-- projeto: ' supabase/migrations/*.sql supabase/core/migrations/*.sql supabase/moveria/migrations/*.sql 2>/dev/null || true)
+          if [ -n "$MISSING_HEADER" ]; then
+            echo "Migration sem a linha '-- projeto: ...' no cabeçalho:"
+            echo "$MISSING_HEADER"
+            exit 1
+          fi
+
       - name: Setup Node 20
         uses: actions/setup-node@v4
         with:

@@ -1,3 +1,4 @@
+-- projeto: mowig,moveria
 -- =============================================================================
 -- Migration: before_user_created_hook
 -- Bancos: Mowig + Moveria (onde há autocadastro Google por domínio).

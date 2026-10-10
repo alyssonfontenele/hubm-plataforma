@@ -1,3 +1,4 @@
+-- projeto: mowig,core,moveria
 -- =============================================================================
 -- MIGRATION: schema_migrations_enable_rls
 -- Aplica em: hubm-mowig, hubm-moveria, hubm-plataforma/Core (os 3 projetos).

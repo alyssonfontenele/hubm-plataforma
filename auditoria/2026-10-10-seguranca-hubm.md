@@ -247,4 +247,54 @@ Executado com JWT real de usuários descartáveis **não-admin** (`global_role='
 
 ---
 
-*Auditoria gerada por Claude Code em modo somente-leitura (seção 1-4), com alterações diretas em produção registradas e verificadas (seções 5-6), e com smoke test pós-deploy via usuários descartáveis, sem nenhuma alteração de código/schema (seção 7). Nenhum valor completo de segredo foi incluído neste documento.*
+## 8. Separação de supabase/migrations/ por projeto (2026-10-10)
+
+Decisão do Alysson: `supabase/migrations/` passa a significar "tudo que roda na Mowig" (exclusivo ou compartilhado, desde que inclua o Mowig); Core e Moveria ganham pastas próprias, sem deploy automático.
+
+**Reorganização de arquivos (70 migrations existentes + 1 nova):**
+
+| Pasta | Projeto(s) | Deploy | Arquivos |
+|---|---|---|---|
+| `supabase/migrations/` | Mowig exclusivo ou + Core/Moveria | **Automático** (integração GitHub do Mowig, branch `main`) | 32 |
+| `supabase/core/migrations/` | Core exclusivo | Manual | 7 (6 existentes + a FK nova) |
+| `supabase/moveria/migrations/` | Moveria exclusivo | Manual | 32 |
+
+Cabeçalho `-- projeto: mowig\|core\|moveria` (ou lista, ex. `mowig,moveria`) adicionado em **todas as 71 migrations**, só como comentário — nenhum SQL alterado. Nenhuma migration "Core+Moveria sem Mowig" foi encontrada; todas as compartilhadas incluem o Mowig.
+
+README.md criado nas 3 pastas, explicando projeto/ref, automático vs. manual, e comando de apply. Step novo em `.github/workflows/tests.yml` (`Verifica isolamento de supabase/migrations/`) falha o CI se: (a) algum arquivo em `supabase/migrations/` não tiver `mowig` na linha `-- projeto:`; (b) qualquer migration, em qualquer das 3 pastas, não tiver a linha `-- projeto:`. Validado localmente contra o estado atual do repo — passa limpo.
+
+**Item #7 (pendência) — FK do Core, concluído:**
+- `20261010070000_core_profiles_fk_auth_users.sql` movida de `auditoria/propostas/` para `supabase/core/migrations/` e **aplicada no Core** (`vtirfoafpmolffzgszhp`, confirmado explicitamente antes de aplicar).
+- Checagem de órfãos imediatamente antes de aplicar: `0`. Migration executada com sucesso (`apply_migration` → `success:true`).
+- Verificado: `profiles_id_fkey`, `delete_rule = CASCADE`.
+- Teste end-to-end: usuário descartável criado (`a2696146-...`) com profile vinculado → `DELETE /auth/v1/admin/users` (`200`) → profile confirmado removido junto (`count = 0`) → `0` órfãos restantes no Core.
+
+**Investigação somente leitura — Mowig, contagem de superadmins:**
+- `SELECT count(*) FROM auth.users WHERE raw_app_meta_data->>'global_role' = 'superadmin'` → **`0`**.
+- Complementar: `SELECT count(*) FROM public.profiles WHERE global_role = 'superadmin'` → **`0`** (mesmo resultado pela outra via que `auth_is_superadmin()` também aceita como fallback). Nenhum e-mail a listar — nenhum usuário no Mowig satisfaz `auth_is_superadmin()` hoje.
+
+**Item #7 do pedido — checagem pré-push contra o Mowig: ⚠️ PENDÊNCIA ENCONTRADA, PUSH PAUSADO.**
+
+Rodado `npx supabase link --project-ref xpoqiclaqkudznmshzal` + `npx supabase migration list --linked` (CLI oficial, não inferência) contra o estado já reorganizado de `supabase/migrations/` (32 arquivos). Resultado: **17 migrations locais aparecem como "local-only"** (sem versão remota correspondente) — ou seja, o CLI as trataria como pendentes no próximo `db push`/deploy automático:
+
+```
+20260922100000, 20260922110000, 20260922120000, 20260922130000, 20260922140000,
+20260922160000, 20260922170000, 20260922180000, 20260925000000, 20260925010000,
+20260925020000, 20260930000000, 20261001000000, 20261010000000, 20261010020000,
+20261010050000, 20261010060000
+```
+
+**Causa raiz identificada:** o nome do arquivo (timestamp "redondo", escolhido manualmente, ex. `20260922100000`) não corresponde ao "version" que o CLI/integração realmente gravou no histórico remoto no momento em que a migration foi de fato aplicada (timestamp real de execução, ex. `20260922203934`). Isso vale para toda migration criada a partir de 22/09 — incluindo as que eu mesmo apliquei nesta e na sessão anterior via `mcp__supabase__apply_migration` (que registra a versão pelo horário da chamada, não pelo prefixo do arquivo). As 15 migrations de 23/05 a 11/06 não têm esse problema (prefixo do arquivo == versão remota, correspondência exata).
+
+**Risco real:** baixo, não zero. Todas as 17 são idempotentes (guardas `to_regclass`/`to_regprocedure`/`IF NOT EXISTS` confirmadas ao longo desta auditoria) — um re-apply não quebraria nada. Mas tecnicamente **não é "nada pendente"**, e a instrução era parar e reportar nesse caso.
+
+**Decisão necessária antes do push** (não executei nenhuma das opções):
+1. `supabase migration repair --status applied <versão-remota>` para cada uma das 17, ensinando o CLI a reconhecer o histórico remoto real sem tocar o banco — mais correto, não requer renomear nada.
+2. Renomear os 17 arquivos locais para o timestamp remoto real — alinha visualmente, mas perde a legibilidade dos nomes "redondos" e pode quebrar referências a esses nomes em outros lugares (ex. `auditoria/rollback/`, este próprio relatório).
+3. Não fazer nada — aceitar que o próximo deploy automático do Mowig vai reexecutar essas 17 (seguro pelas guardas, mas "sujo").
+
+**Trabalho de arquivo (reorganização, READMEs, CI, FK, achados de leitura) commitado localmente. Push para `origin/main` NÃO executado — aguardando decisão sobre o item acima.**
+
+---
+
+*Auditoria gerada por Claude Code em modo somente-leitura (seção 1-4), com alterações diretas em produção registradas e verificadas (seções 5-6), com smoke test pós-deploy via usuários descartáveis sem alteração de código/schema (seção 7), e com reorganização de migrations por projeto + 1 migration aplicada no Core, commitada mas não empurrada por pendência encontrada na checagem pré-push (seção 8). Nenhum valor completo de segredo foi incluído neste documento.*

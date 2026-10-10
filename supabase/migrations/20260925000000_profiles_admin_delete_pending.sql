@@ -1,3 +1,4 @@
+-- projeto: mowig,moveria
 -- =============================================================================
 -- MIGRATION: profiles_admin_delete_pending
 -- Bancos   : hubm-mowig / hubm-moveria (bancos de empresa — hubm-core não tem

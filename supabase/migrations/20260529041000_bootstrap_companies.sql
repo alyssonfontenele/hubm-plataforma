@@ -1,3 +1,4 @@
+-- projeto: mowig,core,moveria
 -- =============================================================================
 -- Bootstrap de empresas para ambiente local (db reset)
 -- Em produção: tabela nunca está vazia → INSERT é no-op (ON CONFLICT DO NOTHING)

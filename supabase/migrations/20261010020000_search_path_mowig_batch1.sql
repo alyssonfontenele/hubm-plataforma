@@ -1,3 +1,4 @@
+-- projeto: mowig
 -- =============================================================================
 -- MIGRATION: search_path_mowig_batch1
 -- Aplica em: hubm-mowig (xpoqiclaqkudznmshzal) APENAS.

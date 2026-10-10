@@ -1,3 +1,4 @@
+-- projeto: mowig
 -- =============================================================================
 -- MIGRATION: apps_quadros
 -- Bancos   : só mowig (empresa com slug 'mowig'). Pulada em qualquer banco

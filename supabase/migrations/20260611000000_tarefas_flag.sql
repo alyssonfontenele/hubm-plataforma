@@ -1,3 +1,4 @@
+-- projeto: mowig,moveria
 -- =============================================================================
 -- MIGRATION: tarefas_flag
 -- Backfill da feature flag 'tarefas' em company_features para todas as empresas
