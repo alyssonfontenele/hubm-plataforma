@@ -1,17 +1,7 @@
 ﻿import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { revokeAllSessions } from '../_shared/revoke-sessions.ts'
 import { authorizeAdminActionOnTarget } from '../_shared/authz.ts'
-
-const rawOrigins = Deno.env.get("ALLOWED_ORIGINS") ?? "";
-const allowedOrigins = rawOrigins.split(",").map(o => o.trim()).filter(Boolean);
-
-function corsHeaders(origin: string) {
-  return {
-    "Access-Control-Allow-Origin": allowedOrigins.includes(origin) ? origin : (allowedOrigins[0] ?? ""),
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-internal-secret",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-  };
-}
+import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req) => {
   const origin = req.headers.get('origin') ?? ''
