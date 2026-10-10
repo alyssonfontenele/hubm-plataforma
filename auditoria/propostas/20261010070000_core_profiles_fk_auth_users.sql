@@ -5,6 +5,19 @@
 -- NÃO APLICADA — escrita no repositório por pedido explícito, para revisão,
 -- não executada contra o banco nesta sessão.
 --
+-- DELIBERADAMENTE FORA de supabase/migrations/: o projeto Mowig
+-- (xpoqiclaqkudznmshzal) tem integração GitHub ativa apontando para a branch
+-- `main` deste repositório (confirmado via `list_branches` — registro com
+-- git_branch="main", is_default=true, status="FUNCTIONS_DEPLOYED"; Core e
+-- Moveria não têm esse vínculo). supabase/migrations/ é uma pasta ÚNICA e
+-- COMUM aos 3 projetos (cada migration é roteada manualmente por quem a
+-- aplica, via to_regclass/to_regprocedure guards + apply_migration por
+-- project_id) — colocar este arquivo lá arriscaria o push disparar uma
+-- tentativa de aplicação automática via essa integração. Fica em
+-- auditoria/propostas/ até alguém decidir aplicá-la deliberadamente
+-- (copiar para supabase/migrations/ ou rodar via MCP apply_migration no
+-- projeto Core, manualmente).
+--
 -- Achado do smoke test pós-ondas A/B (auditoria/2026-10-10-seguranca-hubm.md,
 -- seção 3 "Pendências de correção" e seção 7): public.profiles.id não tem
 -- foreign key para auth.users.id no Core, divergente de Mowig e Moveria
