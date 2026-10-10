@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { anonymizeAndBanAuthUser } from '../_shared/anonymize-auth-user.ts'
+import { authorizeAdminActionOnTarget } from '../_shared/authz.ts'
 
 const rawOrigins = Deno.env.get("ALLOWED_ORIGINS") ?? "";
 const allowedOrigins = rawOrigins.split(",").map(o => o.trim()).filter(Boolean);
@@ -26,30 +27,6 @@ Deno.serve(async (req) => {
   )
 
   // Valida o chamador (JWT) e exige perfil admin
-  const authHeader = req.headers.get('authorization') ?? ''
-  const token = authHeader.replace('Bearer ', '')
-  const { data: { user: caller }, error: authError } = await supabaseAdmin.auth.getUser(token)
-
-  if (authError || !caller) {
-    return new Response(
-      JSON.stringify({ error: 'Não autorizado' }),
-      { status: 401, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
-    )
-  }
-
-  const { data: callerProfile } = await supabaseAdmin
-    .from('profiles')
-    .select('global_role')
-    .eq('id', caller.id)
-    .single()
-
-  if (callerProfile?.global_role !== 'admin') {
-    return new Response(
-      JSON.stringify({ error: 'Acesso negado' }),
-      { status: 403, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
-    )
-  }
-
   let body: { user_id?: unknown };
   try {
     body = await req.json();
@@ -58,9 +35,18 @@ Deno.serve(async (req) => {
   }
 
   const { user_id } = body;
-  if (typeof user_id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user_id)) {
-    return new Response(JSON.stringify({ error: "Requisição inválida" }), { status: 400, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } })
+
+  // Checagem cross-tenant: só age sobre user_id da mesma empresa do
+  // chamador (ou se o chamador for superadmin). Ver _shared/authz.ts.
+  const authz = await authorizeAdminActionOnTarget(supabaseAdmin, req, user_id, 'delete-user')
+  if (!authz.ok) {
+    return new Response(
+      JSON.stringify(authz.body),
+      { status: authz.status, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
+    )
   }
+
+  const caller = authz.caller
 
   // Anonimização total e irreversível: apaga todo dado pessoal do perfil e
   // preserva apenas a linha (referenciada por admin_logs/access_logs, que são
