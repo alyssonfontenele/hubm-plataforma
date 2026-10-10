@@ -344,7 +344,26 @@ Os intervalos (quase 3h em todos os casos, não segundos/minutos) são inconsist
 
 **Resultado de `supabase migration list --linked` após os renomes:** `29` migrations locais casam exatamente com a versão remota (as 14 renomeadas + as 15 que já batiam). Restam **3 pendências locais** (as 3 "já efetivadas" sem par remoto). `29` entradas continuam "somente remoto" (as migrations do Core/Moveria que já não vivem mais em `supabase/migrations/`, inofensivas).
 
-**Nada foi aplicado, nenhum `migration repair` foi executado, nenhum push foi feito.**
+**Nada foi aplicado, nenhum `migration repair` foi executado, nenhum push foi feito** *(neste momento da sessão — ver conclusão abaixo)*.
+
+**Conclusão — `migration repair` executado (aprovado pelo Alysson), projeto Mowig confirmado (`xpoqiclaqkudznmshzal`) antes de cada chamada:**
+
+```
+npx supabase migration repair --status applied 20260925020000   # request_access_cargos
+npx supabase migration repair --status applied 20260930000000   # apps_quadros
+npx supabase migration repair --status applied 20261001000000   # apps_admin_rls_uppercase
+```
+
+Nenhum SQL das 3 migrations foi executado — `migration repair` só escreve na tabela de histórico do CLI (`supabase_migrations.schema_migrations`), nunca toca o schema/dados do projeto. Confirmado com `supabase migration list --linked` imediatamente depois: **32 migrations locais casam com a remota, `0` pendências locais** (29 → 32, exatamente as 3 reparadas).
+
+**Reversão, se necessário** (desfaz só o registro no histórico do CLI, nunca o schema real):
+```
+npx supabase migration repair --status reverted 20260925020000
+npx supabase migration repair --status reverted 20260930000000
+npx supabase migration repair --status reverted 20261001000000
+```
+
+**Resumo consolidado desta seção:** 14 migrations renomeadas (par remoto real) + 3 reparadas (sem par, confirmadas já efetivadas por leitura direta) = as 17 pendências originais, todas resolvidas sem rodar SQL de migration nenhuma e sem alterar schema/dados.
 
 ---
 
