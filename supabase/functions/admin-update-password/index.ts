@@ -1,61 +1,50 @@
 ﻿import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { revokeAllSessions } from '../_shared/revoke-sessions.ts'
+import { authorizeAdminActionOnTarget } from '../_shared/authz.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-internal-secret',
+const rawOrigins = Deno.env.get("ALLOWED_ORIGINS") ?? "";
+const allowedOrigins = rawOrigins.split(",").map(o => o.trim()).filter(Boolean);
+
+function corsHeaders(origin: string) {
+  return {
+    "Access-Control-Allow-Origin": allowedOrigins.includes(origin) ? origin : (allowedOrigins[0] ?? ""),
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-internal-secret",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get('origin') ?? ''
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: corsHeaders(origin) })
   }
 
   try {
-    // Verificar JWT do chamador
-    const supabase = createClient(
+    const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Verificar se o chamador é admin
-    const { data: callerProfile } = await supabase
-      .from('profiles')
-      .select('global_role, active')
-      .eq('id', user.id)
-      .single()
-
-    if (callerProfile?.global_role !== 'admin' || !callerProfile?.active) {
-      return new Response(
-        JSON.stringify({ error: 'Forbidden' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
     const { user_id, new_password } = await req.json()
+
+    // Checagem cross-tenant: só age sobre user_id da mesma empresa do
+    // chamador (ou se o chamador for superadmin). Ver _shared/authz.ts.
+    const authz = await authorizeAdminActionOnTarget(supabaseAdmin, req, user_id, 'admin-update-password')
+    if (!authz.ok) {
+      return new Response(
+        JSON.stringify(authz.body),
+        { status: authz.status, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
+      )
+    }
 
     // Validar força da senha no backend
     const passwordRegex = /^(?=.*[A-Z])(?=.*[0-9]).{8,}$/
     if (!passwordRegex.test(new_password)) {
       return new Response(
         JSON.stringify({ error: 'Senha fraca. Mínimo 8 caracteres, 1 maiúscula e 1 número.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
       )
     }
-
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    )
 
     // Atualizar senha
     const { error } = await supabaseAdmin.auth.admin.updateUserById(user_id, {
@@ -65,7 +54,7 @@ Deno.serve(async (req) => {
     if (error) {
       return new Response(
         JSON.stringify({ error: error.message }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
       )
     }
 
@@ -86,13 +75,13 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ success: true, sessions_revoked: sessionsRevoked }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
     )
 
   } catch (err) {
     return new Response(
       JSON.stringify({ error: err.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' } }
     )
   }
 })
