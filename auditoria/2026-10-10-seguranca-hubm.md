@@ -297,4 +297,55 @@ Rodado `npx supabase link --project-ref xpoqiclaqkudznmshzal` + `npx supabase mi
 
 ---
 
+## 9. Alinhamento híbrido das 17 pendências (2026-10-10)
+
+Decisão do Alysson: para cada uma das 17, achar o par remoto e renomear (só `git mv`, sem tocar SQL/cabeçalho); para quem não tiver par, checar estado real na Mowig e classificar.
+
+**14 com par remoto encontrado — renomeadas (filename only):**
+
+| Arquivo antigo | Arquivo novo (versão remota real) |
+|---|---|
+| `20260922100000_admin_logs_restrict_admin_id.sql` | `20260922203934_admin_logs_restrict_admin_id.sql` |
+| `20260922110000_profiles_cpf_constraints_allow_deleted.sql` | `20260922203946_profiles_cpf_constraints_allow_deleted.sql` |
+| `20260922120000_before_user_created_hook.sql` | `20260922211527_before_user_created_hook.sql` |
+| `20260922130000_profiles_anonymized_at.sql` | `20260922211650_profiles_anonymized_at.sql` |
+| `20260922140000_auth_is_superadmin_app_metadata.sql` | `20260922213259_auth_is_superadmin_app_metadata.sql` |
+| `20260922160000_auth_hooks_table_grants.sql` | `20260922215525_auth_hooks_table_grants.sql` |
+| `20260922170000_auth_hooks_reject_non_google.sql` | `20260922220914_auth_hooks_reject_non_google.sql` |
+| `20260922180000_auth_hooks_rls_policies.sql` | `20260922224144_auth_hooks_rls_policies.sql` |
+| `20260925000000_profiles_admin_delete_pending.sql` | `20260925174542_profiles_admin_delete_pending.sql` |
+| `20260925010000_apps.sql` | `20260925181754_apps.sql` |
+| `20261010000000_revoke_find_profile_by_cpf.sql` | `20261010155952_revoke_find_profile_by_cpf.sql` |
+| `20261010020000_search_path_mowig_batch1.sql` | `20261010162419_search_path_mowig_batch1.sql` |
+| `20261010050000_fix_cargo_sectors_tenant_filter.sql` | `20261010162622_fix_cargo_sectors_tenant_filter.sql` |
+| `20261010060000_schema_migrations_enable_rls.sql` | `20261010162713_schema_migrations_enable_rls.sql` |
+
+Correspondência achada pelo campo `name` do `list_migrations` (slug do arquivo == nome remoto), não por adivinhação de timestamp.
+
+**3 sem par remoto — verificados somente leitura na Mowig:**
+
+| Arquivo | Checagem | Resultado |
+|---|---|---|
+| `20260925020000_request_access_cargos.sql` | `public.list_cargos_for_request_access()` existe, `SECURITY DEFINER`, `search_path=public`, `authenticated` tem `EXECUTE`. (`anon` também tem — efeito do default ACL do schema `public`, que concede `EXECUTE` em toda função nova a `anon`/`authenticated`/`service_role` automaticamente; `REVOKE ALL FROM PUBLIC` da migration não cobre isso, é um padrão do projeto todo, não falha desta migration especificamente — mesma causa dos achados `anon_security_definer_function_executable` já registrados na seção 2.B.) | **Já efetivada** |
+| `20260930000000_apps_quadros.sql` | `public.apps` tem a linha esperada: `company_id` = Mowig, `slug='quadros'`, `name='QUADROS DE PRODUÇÃO'`, `sort_order=10` | **Já efetivada** |
+| `20261001000000_apps_admin_rls_uppercase.sql` | Policies exatas esperadas presentes em `public.apps` (`INSERT`/`UPDATE` separadas, sem `FOR ALL`); `0` apps da Mowig com nome fora de CAIXA ALTA | **Já efetivada** |
+
+As 3 são candidatas a `migration repair --status applied` (não a reaplicação real) — mas **nenhum repair foi executado**, por instrução explícita.
+
+**Evidência sobre a causa (item 3 do pedido — logs/status da integração GitHub):** a Management API do Supabase não expõe um endpoint de histórico de deploy da integração GitHub (`/v1/projects/{ref}/integrations/github` e variantes retornam 404). Como evidência indireta, comparei o horário do push (`git log`) de cada arquivo com o timestamp da versão remota:
+
+| Arquivo | Push (git log) | Aplicado (versão remota) | Intervalo |
+|---|---|---|---|
+| `admin_logs_restrict_admin_id` | 2026-09-22 17:46:20 | 2026-09-22 20:39:34 | ~2h53 |
+| `profiles_admin_delete_pending` | 2026-09-25 14:47:09 | 2026-09-25 17:45:42 | ~2h58 |
+| `search_path_mowig_batch1` | 2026-10-10 13:39:57 | 2026-10-10 16:24:19 | ~2h44 (esta eu sei por certo que apliquei manualmente via MCP, não por push) |
+
+Os intervalos (quase 3h em todos os casos, não segundos/minutos) são inconsistentes com um pipeline de CI disparado automaticamente pelo push, e consistentes com alguém aplicando manualmente via CLI/MCP algum tempo depois. Reforça isso: `list_branches(mowig)` mostra `updated_at: 2026-05-21` (data de criação do projeto) — sem qualquer atualização recente registrada nesse campo. **Não encontrei evidência de que a integração GitHub da Mowig já tenha tentado reexecutar automaticamente nenhuma dessas migrations** — o quadro mais provável é aplicação manual (CLI ou MCP) após cada push, não um pipeline automático de banco.
+
+**Resultado de `supabase migration list --linked` após os renomes:** `29` migrations locais casam exatamente com a versão remota (as 14 renomeadas + as 15 que já batiam). Restam **3 pendências locais** (as 3 "já efetivadas" sem par remoto). `29` entradas continuam "somente remoto" (as migrations do Core/Moveria que já não vivem mais em `supabase/migrations/`, inofensivas).
+
+**Nada foi aplicado, nenhum `migration repair` foi executado, nenhum push foi feito.**
+
+---
+
 *Auditoria gerada por Claude Code em modo somente-leitura (seção 1-4), com alterações diretas em produção registradas e verificadas (seções 5-6), com smoke test pós-deploy via usuários descartáveis sem alteração de código/schema (seção 7), e com reorganização de migrations por projeto + 1 migration aplicada no Core, commitada mas não empurrada por pendência encontrada na checagem pré-push (seção 8). Nenhum valor completo de segredo foi incluído neste documento.*
