@@ -1,0 +1,219 @@
+/* Portal Mowig — tokens do design system do ERP (mowig-api/docs/projeto/design-system/tokens.json, POR-H2).
+   Escopo: só dentro de .portal-mowig, para não interferir no HubM interno. */
+.portal-mowig {
+  --fundo: #f3f4f5;
+  --superficie: #ffffff;
+  --superficie-sutil: #fafafb;
+  --tinta: #1c1d1f;
+  --tinta-forte: #000000;
+  --texto-2: #3a3d41;
+  --texto-3: #4a4d52;
+  --texto-meta: #5f636a;
+  --borda: #e1e3e6;
+  --borda-campo: #d3d6da;
+  --divisoria: #eceef0;
+  --atencao-fundo: #fbefd9;
+  --atencao-texto: #7a4b00;
+  --critico: #b42318;
+  --critico-fundo: #f7e1de;
+  --critico-texto: #8c2a1e;
+  --ok-fundo: #e3f1e7;
+  --ok-texto: #1e5b33;
+  --radius-controle: 8px;
+  --radius-cartao: 12px;
+  --altura-controle-toque: 44px;
+  --altura-barra-superior: 56px;
+  --sombra-popover: 0 8px 24px rgba(28, 29, 31, 0.12), 0 2px 6px rgba(28, 29, 31, 0.08);
+
+  min-height: 100vh;
+  background: var(--fundo);
+  color: var(--tinta);
+  font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.portal-mowig *,
+.portal-mowig *::before,
+.portal-mowig *::after {
+  box-sizing: border-box;
+}
+
+.portal-topo {
+  height: var(--altura-barra-superior);
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borda);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+}
+
+.portal-marca {
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.01em;
+}
+
+.portal-centro {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.portal-cartao {
+  width: 100%;
+  max-width: 400px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--radius-cartao);
+  padding: 32px 24px;
+  box-shadow: var(--sombra-popover);
+}
+
+.portal-cartao h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.portal-sub {
+  margin: 0 0 24px;
+  color: var(--texto-meta);
+  font-size: 14px;
+}
+
+.portal-campo {
+  display: block;
+  margin-bottom: 16px;
+}
+
+.portal-campo > span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--texto-2);
+}
+
+.portal-campo input {
+  width: 100%;
+  height: var(--altura-controle-toque);
+  padding: 0 12px;
+  border: 1px solid var(--borda-campo);
+  border-radius: var(--radius-controle);
+  background: var(--superficie);
+  color: var(--tinta);
+  font: inherit;
+  font-size: 16px; /* evita zoom no iOS */
+}
+
+.portal-campo input:focus-visible,
+.portal-botao:focus-visible,
+.portal-link:focus-visible {
+  outline: 2px solid var(--tinta);
+  outline-offset: 2px;
+}
+
+.portal-botao {
+  width: 100%;
+  height: var(--altura-controle-toque);
+  border: 1px solid var(--tinta);
+  border-radius: var(--radius-controle);
+  background: var(--tinta);
+  color: #fff;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.portal-botao:hover:not(:disabled) {
+  background: var(--tinta-forte);
+}
+
+.portal-botao:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.portal-botao-secundario {
+  width: auto;
+  padding: 0 16px;
+  background: var(--superficie);
+  color: var(--tinta);
+  border-color: var(--borda-campo);
+}
+
+.portal-botao-secundario:hover:not(:disabled) {
+  background: var(--superficie-sutil);
+}
+
+.portal-link {
+  color: var(--tinta);
+  text-decoration: underline;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.portal-rodape-cartao {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.portal-aviso {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: var(--radius-controle);
+  font-size: 13px;
+}
+
+.portal-aviso-erro {
+  background: var(--critico-fundo);
+  color: var(--critico-texto);
+}
+
+.portal-aviso-info {
+  background: var(--atencao-fundo);
+  color: var(--atencao-texto);
+}
+
+.portal-aviso-ok {
+  background: var(--ok-fundo);
+  color: var(--ok-texto);
+}
+
+.portal-conteudo {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 16px;
+}
+
+.portal-painel {
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--radius-cartao);
+  padding: 24px;
+}
+
+.portal-painel h2 {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.portal-meta {
+  color: var(--texto-meta);
+  font-size: 13px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .portal-botao {
+    transition: background-color 0.12s ease;
+  }
+}

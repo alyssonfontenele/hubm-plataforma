@@ -16,6 +16,7 @@ import { Route as ClientPortalRouteImport } from './routes/client-portal'
 import { Route as CompleteProfileRouteImport } from './routes/complete-profile'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MfaChallengeRouteImport } from './routes/mfa-challenge'
+import { Route as PortalRouteImport } from './routes/portal'
 import { Route as RequestAccessRouteImport } from './routes/request-access'
 import { Route as SetupMfaRouteImport } from './routes/setup-mfa'
 import { Route as SuperadminRouteImport } from './routes/superadmin'
@@ -24,6 +25,10 @@ import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/ap
 import { Route as AuthenticatedContratosRouteImport } from './routes/_authenticated/contratos'
 import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticated/tarefas'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as PortalIndexRouteImport } from './routes/portal.index'
+import { Route as PortalDefinirSenhaRouteImport } from './routes/portal.definir-senha'
+import { Route as PortalEntrarRouteImport } from './routes/portal.entrar'
+import { Route as PortalEsqueciRouteImport } from './routes/portal.esqueci'
 import { Route as SuperadminDashboardRouteImport } from './routes/superadmin/dashboard'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app/index'
 import { Route as AuthenticatedContratosIndexRouteImport } from './routes/_authenticated/contratos/index'
@@ -71,6 +76,11 @@ const MfaChallengeRoute = MfaChallengeRouteImport.update({
   path: '/mfa-challenge',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PortalRoute = PortalRouteImport.update({
+  id: '/portal',
+  path: '/portal',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RequestAccessRoute = RequestAccessRouteImport.update({
   id: '/request-access',
   path: '/request-access',
@@ -110,6 +120,26 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
+} as any)
+const PortalIndexRoute = PortalIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalDefinirSenhaRoute = PortalDefinirSenhaRouteImport.update({
+  id: '/definir-senha',
+  path: '/definir-senha',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalEntrarRoute = PortalEntrarRouteImport.update({
+  id: '/entrar',
+  path: '/entrar',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalEsqueciRoute = PortalEsqueciRouteImport.update({
+  id: '/esqueci',
+  path: '/esqueci',
+  getParentRoute: () => PortalRoute,
 } as any)
 const SuperadminDashboardRoute = SuperadminDashboardRouteImport.update({
   id: '/dashboard',
@@ -189,6 +219,7 @@ export interface FileRoutesByFullPath {
   '/complete-profile': typeof CompleteProfileRoute
   '/login': typeof LoginRoute
   '/mfa-challenge': typeof MfaChallengeRoute
+  '/portal': typeof PortalRouteWithChildren
   '/request-access': typeof RequestAccessRoute
   '/setup-mfa': typeof SetupMfaRoute
   '/superadmin': typeof SuperadminRouteWithChildren
@@ -197,7 +228,11 @@ export interface FileRoutesByFullPath {
   '/contratos': typeof AuthenticatedContratosRouteWithChildren
   '/tarefas': typeof AuthenticatedTarefasRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
+  '/portal/definir-senha': typeof PortalDefinirSenhaRoute
+  '/portal/entrar': typeof PortalEntrarRoute
+  '/portal/esqueci': typeof PortalEsqueciRoute
   '/superadmin/dashboard': typeof SuperadminDashboardRoute
+  '/portal/': typeof PortalIndexRoute
   '/contratos/backlog': typeof AuthenticatedContratosBacklogRoute
   '/contratos/importar': typeof AuthenticatedContratosImportarRoute
   '/contratos/lotes': typeof AuthenticatedContratosLotesRoute
@@ -222,7 +257,11 @@ export interface FileRoutesByTo {
   '/superadmin': typeof SuperadminRouteWithChildren
   '/admin': typeof AuthenticatedAdminRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/portal/definir-senha': typeof PortalDefinirSenhaRoute
+  '/portal/entrar': typeof PortalEntrarRoute
+  '/portal/esqueci': typeof PortalEsqueciRoute
   '/superadmin/dashboard': typeof SuperadminDashboardRoute
+  '/portal': typeof PortalIndexRoute
   '/contratos/backlog': typeof AuthenticatedContratosBacklogRoute
   '/contratos/importar': typeof AuthenticatedContratosImportarRoute
   '/contratos/lotes': typeof AuthenticatedContratosLotesRoute
@@ -244,6 +283,7 @@ export interface FileRoutesById {
   '/complete-profile': typeof CompleteProfileRoute
   '/login': typeof LoginRoute
   '/mfa-challenge': typeof MfaChallengeRoute
+  '/portal': typeof PortalRouteWithChildren
   '/request-access': typeof RequestAccessRoute
   '/setup-mfa': typeof SetupMfaRoute
   '/superadmin': typeof SuperadminRouteWithChildren
@@ -252,7 +292,11 @@ export interface FileRoutesById {
   '/_authenticated/contratos': typeof AuthenticatedContratosRouteWithChildren
   '/_authenticated/tarefas': typeof AuthenticatedTarefasRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
+  '/portal/definir-senha': typeof PortalDefinirSenhaRoute
+  '/portal/entrar': typeof PortalEntrarRoute
+  '/portal/esqueci': typeof PortalEsqueciRoute
   '/superadmin/dashboard': typeof SuperadminDashboardRoute
+  '/portal/': typeof PortalIndexRoute
   '/_authenticated/contratos/backlog': typeof AuthenticatedContratosBacklogRoute
   '/_authenticated/contratos/importar': typeof AuthenticatedContratosImportarRoute
   '/_authenticated/contratos/lotes': typeof AuthenticatedContratosLotesRoute
@@ -274,6 +318,7 @@ export interface FileRouteTypes {
     | '/complete-profile'
     | '/login'
     | '/mfa-challenge'
+    | '/portal'
     | '/request-access'
     | '/setup-mfa'
     | '/superadmin'
@@ -282,7 +327,11 @@ export interface FileRouteTypes {
     | '/contratos'
     | '/tarefas'
     | '/auth/callback'
+    | '/portal/definir-senha'
+    | '/portal/entrar'
+    | '/portal/esqueci'
     | '/superadmin/dashboard'
+    | '/portal/'
     | '/contratos/backlog'
     | '/contratos/importar'
     | '/contratos/lotes'
@@ -307,7 +356,11 @@ export interface FileRouteTypes {
     | '/superadmin'
     | '/admin'
     | '/auth/callback'
+    | '/portal/definir-senha'
+    | '/portal/entrar'
+    | '/portal/esqueci'
     | '/superadmin/dashboard'
+    | '/portal'
     | '/contratos/backlog'
     | '/contratos/importar'
     | '/contratos/lotes'
@@ -328,6 +381,7 @@ export interface FileRouteTypes {
     | '/complete-profile'
     | '/login'
     | '/mfa-challenge'
+    | '/portal'
     | '/request-access'
     | '/setup-mfa'
     | '/superadmin'
@@ -336,7 +390,11 @@ export interface FileRouteTypes {
     | '/_authenticated/contratos'
     | '/_authenticated/tarefas'
     | '/auth/callback'
+    | '/portal/definir-senha'
+    | '/portal/entrar'
+    | '/portal/esqueci'
     | '/superadmin/dashboard'
+    | '/portal/'
     | '/_authenticated/contratos/backlog'
     | '/_authenticated/contratos/importar'
     | '/_authenticated/contratos/lotes'
@@ -358,6 +416,7 @@ export interface RootRouteChildren {
   CompleteProfileRoute: typeof CompleteProfileRoute
   LoginRoute: typeof LoginRoute
   MfaChallengeRoute: typeof MfaChallengeRoute
+  PortalRoute: typeof PortalRouteWithChildren
   RequestAccessRoute: typeof RequestAccessRoute
   SetupMfaRoute: typeof SetupMfaRoute
   SuperadminRoute: typeof SuperadminRouteWithChildren
@@ -415,6 +474,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MfaChallengeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/portal': {
+      id: '/portal'
+      path: '/portal'
+      fullPath: '/portal'
+      preLoaderRoute: typeof PortalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/request-access': {
       id: '/request-access'
       path: '/request-access'
@@ -470,6 +536,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth/callback'
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/portal/': {
+      id: '/portal/'
+      path: '/'
+      fullPath: '/portal/'
+      preLoaderRoute: typeof PortalIndexRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/portal/definir-senha': {
+      id: '/portal/definir-senha'
+      path: '/definir-senha'
+      fullPath: '/portal/definir-senha'
+      preLoaderRoute: typeof PortalDefinirSenhaRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/portal/entrar': {
+      id: '/portal/entrar'
+      path: '/entrar'
+      fullPath: '/portal/entrar'
+      preLoaderRoute: typeof PortalEntrarRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/portal/esqueci': {
+      id: '/portal/esqueci'
+      path: '/esqueci'
+      fullPath: '/portal/esqueci'
+      preLoaderRoute: typeof PortalEsqueciRouteImport
+      parentRoute: typeof PortalRoute
     }
     '/superadmin/dashboard': {
       id: '/superadmin/dashboard'
@@ -630,6 +724,23 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
   AuthenticatedRouteChildren,
 )
 
+interface PortalRouteChildren {
+  PortalDefinirSenhaRoute: typeof PortalDefinirSenhaRoute
+  PortalEntrarRoute: typeof PortalEntrarRoute
+  PortalEsqueciRoute: typeof PortalEsqueciRoute
+  PortalIndexRoute: typeof PortalIndexRoute
+}
+
+const PortalRouteChildren: PortalRouteChildren = {
+  PortalDefinirSenhaRoute: PortalDefinirSenhaRoute,
+  PortalEntrarRoute: PortalEntrarRoute,
+  PortalEsqueciRoute: PortalEsqueciRoute,
+  PortalIndexRoute: PortalIndexRoute,
+}
+
+const PortalRouteWithChildren =
+  PortalRoute._addFileChildren(PortalRouteChildren)
+
 interface SuperadminRouteChildren {
   SuperadminDashboardRoute: typeof SuperadminDashboardRoute
 }
@@ -650,6 +761,7 @@ const rootRouteChildren: RootRouteChildren = {
   CompleteProfileRoute: CompleteProfileRoute,
   LoginRoute: LoginRoute,
   MfaChallengeRoute: MfaChallengeRoute,
+  PortalRoute: PortalRouteWithChildren,
   RequestAccessRoute: RequestAccessRoute,
   SetupMfaRoute: SetupMfaRoute,
   SuperadminRoute: SuperadminRouteWithChildren,

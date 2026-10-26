@@ -1,7 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect } from "react";
 import {
   Outlet,
   Link,
+  useNavigate,
+  useRouterState,
   createRootRouteWithContext,
   useRouter,
   HeadContent,
@@ -9,7 +12,8 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { isLojistaSession } from "@/lib/portal";
 import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
@@ -125,13 +129,30 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Lojista (Portal Mowig) só vê /portal/*; qualquer rota interna do HubM é recusada e redireciona. */
+function LojistaGate() {
+  const { session, loading } = useAuth();
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const lojista = isLojistaSession(session);
+  const permitido = pathname === "/portal" || pathname.startsWith("/portal/") || pathname === "/auth/callback";
+  const bloqueado = lojista && !permitido;
+
+  useEffect(() => {
+    if (!loading && bloqueado) void navigate({ to: "/portal", replace: true });
+  }, [loading, bloqueado, navigate]);
+
+  if (bloqueado) return null;
+  return <Outlet />;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Outlet />
+        <LojistaGate />
         <Toaster />
       </AuthProvider>
     </QueryClientProvider>

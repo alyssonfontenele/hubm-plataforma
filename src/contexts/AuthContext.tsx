@@ -19,6 +19,7 @@ import {
   type SectorMembership,
 } from "@/integrations/supabase/client";
 import { classifyError } from "@/lib/errors";
+import { isLojistaUser } from "@/lib/portal";
 
 export type MfaState =
   | "unknown"
@@ -102,9 +103,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       if (event === "PASSWORD_RECOVERY") {
         setIsPasswordRecovery(true);
-        void navigate({ to: "/change-password" });
+        // lojista (Portal Mowig) não tem perfil no HubM: recuperação vai para a tela do portal
+        void navigate({ to: isLojistaUser(newSession?.user) ? "/portal/definir-senha" : "/change-password" });
       }
-      if (newSession?.user) {
+      if (newSession?.user && !isLojistaUser(newSession.user)) {
         // defer DB calls to avoid recursive auth callbacks
         setTimeout(() => {
           void loadProfile(newSession.user.id);
@@ -123,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (s?.provider_token) {
         setProviderToken(s.provider_token);
       }
-      if (s?.user) {
+      if (s?.user && !isLojistaUser(s.user)) {
         await loadProfile(s.user.id);
       }
       setLoading(false);

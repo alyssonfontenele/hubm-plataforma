@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { isGoogleDomainAllowed } from "@/lib/auth";
+import { isLojistaSession, isLojistaUser } from "@/lib/portal";
 import type { Session } from "@supabase/supabase-js";
 
 export const Route = createFileRoute("/auth/callback")({
@@ -11,6 +12,11 @@ export const Route = createFileRoute("/auth/callback")({
 });
 
 async function handleSession(session: Session) {
+  // Portal Mowig: convite e recuperação do lojista caem aqui; o lojista não tem perfil no HubM
+  if (isLojistaSession(session)) {
+    window.location.replace("/portal/definir-senha");
+    return;
+  }
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("must_change_password")
@@ -60,7 +66,11 @@ function AuthCallbackPage() {
     if (accessToken) {
       supabase.auth
         .setSession({ access_token: accessToken, refresh_token: refreshToken ?? "" })
-        .then(({ error }) => {
+        .then(({ data, error }) => {
+          if (!error && isLojistaUser(data.session?.user)) {
+            window.location.replace("/portal/definir-senha");
+            return;
+          }
           if (error) {
             console.error("Failed to set session from callback hash", error);
             window.location.replace("/login");
