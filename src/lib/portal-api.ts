@@ -14,6 +14,8 @@ export interface CapacidadesPortal {
   cobranca: boolean;
   implantar: boolean;
   gerirLoja: boolean;
+  /** J664 (P-1): agendar, remarcar e cancelar coleta (GESTOR e IMPLANTADOR). Ausente = sem permissão. */
+  coleta?: boolean;
 }
 
 export interface PortalMe {
@@ -204,6 +206,68 @@ export interface SituacaoDoPagamento {
   pagoEm: string | null;
 }
 
+// --- Coletas (J663/J664). Contrato: mowig-api docs/api-expedicao.md §Portal.
+export type SituacaoColeta = "SOLICITADA" | "AGENDADA" | "DESPACHADA" | "RECUSADA" | "CANCELADA";
+export type TurnoColeta = "MANHA" | "TARDE" | string;
+
+export interface SlotColeta {
+  id: number;
+  data: string;
+  turno: TurnoColeta;
+  rotuloTurno: string;
+}
+
+export type QuemBusca =
+  | { tipo: "TRANSPORTADORA"; codigo: string; nome: string | null }
+  | { tipo: "VEICULO_PROPRIO"; placa: string | null; motorista: string | null };
+
+export interface ColetaPortal {
+  id: number;
+  situacao: SituacaoColeta;
+  slot: SlotColeta;
+  quemBusca: QuemBusca;
+  observacao: string | null;
+  motivo: string | null;
+  pedidos: number[];
+  solicitadaEm: string;
+  confirmadaEm: string | null;
+  despachadaEm: string | null;
+  /** Na lista é a contagem; no detalhe vem a lista em `documentos` da resposta. */
+  documentos: number;
+  /** A API decide a janela de 24 h (LOG-4); a tela só obedece. */
+  podeRemarcarOuCancelar: boolean;
+}
+
+export interface DocumentoColeta {
+  id: number;
+  tipo: string;
+  /** NF-e ligada pela chave: não há arquivo para baixar. */
+  automatico: boolean;
+  pedidoNumero: number | null;
+  nfeChave: string | null;
+  nfeNumero: string | null;
+  nomeArquivo: string | null;
+  contentType: string | null;
+  tamanho: number | null;
+  criadoEm: string;
+}
+
+export interface TransportadoraPortal {
+  id: string;
+  nome: string;
+}
+
+export type QuemBuscaCorpo =
+  | { transportadoraCodigo: string }
+  | { veiculo: { placa: string | null; motorista: string | null } };
+
+export interface CorpoColeta {
+  slotId: number;
+  pedidos: number[];
+  quemBusca: QuemBuscaCorpo;
+  observacao?: string | null;
+}
+
 export interface CorpoCobranca {
   pedidos: number[];
   creditoCentavos?: number;
@@ -261,6 +325,16 @@ export interface PortalApi {
   criarCobranca(corpo: CorpoCobranca, chave: string): Promise<Cobranca>;
   novaVersao(id: number, corpo: CorpoCobranca, chave: string): Promise<Cobranca>;
   pagar(id: number, forma: FormaPagamento, chave: string): Promise<Pagamento>;
+  // coletas (J664)
+  coletas(): Promise<ColetaPortal[]>;
+  coleta(id: number): Promise<{ coleta: ColetaPortal; documentos: DocumentoColeta[] }>;
+  slots(): Promise<{ horizonteDias: number; slots: SlotColeta[] }>;
+  transportadoras(): Promise<TransportadoraPortal[]>;
+  solicitarColeta(corpo: CorpoColeta, chave: string): Promise<{ coletaId: number; situacao: SituacaoColeta }>;
+  remarcarColeta(id: number, slotId: number, chave: string): Promise<{ situacao: SituacaoColeta; slotId: number }>;
+  cancelarColeta(id: number, motivo: string | null, chave: string): Promise<{ situacao: SituacaoColeta }>;
+  /** Baixa o arquivo com o JWT (não existe link público); devolve o conteúdo para a tela salvar. */
+  baixarDocumento(coletaId: number, docId: number): Promise<Blob>;
 }
 
 /** Chave de idempotência: um UUID novo por ação do usuário (a API pede 8–200 caracteres [A-Za-z0-9_.:-]). */
@@ -326,6 +400,27 @@ export function criarPortalApi(
     novaVersao: async (id, corpo, chave) =>
       normalizarCobranca(await post<CobrancaResposta>(`/cobrancas/${id}/versoes`, corpo, chave)),
     pagar: (id, forma, chave) => post<Pagamento>(`/cobrancas/${id}/pagar`, { forma }, chave),
+    coletas: async () => (await chamar<{ coletas: ColetaPortal[] }>("/coletas")).coletas,
+    coleta: (id) => chamar(`/coletas/${id}`),
+    slots: () => chamar("/slots"),
+    transportadoras: async () => (await chamar<{ itens: TransportadoraPortal[] }>("/transportadoras")).itens,
+    solicitarColeta: (corpo, chave) => post("/coletas", corpo, chave),
+    remarcarColeta: (id, slotId, chave) => post(`/coletas/${id}/remarcar`, { slotId }, chave),
+    cancelarColeta: (id, motivo, chave) => post(`/coletas/${id}/cancelar`, motivo ? { motivo } : {}, chave),
+    baixarDocumento: async (coletaId, docId) => {
+      const token = await obterToken();
+      if (!token) throw new PortalApiErro(401, null, "Sessão expirada. Entre novamente.");
+      let resp: Response;
+      try {
+        resp = await f(`${base}/v1/portal/coletas/${coletaId}/documentos/${docId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch {
+        throw new PortalApiErro(0, null, "Sem conexão com o servidor.");
+      }
+      if (!resp.ok) throw new PortalApiErro(resp.status, null, "Não foi possível baixar o documento.");
+      return resp.blob();
+    },
   };
 }
 

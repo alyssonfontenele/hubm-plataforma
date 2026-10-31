@@ -26,6 +26,7 @@ import { Route as AuthenticatedContratosRouteImport } from './routes/_authentica
 import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticated/tarefas'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as PortalIndexRouteImport } from './routes/portal.index'
+import { Route as PortalAgendarRouteImport } from './routes/portal.agendar'
 import { Route as PortalCobrancasRouteImport } from './routes/portal.cobrancas'
 import { Route as PortalDefinirSenhaRouteImport } from './routes/portal.definir-senha'
 import { Route as PortalEntrarRouteImport } from './routes/portal.entrar'
@@ -40,8 +41,10 @@ import { Route as AuthenticatedContratosLotesRouteImport } from './routes/_authe
 import { Route as AuthenticatedContratosMedicaoRouteImport } from './routes/_authenticated/contratos/medicao'
 import { Route as AuthenticatedSectorsSlugRouteImport } from './routes/_authenticated/sectors.$slug'
 import { Route as AuthenticatedTarefasIndexRouteImport } from './routes/_authenticated/tarefas/index'
+import { Route as PortalColetaIdRouteImport } from './routes/portal.coleta.$id'
 import { Route as PortalPagamentoIdRouteImport } from './routes/portal.pagamento.$id'
 import { Route as PortalPedidoNumeroRouteImport } from './routes/portal.pedido.$numero'
+import { Route as PortalRemarcarIdRouteImport } from './routes/portal.remarcar.$id'
 import { Route as AuthenticatedAppAppsSlugRouteImport } from './routes/_authenticated/app/apps.$slug'
 import { Route as AuthenticatedContratosContratoContratoIdRouteImport } from './routes/_authenticated/contratos/contrato.$contratoId'
 import { Route as AuthenticatedContratosLoteLoteIdRouteImport } from './routes/_authenticated/contratos/lote.$loteId'
@@ -130,6 +133,11 @@ const PortalIndexRoute = PortalIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PortalRoute,
 } as any)
+const PortalAgendarRoute = PortalAgendarRouteImport.update({
+  id: '/agendar',
+  path: '/agendar',
+  getParentRoute: () => PortalRoute,
+} as any)
 const PortalCobrancasRoute = PortalCobrancasRouteImport.update({
   id: '/cobrancas',
   path: '/cobrancas',
@@ -207,6 +215,11 @@ const AuthenticatedTarefasIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedTarefasRoute,
   } as any)
+const PortalColetaIdRoute = PortalColetaIdRouteImport.update({
+  id: '/coleta/$id',
+  path: '/coleta/$id',
+  getParentRoute: () => PortalRoute,
+} as any)
 const PortalPagamentoIdRoute = PortalPagamentoIdRouteImport.update({
   id: '/pagamento/$id',
   path: '/pagamento/$id',
@@ -215,6 +228,11 @@ const PortalPagamentoIdRoute = PortalPagamentoIdRouteImport.update({
 const PortalPedidoNumeroRoute = PortalPedidoNumeroRouteImport.update({
   id: '/pedido/$numero',
   path: '/pedido/$numero',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalRemarcarIdRoute = PortalRemarcarIdRouteImport.update({
+  id: '/remarcar/$id',
+  path: '/remarcar/$id',
   getParentRoute: () => PortalRoute,
 } as any)
 const AuthenticatedAppAppsSlugRoute =
@@ -252,6 +270,7 @@ export interface FileRoutesByFullPath {
   '/contratos': typeof AuthenticatedContratosRouteWithChildren
   '/tarefas': typeof AuthenticatedTarefasRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
+  '/portal/agendar': typeof PortalAgendarRoute
   '/portal/cobrancas': typeof PortalCobrancasRoute
   '/portal/definir-senha': typeof PortalDefinirSenhaRoute
   '/portal/entrar': typeof PortalEntrarRoute
@@ -264,8 +283,10 @@ export interface FileRoutesByFullPath {
   '/contratos/lotes': typeof AuthenticatedContratosLotesRoute
   '/contratos/medicao': typeof AuthenticatedContratosMedicaoRoute
   '/sectors/$slug': typeof AuthenticatedSectorsSlugRoute
+  '/portal/coleta/$id': typeof PortalColetaIdRoute
   '/portal/pagamento/$id': typeof PortalPagamentoIdRoute
   '/portal/pedido/$numero': typeof PortalPedidoNumeroRoute
+  '/portal/remarcar/$id': typeof PortalRemarcarIdRoute
   '/app/': typeof AuthenticatedAppIndexRoute
   '/contratos/': typeof AuthenticatedContratosIndexRoute
   '/tarefas/': typeof AuthenticatedTarefasIndexRoute
@@ -285,6 +306,7 @@ export interface FileRoutesByTo {
   '/superadmin': typeof SuperadminRouteWithChildren
   '/admin': typeof AuthenticatedAdminRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/portal/agendar': typeof PortalAgendarRoute
   '/portal/cobrancas': typeof PortalCobrancasRoute
   '/portal/definir-senha': typeof PortalDefinirSenhaRoute
   '/portal/entrar': typeof PortalEntrarRoute
@@ -297,8 +319,10 @@ export interface FileRoutesByTo {
   '/contratos/lotes': typeof AuthenticatedContratosLotesRoute
   '/contratos/medicao': typeof AuthenticatedContratosMedicaoRoute
   '/sectors/$slug': typeof AuthenticatedSectorsSlugRoute
+  '/portal/coleta/$id': typeof PortalColetaIdRoute
   '/portal/pagamento/$id': typeof PortalPagamentoIdRoute
   '/portal/pedido/$numero': typeof PortalPedidoNumeroRoute
+  '/portal/remarcar/$id': typeof PortalRemarcarIdRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/contratos': typeof AuthenticatedContratosIndexRoute
   '/tarefas': typeof AuthenticatedTarefasIndexRoute
@@ -324,6 +348,7 @@ export interface FileRoutesById {
   '/_authenticated/contratos': typeof AuthenticatedContratosRouteWithChildren
   '/_authenticated/tarefas': typeof AuthenticatedTarefasRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
+  '/portal/agendar': typeof PortalAgendarRoute
   '/portal/cobrancas': typeof PortalCobrancasRoute
   '/portal/definir-senha': typeof PortalDefinirSenhaRoute
   '/portal/entrar': typeof PortalEntrarRoute
@@ -336,8 +361,10 @@ export interface FileRoutesById {
   '/_authenticated/contratos/lotes': typeof AuthenticatedContratosLotesRoute
   '/_authenticated/contratos/medicao': typeof AuthenticatedContratosMedicaoRoute
   '/_authenticated/sectors/$slug': typeof AuthenticatedSectorsSlugRoute
+  '/portal/coleta/$id': typeof PortalColetaIdRoute
   '/portal/pagamento/$id': typeof PortalPagamentoIdRoute
   '/portal/pedido/$numero': typeof PortalPedidoNumeroRoute
+  '/portal/remarcar/$id': typeof PortalRemarcarIdRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/_authenticated/contratos/': typeof AuthenticatedContratosIndexRoute
   '/_authenticated/tarefas/': typeof AuthenticatedTarefasIndexRoute
@@ -363,6 +390,7 @@ export interface FileRouteTypes {
     | '/contratos'
     | '/tarefas'
     | '/auth/callback'
+    | '/portal/agendar'
     | '/portal/cobrancas'
     | '/portal/definir-senha'
     | '/portal/entrar'
@@ -375,8 +403,10 @@ export interface FileRouteTypes {
     | '/contratos/lotes'
     | '/contratos/medicao'
     | '/sectors/$slug'
+    | '/portal/coleta/$id'
     | '/portal/pagamento/$id'
     | '/portal/pedido/$numero'
+    | '/portal/remarcar/$id'
     | '/app/'
     | '/contratos/'
     | '/tarefas/'
@@ -396,6 +426,7 @@ export interface FileRouteTypes {
     | '/superadmin'
     | '/admin'
     | '/auth/callback'
+    | '/portal/agendar'
     | '/portal/cobrancas'
     | '/portal/definir-senha'
     | '/portal/entrar'
@@ -408,8 +439,10 @@ export interface FileRouteTypes {
     | '/contratos/lotes'
     | '/contratos/medicao'
     | '/sectors/$slug'
+    | '/portal/coleta/$id'
     | '/portal/pagamento/$id'
     | '/portal/pedido/$numero'
+    | '/portal/remarcar/$id'
     | '/app'
     | '/contratos'
     | '/tarefas'
@@ -434,6 +467,7 @@ export interface FileRouteTypes {
     | '/_authenticated/contratos'
     | '/_authenticated/tarefas'
     | '/auth/callback'
+    | '/portal/agendar'
     | '/portal/cobrancas'
     | '/portal/definir-senha'
     | '/portal/entrar'
@@ -446,8 +480,10 @@ export interface FileRouteTypes {
     | '/_authenticated/contratos/lotes'
     | '/_authenticated/contratos/medicao'
     | '/_authenticated/sectors/$slug'
+    | '/portal/coleta/$id'
     | '/portal/pagamento/$id'
     | '/portal/pedido/$numero'
+    | '/portal/remarcar/$id'
     | '/_authenticated/app/'
     | '/_authenticated/contratos/'
     | '/_authenticated/tarefas/'
@@ -592,6 +628,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PortalIndexRouteImport
       parentRoute: typeof PortalRoute
     }
+    '/portal/agendar': {
+      id: '/portal/agendar'
+      path: '/agendar'
+      fullPath: '/portal/agendar'
+      preLoaderRoute: typeof PortalAgendarRouteImport
+      parentRoute: typeof PortalRoute
+    }
     '/portal/cobrancas': {
       id: '/portal/cobrancas'
       path: '/cobrancas'
@@ -690,6 +733,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTarefasIndexRouteImport
       parentRoute: typeof AuthenticatedTarefasRoute
     }
+    '/portal/coleta/$id': {
+      id: '/portal/coleta/$id'
+      path: '/coleta/$id'
+      fullPath: '/portal/coleta/$id'
+      preLoaderRoute: typeof PortalColetaIdRouteImport
+      parentRoute: typeof PortalRoute
+    }
     '/portal/pagamento/$id': {
       id: '/portal/pagamento/$id'
       path: '/pagamento/$id'
@@ -702,6 +752,13 @@ declare module '@tanstack/react-router' {
       path: '/pedido/$numero'
       fullPath: '/portal/pedido/$numero'
       preLoaderRoute: typeof PortalPedidoNumeroRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/portal/remarcar/$id': {
+      id: '/portal/remarcar/$id'
+      path: '/remarcar/$id'
+      fullPath: '/portal/remarcar/$id'
+      preLoaderRoute: typeof PortalRemarcarIdRouteImport
       parentRoute: typeof PortalRoute
     }
     '/_authenticated/app/apps/$slug': {
@@ -801,25 +858,31 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 )
 
 interface PortalRouteChildren {
+  PortalAgendarRoute: typeof PortalAgendarRoute
   PortalCobrancasRoute: typeof PortalCobrancasRoute
   PortalDefinirSenhaRoute: typeof PortalDefinirSenhaRoute
   PortalEntrarRoute: typeof PortalEntrarRoute
   PortalEsqueciRoute: typeof PortalEsqueciRoute
   PortalUsuarioRoute: typeof PortalUsuarioRoute
   PortalIndexRoute: typeof PortalIndexRoute
+  PortalColetaIdRoute: typeof PortalColetaIdRoute
   PortalPagamentoIdRoute: typeof PortalPagamentoIdRoute
   PortalPedidoNumeroRoute: typeof PortalPedidoNumeroRoute
+  PortalRemarcarIdRoute: typeof PortalRemarcarIdRoute
 }
 
 const PortalRouteChildren: PortalRouteChildren = {
+  PortalAgendarRoute: PortalAgendarRoute,
   PortalCobrancasRoute: PortalCobrancasRoute,
   PortalDefinirSenhaRoute: PortalDefinirSenhaRoute,
   PortalEntrarRoute: PortalEntrarRoute,
   PortalEsqueciRoute: PortalEsqueciRoute,
   PortalUsuarioRoute: PortalUsuarioRoute,
   PortalIndexRoute: PortalIndexRoute,
+  PortalColetaIdRoute: PortalColetaIdRoute,
   PortalPagamentoIdRoute: PortalPagamentoIdRoute,
   PortalPedidoNumeroRoute: PortalPedidoNumeroRoute,
+  PortalRemarcarIdRoute: PortalRemarcarIdRoute,
 }
 
 const PortalRouteWithChildren =
