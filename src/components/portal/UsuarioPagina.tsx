@@ -51,15 +51,15 @@ export function UsuarioPagina() {
           </div>
         </dl>
         {me.capacidades.gerirLoja && (
-          <p className="portal-meta">
-            Para incluir ou excluir usuários da loja, fale com a Mowig.
-          </p>
+          <p className="portal-meta">Para incluir ou excluir usuários da loja, fale com a Mowig.</p>
         )}
         <div className="portal-acoes">
           <button
             type="button"
             className="portal-botao portal-botao-secundario"
-            onClick={() => void signOut().then(() => navigate({ to: "/portal/entrar", replace: true }))}
+            onClick={() =>
+              void signOut().then(() => navigate({ to: "/portal/entrar", replace: true }))
+            }
           >
             Sair
           </button>

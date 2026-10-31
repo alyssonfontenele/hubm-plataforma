@@ -53,7 +53,10 @@ function ValoresDoPedido({ v }: { v: NonNullable<DetalhePedido["valores"]> }) {
       <h2 id="valores">Valores</h2>
       <dl className="portal-lista-info">
         <Linha rotulo="Bruto" valor={brlDeTexto(v.bruto)} />
-        <Linha rotulo={`Desconto${pct(v.desconto.percentual)}`} valor={brlDeTexto(v.desconto.valor)} />
+        <Linha
+          rotulo={`Desconto${pct(v.desconto.percentual)}`}
+          valor={brlDeTexto(v.desconto.valor)}
+        />
         <Linha rotulo="Produtos" valor={brlDeTexto(v.produtos)} />
         <Linha rotulo={`IPI${pct(v.ipi.percentual)}`} valor={brlDeTexto(v.ipi.valor)} />
         <Linha rotulo="Total" valor={brlDeTexto(v.total)} />
@@ -79,9 +82,7 @@ export function PedidoPagina({ numero }: { numero: number }) {
     return (
       <>
         <h1 className="portal-titulo">Pedido</h1>
-        <Aviso tipo="erro">
-          {naoAchou ? "Pedido não encontrado." : mensagemDeErro(q.error)}
-        </Aviso>
+        <Aviso tipo="erro">{naoAchou ? "Pedido não encontrado." : mensagemDeErro(q.error)}</Aviso>
         <Link to="/portal" className="portal-link">
           Voltar aos pedidos
         </Link>
@@ -116,7 +117,9 @@ export function PedidoPagina({ numero }: { numero: number }) {
             <dd className="portal-centro-num">{dataBr(d.cabecalho.emitidoEm)}</dd>
           </div>
           <div className="portal-linha-info">
-            <dt>{d.entrega.origem === "COMPROMETIDA" ? "Entrega comprometida" : "Entrega prevista"}</dt>
+            <dt>
+              {d.entrega.origem === "COMPROMETIDA" ? "Entrega comprometida" : "Entrega prevista"}
+            </dt>
             <dd className="portal-centro-num">{dataBr(d.entrega.data)}</dd>
           </div>
         </dl>

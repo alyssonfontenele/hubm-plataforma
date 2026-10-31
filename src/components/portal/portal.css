@@ -228,7 +228,7 @@
 
 .portal-menu { display: flex; gap: 4px; padding: 0 12px; background: var(--superficie); border-bottom: 1px solid var(--borda); overflow-x: auto; }
 .portal-menu-item { display: inline-flex; align-items: center; height: 44px; padding: 0 14px; color: var(--texto-3); text-decoration: none; font-weight: 500; border-bottom: 2px solid transparent; }
-.portal-menu-item[aria-current="page"] { color: var(--tinta); border-bottom-color: var(--tinta); }
+.portal-menu-item.portal-menu-ativa { color: var(--tinta); border-bottom-color: var(--tinta); }
 .portal-menu-item:focus-visible { outline: 2px solid var(--tinta); outline-offset: -2px; }
 
 /* o quadro usa a largura toda; as demais telas ficam centradas */
@@ -294,8 +294,9 @@
 .portal-cobranca-acoes { display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
 .portal-cobranca-detalhe { padding: 4px 0 8px; }
 @media (max-width: 760px) {
-  .portal-cobranca-linha { grid-template-columns: 1fr auto; }
-  .portal-cobranca-linha > :nth-child(n+3):not(:last-child) { text-align: left; }
+  .portal-cobranca-linha { grid-template-columns: 1fr auto; gap: 4px 12px; }
+  .portal-cobranca-linha > .portal-centro-num { text-align: left; }
+  .portal-cobranca-linha > .portal-dinheiro { grid-column: 1 / -1; font-weight: 600; }
   .portal-cobranca-acoes { grid-column: 1 / -1; justify-content: flex-start; }
 }
 

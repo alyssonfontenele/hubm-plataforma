@@ -101,12 +101,7 @@ export interface DetalhePedido {
 }
 
 export type SituacaoCobranca =
-  | "ABERTA"
-  | "PAGA"
-  | "SUBSTITUIDA"
-  | "VENCIDA"
-  | "CANCELADA"
-  | "EM_ANALISE";
+  "ABERTA" | "PAGA" | "SUBSTITUIDA" | "VENCIDA" | "CANCELADA" | "EM_ANALISE";
 
 export type SituacaoPagamento =
   | "AGUARDANDO"

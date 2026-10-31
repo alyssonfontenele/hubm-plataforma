@@ -6,13 +6,7 @@ export function Pilula({ tom = "neutro", children }: { tom?: TomPilula; children
   return <span className={`portal-pilula portal-pilula-${tom}`}>{children}</span>;
 }
 
-export function Aviso({
-  tipo,
-  children,
-}: {
-  tipo: "erro" | "info" | "ok";
-  children: ReactNode;
-}) {
+export function Aviso({ tipo, children }: { tipo: "erro" | "info" | "ok"; children: ReactNode }) {
   return (
     <div
       className={`portal-aviso portal-aviso-${tipo}`}

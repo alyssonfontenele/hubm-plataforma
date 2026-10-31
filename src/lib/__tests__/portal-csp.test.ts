@@ -9,7 +9,14 @@ const vercel = JSON.parse(readFileSync(resolve(__dirname, "../../../vercel.json"
 };
 const csp = vercel.headers[0].headers.find((h) => h.key === "Content-Security-Policy")!.value;
 const diretiva = (nome: string) =>
-  (csp.split(";").map((d) => d.trim()).find((d) => d.startsWith(`${nome} `)) ?? "").split(/\s+/).slice(1);
+  (
+    csp
+      .split(";")
+      .map((d) => d.trim())
+      .find((d) => d.startsWith(`${nome} `)) ?? ""
+  )
+    .split(/\s+/)
+    .slice(1);
 
 describe("CSP do vercel.json", () => {
   it("connect-src inclui o host da API do portal (origem exata, https)", () => {

@@ -6,12 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { isLojistaUser } from "@/lib/portal";
-import {
-  criarPortalApi,
-  PortalApiErro,
-  type PortalApi,
-  type PortalMe,
-} from "@/lib/portal-api";
+import { criarPortalApi, PortalApiErro, type PortalApi, type PortalMe } from "@/lib/portal-api";
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Cliente da API por contexto: o app usa o JWT do Supabase; os testes injetam um dublê.
@@ -64,28 +59,35 @@ export function nomeDaLoja(me: PortalMe): string {
 type Aba = "pedidos" | "cobrancas" | "usuario";
 
 export function PortalMenu({ me, ativa }: { me: PortalMe; ativa: Aba }) {
+  // `exact`: o Link de /portal não pode se dizer ativo em /portal/cobrancas; a aba ativa vem da tela (`ativa`), que também vale
+  // para subtelas (pedido, pagamento).
+  const classe = (aba: Aba) => `portal-menu-item${ativa === aba ? " portal-menu-ativa" : ""}`;
+  const atual = (aba: Aba) => (ativa === aba ? ("page" as const) : undefined);
   return (
     <nav className="portal-menu" aria-label="Portal">
       <Link
         to="/portal"
-        className="portal-menu-item"
-        aria-current={ativa === "pedidos" ? "page" : undefined}
+        activeOptions={{ exact: true }}
+        className={classe("pedidos")}
+        aria-current={atual("pedidos")}
       >
         Pedidos
       </Link>
       {me.capacidades.cobranca && (
         <Link
           to="/portal/cobrancas"
-          className="portal-menu-item"
-          aria-current={ativa === "cobrancas" ? "page" : undefined}
+          activeOptions={{ exact: true }}
+          className={classe("cobrancas")}
+          aria-current={atual("cobrancas")}
         >
           Cobranças
         </Link>
       )}
       <Link
         to="/portal/usuario"
-        className="portal-menu-item"
-        aria-current={ativa === "usuario" ? "page" : undefined}
+        activeOptions={{ exact: true }}
+        className={classe("usuario")}
+        aria-current={atual("usuario")}
       >
         Usuário
       </Link>
@@ -150,7 +152,9 @@ function CascaAutenticada({
           <button
             type="button"
             className="portal-botao portal-botao-secundario portal-botao-pequeno"
-            onClick={() => void sair().then(() => navigate({ to: "/portal/entrar", replace: true }))}
+            onClick={() =>
+              void sair().then(() => navigate({ to: "/portal/entrar", replace: true }))
+            }
           >
             Sair
           </button>

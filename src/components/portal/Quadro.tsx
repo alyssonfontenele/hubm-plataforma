@@ -93,9 +93,7 @@ export function QuadroPedidos({
             <span className="portal-coluna-contagem">{coluna.pedidos.length}</span>
           </h3>
           {coluna.pedidos.length === 0 ? (
-            <p className="portal-coluna-vazia">
-              {coluna.semFonte ? "Em breve" : "Nenhum pedido"}
-            </p>
+            <p className="portal-coluna-vazia">{coluna.semFonte ? "Em breve" : "Nenhum pedido"}</p>
           ) : (
             <ul className="portal-coluna-lista">
               {coluna.pedidos.map((c) => (

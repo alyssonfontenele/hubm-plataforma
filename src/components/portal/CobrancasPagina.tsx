@@ -66,7 +66,8 @@ function MontarCobranca({
   );
 
   // Na nova versão, o crédito já reservado por esta cobrança volta a estar disponível para ela.
-  const tetoCredito = credito.disponivelCentavos + (edicao.cobrancaId ? inicial.creditoCentavos : 0);
+  const tetoCredito =
+    credito.disponivelCentavos + (edicao.cobrancaId ? inicial.creditoCentavos : 0);
 
   const selecionados = pedidosCobraveis.filter((p) => marcados.has(p.numero));
   const creditoCentavos = centavosDeEntrada(creditoTexto);
@@ -192,13 +193,7 @@ function MontarCobranca({
   );
 }
 
-function LinhaCobranca({
-  c,
-  aoAlterar,
-}: {
-  c: Cobranca;
-  aoAlterar: (c: Cobranca) => void;
-}) {
+function LinhaCobranca({ c, aoAlterar }: { c: Cobranca; aoAlterar: (c: Cobranca) => void }) {
   const api = usePortalApi();
   const [aberta, setAberta] = useState(false);
   const detalhe = useQuery({
@@ -294,7 +289,11 @@ export function CobrancasPagina({ pedidoInicial }: { pedidoInicial?: number }) {
   });
 
   const [edicao, setEdicao] = useState<
-    (Edicao & { inicial: { pedidos: number[]; creditoCentavos: number }; extras: PedidoCobravel[] }) | null
+    | (Edicao & {
+        inicial: { pedidos: number[]; creditoCentavos: number };
+        extras: PedidoCobravel[];
+      })
+    | null
   >(null);
   const [criada, setCriada] = useState<Cobranca | null>(null);
 

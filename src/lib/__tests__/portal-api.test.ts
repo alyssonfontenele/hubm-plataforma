@@ -19,7 +19,10 @@ import {
 const norm = (s: string) => s.replace(/ /g, " ");
 
 function respostaJson(corpo: unknown, status = 200): Response {
-  return new Response(JSON.stringify(corpo), { status, headers: { "content-type": "application/json" } });
+  return new Response(JSON.stringify(corpo), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
 }
 
 describe("dinheiro", () => {
@@ -47,11 +50,27 @@ describe("dinheiro", () => {
 
   it("previaTotais limita o crédito ao bruto e nunca deixa líquido negativo", () => {
     const pedidos = [{ valorCentavos: 10000 }, { valorCentavos: 5050 }];
-    expect(previaTotais(pedidos, 0)).toEqual({ brutoCentavos: 15050, creditoCentavos: 0, liquidoCentavos: 15050 });
-    expect(previaTotais(pedidos, 5000)).toEqual({ brutoCentavos: 15050, creditoCentavos: 5000, liquidoCentavos: 10050 });
-    expect(previaTotais(pedidos, 99999)).toEqual({ brutoCentavos: 15050, creditoCentavos: 15050, liquidoCentavos: 0 });
+    expect(previaTotais(pedidos, 0)).toEqual({
+      brutoCentavos: 15050,
+      creditoCentavos: 0,
+      liquidoCentavos: 15050,
+    });
+    expect(previaTotais(pedidos, 5000)).toEqual({
+      brutoCentavos: 15050,
+      creditoCentavos: 5000,
+      liquidoCentavos: 10050,
+    });
+    expect(previaTotais(pedidos, 99999)).toEqual({
+      brutoCentavos: 15050,
+      creditoCentavos: 15050,
+      liquidoCentavos: 0,
+    });
     expect(previaTotais(pedidos, -10).creditoCentavos).toBe(0);
-    expect(previaTotais([], 100)).toEqual({ brutoCentavos: 0, creditoCentavos: 0, liquidoCentavos: 0 });
+    expect(previaTotais([], 100)).toEqual({
+      brutoCentavos: 0,
+      creditoCentavos: 0,
+      liquidoCentavos: 0,
+    });
   });
 
   it("datas ISO viram dd/mm/aaaa", () => {
@@ -67,7 +86,8 @@ describe("regras de situação", () => {
     expect(situacaoTerminal("AGUARDANDO")).toBe(false);
     expect(situacaoTerminal("PAGA_AGUARDANDO_CREDITO")).toBe(false);
     expect(situacaoTerminal("EM_ANALISE")).toBe(false);
-    for (const s of ["PAGA", "VENCIDA", "CANCELADA", "SUBSTITUIDA"] as const) expect(situacaoTerminal(s)).toBe(true);
+    for (const s of ["PAGA", "VENCIDA", "CANCELADA", "SUBSTITUIDA"] as const)
+      expect(situacaoTerminal(s)).toBe(true);
   });
 
   it("nova versão só de ABERTA, VENCIDA, CANCELADA; pagar só de ABERTA com valor", () => {
@@ -95,8 +115,12 @@ describe("mensagens de erro", () => {
     expect(mensagemDeErro(new PortalApiErro(422, "CREDITO_INSUFICIENTE", "x"))).toMatch(/crédito/i);
     expect(mensagemDeErro(new PortalApiErro(409, "PEDIDOS_MUDARAM", "x"))).toMatch(/nova versão/i);
     expect(mensagemDeErro(new PortalApiErro(403, null, "x"))).toMatch(/permissão/i);
-    expect(mensagemDeErro(new PortalApiErro(500, null, "stack trace interno"))).not.toMatch(/stack/);
-    expect(mensagemDeErro(new Error("qualquer"))).toBe("Não foi possível concluir. Tente novamente.");
+    expect(mensagemDeErro(new PortalApiErro(500, null, "stack trace interno"))).not.toMatch(
+      /stack/,
+    );
+    expect(mensagemDeErro(new Error("qualquer"))).toBe(
+      "Não foi possível concluir. Tente novamente.",
+    );
   });
 });
 
@@ -114,7 +138,10 @@ describe("criarPortalApi", () => {
 
   it("manda o JWT no Authorization e usa a base + /v1/portal", async () => {
     const f = vi.fn(async () => respostaJson({ ok: true }));
-    const api = criarPortalApi(async () => "jwt-sintetico", { baseUrl: `${BASE}/`, fetchImpl: f as unknown as typeof fetch });
+    const api = criarPortalApi(async () => "jwt-sintetico", {
+      baseUrl: `${BASE}/`,
+      fetchImpl: f as unknown as typeof fetch,
+    });
     await api.quadro();
     const [url, init] = f.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe(`${BASE}/v1/portal/pedidos`);
@@ -124,14 +151,20 @@ describe("criarPortalApi", () => {
 
   it("sem sessão não chama a rede e dá 401", async () => {
     const f = vi.fn();
-    const api = criarPortalApi(async () => null, { baseUrl: BASE, fetchImpl: f as unknown as typeof fetch });
+    const api = criarPortalApi(async () => null, {
+      baseUrl: BASE,
+      fetchImpl: f as unknown as typeof fetch,
+    });
     await expect(api.me()).rejects.toMatchObject({ status: 401 });
     expect(f).not.toHaveBeenCalled();
   });
 
   it("POST leva Idempotency-Key e SÓ pedidos + creditoCentavos no corpo", async () => {
     const f = vi.fn(async () => respostaJson({ ok: true, cobranca: { id: 1 } }, 201));
-    const api = criarPortalApi(async () => "t", { baseUrl: BASE, fetchImpl: f as unknown as typeof fetch });
+    const api = criarPortalApi(async () => "t", {
+      baseUrl: BASE,
+      fetchImpl: f as unknown as typeof fetch,
+    });
     await api.criarCobranca({ pedidos: [10, 11], creditoCentavos: 500 }, "chave-123456");
     const [url, init] = f.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe(`${BASE}/v1/portal/cobrancas`);
@@ -146,15 +179,24 @@ describe("criarPortalApi", () => {
     const solta = { id: 7, numero: "P-2026-000007" };
     const f1 = vi.fn(async () => respostaJson(solta, 201));
     const f2 = vi.fn(async () => respostaJson({ ok: true, cobranca: solta }, 201));
-    const a1 = criarPortalApi(async () => "t", { baseUrl: BASE, fetchImpl: f1 as unknown as typeof fetch });
-    const a2 = criarPortalApi(async () => "t", { baseUrl: BASE, fetchImpl: f2 as unknown as typeof fetch });
+    const a1 = criarPortalApi(async () => "t", {
+      baseUrl: BASE,
+      fetchImpl: f1 as unknown as typeof fetch,
+    });
+    const a2 = criarPortalApi(async () => "t", {
+      baseUrl: BASE,
+      fetchImpl: f2 as unknown as typeof fetch,
+    });
     expect((await a1.criarCobranca({ pedidos: [1] }, "chave-123456")).id).toBe(7);
     expect((await a2.novaVersao(7, { pedidos: [1] }, "chave-123456")).id).toBe(7);
   });
 
   it("pagar manda { forma } em /cobrancas/:id/pagar", async () => {
     const f = vi.fn(async () => respostaJson({ ok: true }));
-    const api = criarPortalApi(async () => "t", { baseUrl: BASE, fetchImpl: f as unknown as typeof fetch });
+    const api = criarPortalApi(async () => "t", {
+      baseUrl: BASE,
+      fetchImpl: f as unknown as typeof fetch,
+    });
     await api.pagar(42, "PIX", "chave-123456");
     const [url, init] = f.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe(`${BASE}/v1/portal/cobrancas/42/pagar`);
@@ -162,8 +204,13 @@ describe("criarPortalApi", () => {
   });
 
   it("traduz o erro da API em PortalApiErro (status + código + texto)", async () => {
-    const f = vi.fn(async () => respostaJson({ ok: false, codigo: "CREDITO_INSUFICIENTE", erro: "sem saldo" }, 422));
-    const api = criarPortalApi(async () => "t", { baseUrl: BASE, fetchImpl: f as unknown as typeof fetch });
+    const f = vi.fn(async () =>
+      respostaJson({ ok: false, codigo: "CREDITO_INSUFICIENTE", erro: "sem saldo" }, 422),
+    );
+    const api = criarPortalApi(async () => "t", {
+      baseUrl: BASE,
+      fetchImpl: f as unknown as typeof fetch,
+    });
     await expect(api.criarCobranca({ pedidos: [1] }, "chave-123456")).rejects.toMatchObject({
       status: 422,
       codigo: "CREDITO_INSUFICIENTE",
@@ -181,7 +228,8 @@ describe("criarPortalApi", () => {
     await expect(rede.me()).rejects.toMatchObject({ status: 0 });
     const html = criarPortalApi(async () => "t", {
       baseUrl: BASE,
-      fetchImpl: (async () => new Response("<html>502</html>", { status: 502 })) as unknown as typeof fetch,
+      fetchImpl: (async () =>
+        new Response("<html>502</html>", { status: 502 })) as unknown as typeof fetch,
     });
     await expect(html.me()).rejects.toMatchObject({ status: 502 });
   });

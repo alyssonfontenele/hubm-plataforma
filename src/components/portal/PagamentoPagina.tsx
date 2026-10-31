@@ -229,7 +229,9 @@ export function PagamentoPagina({ id }: { id: number }) {
           </div>
           <div className="portal-linha-info">
             <dt>Pedidos</dt>
-            <dd className="portal-centro-num">{cobranca.pedidos.map((p) => p.numero).join(", ")}</dd>
+            <dd className="portal-centro-num">
+              {cobranca.pedidos.map((p) => p.numero).join(", ")}
+            </dd>
           </div>
           <div className="portal-linha-info portal-linha-total">
             <dt>Total a pagar</dt>
@@ -303,7 +305,9 @@ export function PagamentoPagina({ id }: { id: number }) {
                   </a>
                 </p>
               )}
-              <p className="portal-meta">Esta tela confirma sozinha assim que o pagamento chegar.</p>
+              <p className="portal-meta">
+                Esta tela confirma sozinha assim que o pagamento chegar.
+              </p>
             </>
           )}
         </section>

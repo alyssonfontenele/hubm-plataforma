@@ -6,9 +6,16 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ to, params, search, children, ...resto }: Record<string, unknown> & { children?: ReactNode }) => {
+  Link: ({
+    to,
+    params,
+    search,
+    children,
+    ...resto
+  }: Record<string, unknown> & { children?: ReactNode }) => {
     let href = String(to);
-    for (const [k, v] of Object.entries((params ?? {}) as Record<string, string>)) href = href.replace(`$${k}`, v);
+    for (const [k, v] of Object.entries((params ?? {}) as Record<string, string>))
+      href = href.replace(`$${k}`, v);
     if (search) href += `?${new URLSearchParams(search as Record<string, string>).toString()}`;
     return (
       <a href={href} {...(resto as object)}>
@@ -36,15 +43,33 @@ import {
 
 const norm = (s: string | null) => (s ?? "").replace(/ /g, " ");
 
-const CAP_GESTOR: CapacidadesPortal = { verValores: true, cobranca: true, implantar: false, gerirLoja: true };
-const CAP_CONSULTA: CapacidadesPortal = { verValores: false, cobranca: false, implantar: false, gerirLoja: false };
+const CAP_GESTOR: CapacidadesPortal = {
+  verValores: true,
+  cobranca: true,
+  implantar: false,
+  gerirLoja: true,
+};
+const CAP_CONSULTA: CapacidadesPortal = {
+  verValores: false,
+  cobranca: false,
+  implantar: false,
+  gerirLoja: false,
+};
 
-function meCom(capacidades: CapacidadesPortal, papel: PortalMe["usuario"]["papel"] = "GESTOR"): PortalMe {
+function meCom(
+  capacidades: CapacidadesPortal,
+  papel: PortalMe["usuario"]["papel"] = "GESTOR",
+): PortalMe {
   return {
     ok: true,
     usuario: { email: "gestor@loja-teste.example", papel },
     capacidades,
-    cliente: { numero: 9001, razaoSocial: "Loja Teste Ltda", nomeFantasia: "Loja Teste", cnpj: "00.000.000/0001-00" },
+    cliente: {
+      numero: 9001,
+      razaoSocial: "Loja Teste Ltda",
+      nomeFantasia: "Loja Teste",
+      cnpj: "00.000.000/0001-00",
+    },
   };
 }
 
@@ -104,8 +129,22 @@ function apiDuble(sobrescritas: Partial<PortalApi> = {}): PortalApi {
     cobravel: vi.fn(async () => ({
       ok: true as const,
       pedidos: [
-        { numero: 101, oc: "OC-101", natureza: "ENTRADA" as const, valorCentavos: 100000, valorFinalCentavos: 100000, entregaPrevista: "2026-11-20" },
-        { numero: 102, oc: null, natureza: "ENTRADA" as const, valorCentavos: 50050, valorFinalCentavos: 50050, entregaPrevista: null },
+        {
+          numero: 101,
+          oc: "OC-101",
+          natureza: "ENTRADA" as const,
+          valorCentavos: 100000,
+          valorFinalCentavos: 100000,
+          entregaPrevista: "2026-11-20",
+        },
+        {
+          numero: 102,
+          oc: null,
+          natureza: "ENTRADA" as const,
+          valorCentavos: 50050,
+          valorFinalCentavos: 50050,
+          entregaPrevista: null,
+        },
       ],
       credito: { elegivelCentavos: 30000, reservadoCentavos: 0, disponivelCentavos: 30000 },
     })),
@@ -134,7 +173,9 @@ afterEach(() => {
 });
 
 async function abrirMontagem() {
-  const botao = (await screen.findByRole("button", { name: /^montar cobrança$/i })) as HTMLButtonElement;
+  const botao = (await screen.findByRole("button", {
+    name: /^montar cobrança$/i,
+  })) as HTMLButtonElement;
   await waitFor(() => expect(botao.disabled).toBe(false));
   fireEvent.click(botao);
 }
@@ -163,8 +204,12 @@ describe("Quadro de 7 colunas", () => {
     const pagar = within(screen.getByTestId("pedido-101")).getByRole("link", { name: "Pagar" });
     expect(pagar.getAttribute("href")).toBe("/portal/cobrancas?pedido=101");
     // pedido finalizado não tem Pagar, só Ver
-    expect(within(screen.getByTestId("pedido-103")).queryByRole("link", { name: "Pagar" })).toBeNull();
-    expect(within(screen.getByTestId("pedido-103")).getByRole("link", { name: "Ver" })).toBeTruthy();
+    expect(
+      within(screen.getByTestId("pedido-103")).queryByRole("link", { name: "Pagar" }),
+    ).toBeNull();
+    expect(
+      within(screen.getByTestId("pedido-103")).getByRole("link", { name: "Ver" }),
+    ).toBeTruthy();
     expect(within(screen.getByTestId("pedido-103")).getByText("SALDO A PAGAR")).toBeTruthy();
     unmount();
     render(<QuadroPedidos quadro={quadroDe(false)} capacidades={CAP_CONSULTA} />);
@@ -206,9 +251,13 @@ describe("Cobranças", () => {
     fireEvent.click(await screen.findByRole("checkbox", { name: /101/ }));
     fireEvent.change(screen.getByLabelText(/crédito a usar/i), { target: { value: "300,01" } });
     expect(screen.getByRole("alert").textContent).toMatch(/crédito disponível é R\$\s*300,00/);
-    expect((screen.getByRole("button", { name: /criar cobrança/i }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: /criar cobrança/i }) as HTMLButtonElement).disabled,
+    ).toBe(true);
     fireEvent.change(screen.getByLabelText(/crédito a usar/i), { target: { value: "abc" } });
-    expect((screen.getByRole("button", { name: /criar cobrança/i }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: /criar cobrança/i }) as HTMLButtonElement).disabled,
+    ).toBe(true);
     expect(api.criarCobranca).not.toHaveBeenCalled();
   });
 
@@ -216,7 +265,9 @@ describe("Cobranças", () => {
     montar(<CobrancasPagina />, apiDuble());
     await abrirMontagem();
     await screen.findByRole("checkbox", { name: /101/ });
-    expect((screen.getByRole("button", { name: /criar cobrança/i }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: /criar cobrança/i }) as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 
   it("repetir após falha reaproveita a mesma Idempotency-Key; mudar o conteúdo gera outra", async () => {
@@ -255,9 +306,16 @@ describe("Cobranças", () => {
       cobrancaDe({ id: 2, numero: "P-2", situacao: "PAGA", liquidoCentavos: 0 }),
       cobrancaDe({ id: 3, numero: "P-3", situacao: "VENCIDA" }),
     ];
-    montar(<CobrancasPagina />, apiDuble({ cobrancas: vi.fn(async () => ({ ok: true as const, disponivel: true, itens, aviso: null })) }));
+    montar(
+      <CobrancasPagina />,
+      apiDuble({
+        cobrancas: vi.fn(async () => ({ ok: true as const, disponivel: true, itens, aviso: null })),
+      }),
+    );
     const l1 = await screen.findByTestId("cobranca-1");
-    expect(within(l1).getByRole("link", { name: "Pagar" }).getAttribute("href")).toBe("/portal/pagamento/1");
+    expect(within(l1).getByRole("link", { name: "Pagar" }).getAttribute("href")).toBe(
+      "/portal/pagamento/1",
+    );
     expect(within(l1).getByRole("button", { name: "Alterar" })).toBeTruthy();
     const l2 = screen.getByTestId("cobranca-2");
     expect(within(l2).queryByRole("link", { name: "Pagar" })).toBeNull();
@@ -268,11 +326,21 @@ describe("Cobranças", () => {
   });
 
   it("nova versão envia a composição COMPLETA para /versoes da cobrança", async () => {
-    const itens = [cobrancaDe({ id: 55, numero: "P-55", pedidos: [{ numero: 101, natureza: "ENTRADA", valorCentavos: 100000 }] })];
-    const api = apiDuble({ cobrancas: vi.fn(async () => ({ ok: true as const, disponivel: true, itens, aviso: null })) });
+    const itens = [
+      cobrancaDe({
+        id: 55,
+        numero: "P-55",
+        pedidos: [{ numero: 101, natureza: "ENTRADA", valorCentavos: 100000 }],
+      }),
+    ];
+    const api = apiDuble({
+      cobrancas: vi.fn(async () => ({ ok: true as const, disponivel: true, itens, aviso: null })),
+    });
     montar(<CobrancasPagina />, api);
     fireEvent.click(await screen.findByRole("button", { name: "Alterar" }));
-    expect((await screen.findByRole("checkbox", { name: /101/ }) as HTMLInputElement).checked).toBe(true);
+    expect(
+      ((await screen.findByRole("checkbox", { name: /101/ })) as HTMLInputElement).checked,
+    ).toBe(true);
     fireEvent.click(screen.getByRole("checkbox", { name: /102/ }));
     fireEvent.click(screen.getByRole("button", { name: /criar nova versão/i }));
     await waitFor(() => expect(api.novaVersao).toHaveBeenCalledTimes(1));
@@ -284,7 +352,14 @@ describe("Cobranças", () => {
   it("módulo indisponível (disponivel:false) mostra o aviso da API", async () => {
     montar(
       <CobrancasPagina />,
-      apiDuble({ cobrancas: vi.fn(async () => ({ ok: true as const, disponivel: false, itens: [], aviso: "Em breve." })) }),
+      apiDuble({
+        cobrancas: vi.fn(async () => ({
+          ok: true as const,
+          disponivel: false,
+          itens: [],
+          aviso: "Em breve.",
+        })),
+      }),
     );
     expect(await screen.findByText("Em breve.")).toBeTruthy();
   });
@@ -294,7 +369,15 @@ describe("Pagamento", () => {
   const detalhe = (c: Cobranca, forma: "PIX" | "BOLETO" | null = null) => ({
     ok: true as const,
     cobranca: c,
-    gateway: forma ? { forma, situacao: "AGUARDANDO", situacaoGateway: "PENDING", invoiceUrl: null, pagoEm: null } : null,
+    gateway: forma
+      ? {
+          forma,
+          situacao: "AGUARDANDO",
+          situacaoGateway: "PENDING",
+          invoiceUrl: null,
+          pagoEm: null,
+        }
+      : null,
     versoes: [],
   });
   const situacao = (s: string) => ({
@@ -336,11 +419,17 @@ describe("Pagamento", () => {
     });
     montar(<PagamentoPagina id={1} />, api);
     fireEvent.click(await screen.findByRole("button", { name: /pagar com pix/i }));
-    expect((await screen.findByTestId("codigo-pix")).textContent).toBe("00020126PIX-SINTETICO-0000");
-    expect(screen.getByAltText("QR Code do PIX").getAttribute("src")).toBe("data:image/png;base64,iVBORw0KGgo=");
+    expect((await screen.findByTestId("codigo-pix")).textContent).toBe(
+      "00020126PIX-SINTETICO-0000",
+    );
+    expect(screen.getByAltText("QR Code do PIX").getAttribute("src")).toBe(
+      "data:image/png;base64,iVBORw0KGgo=",
+    );
     expect((api.pagar as ReturnType<typeof vi.fn>).mock.calls[0][1]).toBe("PIX");
     fireEvent.click(screen.getByRole("button", { name: /copiar código/i }));
-    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith("00020126PIX-SINTETICO-0000"));
+    await waitFor(() =>
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith("00020126PIX-SINTETICO-0000"),
+    );
     expect(await screen.findByText("Código copiado.")).toBeTruthy();
     // ainda aguardando: nenhuma mensagem de sucesso
     expect(screen.queryByText(/pagamento confirmado/i)).toBeNull();
@@ -412,7 +501,12 @@ describe("Pagamento", () => {
     const api = apiDuble({
       cobranca: vi.fn(async () => detalhe(cobrancaDe(), "BOLETO")),
       situacao: vi.fn(async () => situacao("PAGA_AGUARDANDO_CREDITO")),
-      pagar: vi.fn(async () => ({ ...pix, forma: "BOLETO" as const, pix: null, boleto: { linhaDigitavel: "123", pdfUrl: null } })),
+      pagar: vi.fn(async () => ({
+        ...pix,
+        forma: "BOLETO" as const,
+        pix: null,
+        boleto: { linhaDigitavel: "123", pdfUrl: null },
+      })),
     });
     montar(<PagamentoPagina id={1} />, api);
     expect(await screen.findByText(/recebemos a confirmação do boleto/i)).toBeTruthy();
@@ -451,7 +545,11 @@ describe("Pagamento", () => {
       .mockResolvedValue(pix);
     montar(
       <PagamentoPagina id={1} />,
-      apiDuble({ cobranca: vi.fn(async () => detalhe(cobrancaDe())), situacao: vi.fn(async () => situacao("AGUARDANDO")), pagar }),
+      apiDuble({
+        cobranca: vi.fn(async () => detalhe(cobrancaDe())),
+        situacao: vi.fn(async () => situacao("AGUARDANDO")),
+        pagar,
+      }),
     );
     fireEvent.click(await screen.findByRole("button", { name: /pagar com pix/i }));
     expect(await screen.findByText(/indisponível no momento/i)).toBeTruthy();
