@@ -239,7 +239,9 @@ export function QuadroPedidos({
                     cartao={c}
                     coluna={coluna}
                     cap={capacidades}
-                    coleta={COLUNAS_DA_COLETA.includes(coluna.id) ? porPedido.get(c.numero) : undefined}
+                    coleta={
+                      COLUNAS_DA_COLETA.includes(coluna.id) ? porPedido.get(c.numero) : undefined
+                    }
                     selecionado={marcados.includes(c.numero)}
                     aoSelecionar={alternar}
                   />

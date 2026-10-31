@@ -1,7 +1,9 @@
 // Portal Mowig (J661) — DUBLÊ para o Playwright: um único servidor Node que imita (a) o Supabase Auth mínimo usado pelo login
 // e (b) a API /v1/portal do ERP (contrato: mowig-api docs/api-portal.md, J330 + J557 + J660).
 // 100% sintético (repo público, POR-H11): nenhum dado de cliente real, nenhum segredo. Não fala com a internet.
-// Controle pelos testes: POST /__test/reset, POST /__test/confirmar?id=&como=PAGA|BOLETO_CONFIRMED|VENCIDA
+// J664: coletas (GET /coletas, /coletas/:id, /coletas/:id/documentos/:doc, /slots, /transportadoras; POST /coletas, /remarcar, /cancelar),
+// contrato mowig-api docs/api-expedicao.md §Portal. As datas dos horários são relativas a "hoje" (a janela de 24 h = só vale de hoje+2 em diante).
+// Controle pelos testes: POST /__test/reset, POST /__test/confirmar?id=&como=PAGA|BOLETO_CONFIRMED|VENCIDA, POST /__test/ocupar?slot=ID
 import { createServer } from "node:http";
 import { deflateSync } from "node:zlib";
 import { createHash } from "node:crypto";
@@ -71,6 +73,15 @@ const PEDIDOS = [
   { numero: 5106, oc: "OC-A106", col: "EM_PRODUCAO", total: 3150.9, entrega: "2026-11-27" },
   { numero: 5107, oc: "OC-A107", col: "FINALIZADOS", total: 6400.0, entrega: "2026-11-10", marca: "SALDO A PAGAR" },
   { numero: 5108, oc: "OC-A108", col: "FINALIZADOS", total: 1290.0, entrega: "2026-11-12" },
+  // J664: prontos para coleta (AGUARDANDO COLETA) e pedidos que já estão em coleta (estado em `estado.coletas`)
+  { numero: 5109, oc: "OC-A109", col: "AGUARDANDO_COLETA", total: 2100.0, entrega: "2026-11-14" },
+  { numero: 5110, oc: "OC-A110", col: "AGUARDANDO_COLETA", total: 980.0, entrega: "2026-11-14" },
+  { numero: 5111, oc: "OC-A111", col: "AGUARDANDO_COLETA", total: 4410.0, entrega: "2026-11-15" },
+  { numero: 5112, oc: "OC-A112", col: "AGUARDANDO_COLETA", total: 760.0, entrega: "2026-11-15" },
+  { numero: 5113, oc: "OC-A113", col: "AGUARDANDO_COLETA", total: 3300.0, entrega: "2026-11-13" },
+  { numero: 5114, oc: "OC-A114", col: "AGUARDANDO_COLETA", total: 1520.0, entrega: "2026-11-13" },
+  { numero: 5115, oc: "OC-A115", col: "AGUARDANDO_COLETA", total: 2750.0, entrega: "2026-11-08" },
+  { numero: 5116, oc: "OC-A116", col: "AGUARDANDO_COLETA", total: 640.0, entrega: "2026-11-08" },
 ];
 const ROTULOS = {
   AGUARDANDO_CONFIRMACAO_COMERCIAL: "AGUARDANDO CONFIRMAÇÃO COMERCIAL",
@@ -81,22 +92,71 @@ const ROTULOS = {
   COLETA_AGENDADA: "COLETA AGENDADA",
   DESPACHADO: "DESPACHADO",
 };
-const SEM_FONTE = new Set(["AGUARDANDO_COLETA", "COLETA_AGENDADA", "DESPACHADO"]);
+const SEM_FONTE = new Set(); // J664: as colunas de coleta têm fonte
 const CREDITO_ELEGIVEL = 30000;
 
+// `coleta` ausente em CONSULTA de propósito: capacidade ausente = sem permissão (o front não pode quebrar nem liberar)
 const CAP = {
-  GESTOR: { verValores: true, cobranca: true, implantar: false, gerirLoja: true },
-  FINANCEIRO: { verValores: true, cobranca: true, implantar: false, gerirLoja: false },
+  GESTOR: { verValores: true, cobranca: true, implantar: false, gerirLoja: true, coleta: true },
+  FINANCEIRO: { verValores: true, cobranca: true, implantar: false, gerirLoja: false, coleta: false },
+  IMPLANTADOR: { verValores: false, cobranca: false, implantar: true, gerirLoja: false, coleta: true },
   CONSULTA: { verValores: false, cobranca: false, implantar: false, gerirLoja: false },
 };
 const USUARIOS = {
   "gestor@loja-teste.example": { sub: "00000000-0000-4000-8000-000000000001", papel: "GESTOR" },
   "consulta@loja-teste.example": { sub: "00000000-0000-4000-8000-000000000002", papel: "CONSULTA" },
+  "implantador@loja-teste.example": { sub: "00000000-0000-4000-8000-000000000003", papel: "IMPLANTADOR" },
+  "financeiro@loja-teste.example": { sub: "00000000-0000-4000-8000-000000000004", papel: "FINANCEIRO" },
 };
+
+// ------------------------------------------------------------------ coletas sintéticas (J664)
+const TURNOS = [["MANHA", "Manhã"], ["TARDE", "Tarde"]];
+const hojeMais = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+function criarSlots() {
+  const slots = [];
+  for (let d = 1; d <= 7; d++) {
+    TURNOS.forEach(([turno, rotuloTurno], i) => {
+      slots.push({ id: d * 10 + i + 1, data: hojeMais(d), turno, rotuloTurno, vagas: d === 5 && turno === "TARDE" ? 1 : 3, ocupadas: 0 });
+    });
+  }
+  return slots;
+}
+const SLOT_ULTIMA_VAGA = 52; // dia +5, tarde: 1 vaga (os testes a tomam com /__test/ocupar)
+const TRANSPORTADORAS = [{ id: "T1", nome: "Transportes Exemplo" }, { id: "T2", nome: "Fretes Teste" }];
+const PDF_SINTETICO = Buffer.from(["%PDF-1.1", "1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj", "2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj", "3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 80]>>endobj", "trailer<</Root 1 0 R>>", "%%EOF", ""].join(String.fromCharCode(10)));
+const slotPorId = (id) => estado.slots.find((s) => s.id === id);
+const slotTela = (s) => ({ id: s.id, data: s.data, turno: s.turno, rotuloTurno: s.rotuloTurno });
+/** A janela de 24 h (LOG-4) é decidida AQUI, como a API real: só dá para alterar coleta de hoje+2 em diante. */
+const dentroDaJanela = (c) => c.slot.data >= hojeMais(2);
+const coletaTela = (c) => ({
+  id: c.id, situacao: c.situacao, slot: c.slot, quemBusca: c.quemBusca, observacao: c.observacao, motivo: c.motivo, pedidos: c.pedidos,
+  solicitadaEm: c.solicitadaEm, confirmadaEm: c.confirmadaEm, despachadaEm: c.despachadaEm, documentos: c.documentos.length,
+  podeRemarcarOuCancelar: (c.situacao === "SOLICITADA" || c.situacao === "AGENDADA") && dentroDaJanela(c),
+});
+const ATIVAS = ["SOLICITADA", "AGENDADA", "DESPACHADA"];
+const coletaAtivaDoPedido = (n) => estado.coletas.find((c) => ATIVAS.includes(c.situacao) && c.pedidos.includes(n));
+function colunaDe(p) {
+  const c = coletaAtivaDoPedido(p.numero);
+  if (c) return c.situacao === "DESPACHADA" ? "DESPACHADO" : c.situacao === "AGENDADA" ? "COLETA_AGENDADA" : "AGUARDANDO_COLETA";
+  return p.col === "COLETA_AGENDADA" || p.col === "DESPACHADO" ? "AGUARDANDO_COLETA" : p.col;
+}
+function coletasIniciais() {
+  const agora = new Date().toISOString();
+  return [
+    { id: 301, situacao: "AGENDADA", slot: slotTela(slotPorId(31)), quemBusca: { tipo: "TRANSPORTADORA", codigo: "T1", nome: "Transportes Exemplo" }, observacao: null, motivo: null, pedidos: [5113], solicitadaEm: agora, confirmadaEm: agora, despachadaEm: null, documentos: [] },
+    { id: 302, situacao: "AGENDADA", slot: slotTela(slotPorId(11)), quemBusca: { tipo: "VEICULO_PROPRIO", placa: "ABC1D23", motorista: "Motorista Teste" }, observacao: null, motivo: null, pedidos: [5114], solicitadaEm: agora, confirmadaEm: agora, despachadaEm: null, documentos: [] },
+    { id: 303, situacao: "DESPACHADA", slot: slotTela(slotPorId(21)), quemBusca: { tipo: "TRANSPORTADORA", codigo: "T2", nome: "Fretes Teste" }, observacao: "Doca 2", motivo: null, pedidos: [5115, 5116], solicitadaEm: agora, confirmadaEm: agora, despachadaEm: agora,
+      documentos: [
+        { id: 3001, tipo: "NFE", automatico: true, pedidoNumero: 5115, nfeChave: "35261000000000000100550010000012341000012349", nfeNumero: "1234", nomeArquivo: null, contentType: null, tamanho: null, criadoEm: agora },
+        { id: 3002, tipo: "ROMANEIO", automatico: false, pedidoNumero: null, nfeChave: null, nfeNumero: null, nomeArquivo: "romaneio-303.pdf", contentType: "application/pdf", tamanho: PDF_SINTETICO.length, criadoEm: agora },
+      ] },
+  ];
+}
 
 let estado;
 function zerar() {
-  estado = { seq: 1000000001, cobrancas: [], idem: new Map(), pagamento: new Map() };
+  estado = { seq: 1000000001, cobrancas: [], idem: new Map(), pagamento: new Map(), slots: criarSlots(), coletas: [], seqColeta: 400 };
+  estado.coletas = coletasIniciais();
 }
 zerar();
 
@@ -222,8 +282,9 @@ async function portal(req, res, caminho, url) {
   if (req.method === "GET" && caminho === "/pedidos") {
     const colunas = Object.keys(ROTULOS).map((id) => ({
       id, rotulo: ROTULOS[id], semFonte: SEM_FONTE.has(id), aviso: SEM_FONTE.has(id) ? "Ainda sem informação." : null,
-      pedidos: PEDIDOS.filter((p) => p.col === id).map((p) => ({
-        numero: p.numero, oc: p.oc, emitidoEm: "2026-10-15", entregaPrevista: p.entrega, marca: p.marca ?? null,
+      pedidos: PEDIDOS.filter((p) => colunaDe(p) === id).map((p) => ({
+        numero: p.numero, oc: p.oc, emitidoEm: "2026-10-15", entregaPrevista: p.entrega,
+        marca: coletaAtivaDoPedido(p.numero)?.situacao === "SOLICITADA" ? "COLETA SOLICITADA" : (p.marca ?? null),
         ...(cap.verValores ? { valorTotal: p.total.toFixed(2), saldoAPagar: p.marca ? "2560.00" : null } : {}),
       })),
     }));
@@ -247,6 +308,29 @@ async function portal(req, res, caminho, url) {
         produtos: p.total.toFixed(2), ipi: { valor: "0.00", percentual: "0", derivado: true }, total: p.total.toFixed(2),
         faturado: null, cancelado: null, saldo: p.marca ? "2560.00" : null } } : {}),
     });
+  }
+
+  // --- coletas (J664). Ver: todos os papéis. Agendar/remarcar/cancelar/slots/transportadoras: só com a capacidade `coleta`.
+  const semColeta = () => erro(res, 403, null, "Seu papel no portal não permite agendar, remarcar ou cancelar coletas. Peça ao gestor da sua loja.");
+  let rc;
+  if (req.method === "GET" && caminho === "/coletas") return enviar(res, 200, { ok: true, coletas: estado.coletas.map(coletaTela) });
+  if (req.method === "GET" && (rc = m(/^\/coletas\/(\d+)$/))) {
+    const c = estado.coletas.find((x) => x.id === Number(rc[1]));
+    return c ? enviar(res, 200, { ok: true, coleta: coletaTela(c), documentos: c.documentos }) : erro(res, 404, "nao_encontrada", "Coleta não encontrada.");
+  }
+  if (req.method === "GET" && (rc = m(/^\/coletas\/(\d+)\/documentos\/(\d+)$/))) {
+    const c = estado.coletas.find((x) => x.id === Number(rc[1]));
+    const d = c?.documentos.find((x) => x.id === Number(rc[2]));
+    if (!d || d.automatico) return erro(res, 404, "nao_encontrada", "Documento não encontrado.");
+    res.writeHead(200, { "Content-Type": d.contentType, "Content-Disposition": `attachment; filename="${d.nomeArquivo}"`, "Cache-Control": "private, no-store" });
+    return res.end(PDF_SINTETICO);
+  }
+  if (req.method === "GET" && caminho === "/slots") {
+    if (!cap.coleta) return semColeta();
+    return enviar(res, 200, { ok: true, horizonteDias: 14, slots: estado.slots.filter((s) => s.data >= hojeMais(2) && s.vagas - s.ocupadas > 0).map(slotTela) });
+  }
+  if (req.method === "GET" && caminho === "/transportadoras") {
+    return cap.coleta ? enviar(res, 200, { ok: true, itens: TRANSPORTADORAS }) : semColeta();
   }
 
   // --- cobrança: só com a capacidade `cobranca`
@@ -301,6 +385,63 @@ async function portal(req, res, caminho, url) {
       return enviar(res, status, corpoResp);
     };
 
+    // --- coletas (J664)
+    if (caminho === "/coletas" || /^\/coletas\/\d+\/(remarcar|cancelar)$/.test(caminho)) {
+      if (!cap.coleta) return responder(403, { ok: false, erro: "Seu papel no portal não permite agendar, remarcar ou cancelar coletas. Peça ao gestor da sua loja." });
+      const falha = (status, codigo, msg) => responder(status, { ok: false, codigo, erro: msg });
+      const ocupar = (slot) => { slot.ocupadas += 1; };
+      const devolver = (slot) => { slot.ocupadas = Math.max(0, slot.ocupadas - 1); };
+      if (caminho === "/coletas") {
+        const slot = slotPorId(Number(corpo.slotId));
+        if (!slot) return falha(404, "slot_fechado", "Este horário não está mais disponível. Escolha outro.");
+        if (slot.data < hojeMais(2)) return falha(409, "dentro_da_antecedencia", "Escolha um horário com pelo menos 24 horas de antecedência.");
+        if (slot.vagas - slot.ocupadas <= 0) return falha(409, "sem_vaga", "Este horário acabou de ficar sem vaga. Escolha outro.");
+        const pedidos = [...new Set(Array.isArray(corpo.pedidos) ? corpo.pedidos.map(Number) : [])];
+        for (const n of pedidos) {
+          const ped = PEDIDOS.find((x) => x.numero === n);
+          if (!ped) return falha(404, "pedido_nao_encontrado", `Pedido ${n} não encontrado.`);
+          if (coletaAtivaDoPedido(n)) return falha(409, "pedido_em_outra_coleta", `O pedido ${n} já está em outra coleta.`);
+          if (colunaDe(ped) !== "AGUARDANDO_COLETA") return falha(422, "pedido_inelegivel", `O pedido ${n} ainda não está pronto para coleta.`);
+        }
+        if (pedidos.length === 0) return falha(422, "pedido_inelegivel", "Informe ao menos um pedido.");
+        let quem;
+        if (corpo.quemBusca?.transportadoraCodigo) {
+          const t = TRANSPORTADORAS.find((x) => x.id === corpo.quemBusca.transportadoraCodigo);
+          if (!t) return falha(422, "transportadora_invalida", "Escolha uma transportadora da lista.");
+          quem = { tipo: "TRANSPORTADORA", codigo: t.id, nome: t.nome };
+        } else if (corpo.quemBusca?.veiculo) {
+          const placa = corpo.quemBusca.veiculo.placa ?? null;
+          if (placa !== null && !/^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(placa)) return falha(422, "placa_invalida", "Placa inválida. Confira e tente de novo.");
+          quem = { tipo: "VEICULO_PROPRIO", placa, motorista: corpo.quemBusca.veiculo.motorista ?? null };
+        } else return falha(422, "transportadora_invalida", "Informe quem busca.");
+        ocupar(slot);
+        const agora = new Date().toISOString();
+        const c = { id: ++estado.seqColeta, situacao: "SOLICITADA", slot: slotTela(slot), quemBusca: quem, observacao: corpo.observacao ?? null, motivo: null, pedidos, solicitadaEm: agora, confirmadaEm: null, despachadaEm: null, documentos: [] };
+        estado.coletas.push(c);
+        return responder(201, { ok: true, coletaId: c.id, situacao: c.situacao });
+      }
+      const [, idTxt, acao] = /^\/coletas\/(\d+)\/(remarcar|cancelar)$/.exec(caminho);
+      const c = estado.coletas.find((x) => x.id === Number(idTxt));
+      if (!c) return falha(404, "nao_encontrada", "Coleta não encontrada.");
+      if (!["SOLICITADA", "AGENDADA"].includes(c.situacao)) return falha(409, "situacao_nao_permite", "Esta coleta não pode mais ser alterada.");
+      if (!dentroDaJanela(c)) return falha(409, "dentro_da_antecedencia", "Faltam menos de 24 horas para esta coleta. Para alterar, fale com a logística da Mowig.");
+      if (acao === "cancelar") {
+        devolver(slotPorId(c.slot.id));
+        c.situacao = "CANCELADA";
+        c.motivo = corpo.motivo ?? null;
+        return responder(200, { ok: true, situacao: c.situacao });
+      }
+      const novo = slotPorId(Number(corpo.slotId));
+      if (!novo || novo.data < hojeMais(2)) return falha(409, "slot_fechado", "Este horário não está mais disponível. Escolha outro.");
+      if (novo.vagas - novo.ocupadas <= 0) return falha(409, "sem_vaga", "Este horário acabou de ficar sem vaga. Escolha outro.");
+      devolver(slotPorId(c.slot.id));
+      ocupar(novo);
+      c.slot = slotTela(novo);
+      c.situacao = "SOLICITADA"; // remarcar pelo lojista volta a SOLICITADA (a logística confirma de novo)
+      c.confirmadaEm = null;
+      return responder(200, { ok: true, situacao: c.situacao, slotId: novo.id });
+    }
+
     if (caminho === "/cobrancas") {
       const { c, erro: e } = novaCobranca(corpo, null);
       if (e) return responder(e[0], { ok: false, codigo: e[1], erro: e[2] });
@@ -343,6 +484,11 @@ createServer(async (req, res) => {
   if (p === "/__test/reset" && req.method === "POST") { zerar(); return enviar(res, 200, { ok: true }); }
   if (p === "/__test/confirmar" && req.method === "POST") {
     estado.pagamento.set(Number(url.searchParams.get("id")), url.searchParams.get("como"));
+    return enviar(res, 200, { ok: true });
+  }
+  if (p === "/__test/ocupar" && req.method === "POST") {
+    const slot = slotPorId(Number(url.searchParams.get("slot")));
+    if (slot) slot.ocupadas = slot.vagas;
     return enviar(res, 200, { ok: true });
   }
   if (p === "/__test/saude") return enviar(res, 200, { ok: true });

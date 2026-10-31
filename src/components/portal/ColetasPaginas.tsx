@@ -35,8 +35,8 @@ function SemPermissao() {
     <>
       <h1 className="portal-titulo">Coleta</h1>
       <Aviso tipo="info">
-        Seu perfil só acompanha as coletas. Para agendar, remarcar ou cancelar, peça ao gestor da sua
-        loja.
+        Seu perfil só acompanha as coletas. Para agendar, remarcar ou cancelar, peça ao gestor da
+        sua loja.
       </Aviso>
       <Link to="/portal" className="portal-link">
         Voltar aos pedidos
@@ -59,7 +59,9 @@ function EscolhaDeHorario({
 }) {
   const dias = agruparSlotsPorDia(slots);
   if (dias.length === 0) {
-    return <p className="portal-meta">Nenhum horário com vaga no momento. Tente novamente mais tarde.</p>;
+    return (
+      <p className="portal-meta">Nenhum horário com vaga no momento. Tente novamente mais tarde.</p>
+    );
   }
   return (
     <div className="portal-slots" role="radiogroup" aria-label="Horário da coleta">
@@ -113,7 +115,10 @@ export function AgendarPagina({ pedidos }: { pedidos: number[] }) {
   });
 
   const [slotId, setSlotId] = useState<number | null>(null);
-  const [quem, setQuem] = useState<QuemBuscaForm>({ tipo: "TRANSPORTADORA", transportadoraCodigo: "" });
+  const [quem, setQuem] = useState<QuemBuscaForm>({
+    tipo: "TRANSPORTADORA",
+    transportadoraCodigo: "",
+  });
   const [observacao, setObservacao] = useState("");
 
   const solicitar = useMutation({
@@ -174,8 +179,8 @@ export function AgendarPagina({ pedidos }: { pedidos: number[] }) {
             ))}
           </ul>
           <p className="portal-meta">
-            A Mowig confere se cada pedido está pronto e quitado. Se algum não puder sair, você verá o
-            motivo ao enviar.
+            A Mowig confere se cada pedido está pronto e quitado. Se algum não puder sair, você verá
+            o motivo ao enviar.
           </p>
         </section>
 
@@ -185,10 +190,14 @@ export function AgendarPagina({ pedidos }: { pedidos: number[] }) {
           {slots.isError && <Aviso tipo="erro">{mensagemDeErro(slots.error)}</Aviso>}
           {slots.data && (
             <>
-              <EscolhaDeHorario slots={slots.data.slots} escolhido={slotId} aoEscolher={setSlotId} />
+              <EscolhaDeHorario
+                slots={slots.data.slots}
+                escolhido={slotId}
+                aoEscolher={setSlotId}
+              />
               <p className="portal-meta">
-                Horários com vaga nos próximos {slots.data.horizonteDias} dias. Alterações só até 24 h
-                antes.
+                Horários com vaga nos próximos {slots.data.horizonteDias} dias. Alterações só até 24
+                h antes.
               </p>
             </>
           )}

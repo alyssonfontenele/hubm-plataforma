@@ -330,9 +330,20 @@ export interface PortalApi {
   coleta(id: number): Promise<{ coleta: ColetaPortal; documentos: DocumentoColeta[] }>;
   slots(): Promise<{ horizonteDias: number; slots: SlotColeta[] }>;
   transportadoras(): Promise<TransportadoraPortal[]>;
-  solicitarColeta(corpo: CorpoColeta, chave: string): Promise<{ coletaId: number; situacao: SituacaoColeta }>;
-  remarcarColeta(id: number, slotId: number, chave: string): Promise<{ situacao: SituacaoColeta; slotId: number }>;
-  cancelarColeta(id: number, motivo: string | null, chave: string): Promise<{ situacao: SituacaoColeta }>;
+  solicitarColeta(
+    corpo: CorpoColeta,
+    chave: string,
+  ): Promise<{ coletaId: number; situacao: SituacaoColeta }>;
+  remarcarColeta(
+    id: number,
+    slotId: number,
+    chave: string,
+  ): Promise<{ situacao: SituacaoColeta; slotId: number }>;
+  cancelarColeta(
+    id: number,
+    motivo: string | null,
+    chave: string,
+  ): Promise<{ situacao: SituacaoColeta }>;
   /** Baixa o arquivo com o JWT (não existe link público); devolve o conteúdo para a tela salvar. */
   baixarDocumento(coletaId: number, docId: number): Promise<Blob>;
 }
@@ -403,10 +414,12 @@ export function criarPortalApi(
     coletas: async () => (await chamar<{ coletas: ColetaPortal[] }>("/coletas")).coletas,
     coleta: (id) => chamar(`/coletas/${id}`),
     slots: () => chamar("/slots"),
-    transportadoras: async () => (await chamar<{ itens: TransportadoraPortal[] }>("/transportadoras")).itens,
+    transportadoras: async () =>
+      (await chamar<{ itens: TransportadoraPortal[] }>("/transportadoras")).itens,
     solicitarColeta: (corpo, chave) => post("/coletas", corpo, chave),
     remarcarColeta: (id, slotId, chave) => post(`/coletas/${id}/remarcar`, { slotId }, chave),
-    cancelarColeta: (id, motivo, chave) => post(`/coletas/${id}/cancelar`, motivo ? { motivo } : {}, chave),
+    cancelarColeta: (id, motivo, chave) =>
+      post(`/coletas/${id}/cancelar`, motivo ? { motivo } : {}, chave),
     baixarDocumento: async (coletaId, docId) => {
       const token = await obterToken();
       if (!token) throw new PortalApiErro(401, null, "Sessão expirada. Entre novamente.");
@@ -418,7 +431,8 @@ export function criarPortalApi(
       } catch {
         throw new PortalApiErro(0, null, "Sem conexão com o servidor.");
       }
-      if (!resp.ok) throw new PortalApiErro(resp.status, null, "Não foi possível baixar o documento.");
+      if (!resp.ok)
+        throw new PortalApiErro(resp.status, null, "Não foi possível baixar o documento.");
       return resp.blob();
     },
   };

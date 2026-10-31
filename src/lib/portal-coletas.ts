@@ -102,7 +102,9 @@ export function montarCorpoColeta(entrada: {
 /** Lê "?pedidos=1,2,3" da tela de agendar: só inteiros positivos, sem repetição. */
 export function pedidosDeBusca(texto: unknown): number[] {
   if (typeof texto !== "string" && typeof texto !== "number") return [];
-  const itens = String(texto).split(",").map((x) => Number(x.trim()));
+  const itens = String(texto)
+    .split(",")
+    .map((x) => Number(x.trim()));
   return [...new Set(itens.filter((n) => Number.isInteger(n) && n > 0))];
 }
 

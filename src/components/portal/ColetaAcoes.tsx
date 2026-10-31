@@ -13,13 +13,7 @@ import { Aviso } from "@/components/portal/ui";
 import { usePortalApi } from "@/components/portal/PortalCasca";
 import { podeAlterarColeta, podeGerirColeta } from "@/lib/portal-coletas";
 
-export function BotoesDaColeta({
-  coleta,
-  cap,
-}: {
-  coleta: ColetaPortal;
-  cap: CapacidadesPortal;
-}) {
+export function BotoesDaColeta({ coleta, cap }: { coleta: ColetaPortal; cap: CapacidadesPortal }) {
   const api = usePortalApi();
   const qc = useQueryClient();
   const [confirmando, setConfirmando] = useState(false);
@@ -31,7 +25,10 @@ export function BotoesDaColeta({
     },
   });
 
-  if (!podeGerirColeta(cap) || (coleta.situacao !== "SOLICITADA" && coleta.situacao !== "AGENDADA")) {
+  if (
+    !podeGerirColeta(cap) ||
+    (coleta.situacao !== "SOLICITADA" && coleta.situacao !== "AGENDADA")
+  ) {
     return null;
   }
   if (!podeAlterarColeta(coleta)) {
@@ -62,7 +59,11 @@ export function BotoesDaColeta({
         </div>
       )}
       {confirmando && (
-        <div className="portal-confirmar" role="group" aria-label={`Cancelar a coleta ${coleta.id}`}>
+        <div
+          className="portal-confirmar"
+          role="group"
+          aria-label={`Cancelar a coleta ${coleta.id}`}
+        >
           <p>
             Cancelar esta coleta? Os pedidos voltam para AGUARDANDO COLETA
             {coleta.pedidos.length > 1 ? ` (${coleta.pedidos.length} pedidos)` : ""}.
