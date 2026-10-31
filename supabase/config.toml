@@ -16,3 +16,5 @@ pop3_port = 54395
 
 [analytics]
 port = 54396
+[functions.portal-lojista-admin]
+verify_jwt = false

@@ -28,7 +28,9 @@
   min-height: 100vh;
   background: var(--fundo);
   color: var(--tinta);
-  font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Arimo (padrão Mowig ERP) com Arial/sistema de reserva: a CSP não libera fontes externas (font-src 'self' data:). */
+  --fonte-mono: "Roboto Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: "Arimo", Arial, "Liberation Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   font-size: 14px;
   line-height: 1.5;
 }
@@ -217,3 +219,87 @@
     transition: background-color 0.12s ease;
   }
 }
+
+/* ===== J661 — telas autenticadas (Pedidos, Pedido, Cobranças, Pagamento, Usuário) ===== */
+.portal-topo-direita { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.portal-loja { color: var(--texto-meta); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40vw; }
+.portal-botao-pequeno { height: 34px; padding: 0 14px; width: auto; }
+.portal-botao-link { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+
+.portal-menu { display: flex; gap: 4px; padding: 0 12px; background: var(--superficie); border-bottom: 1px solid var(--borda); overflow-x: auto; }
+.portal-menu-item { display: inline-flex; align-items: center; height: 44px; padding: 0 14px; color: var(--texto-3); text-decoration: none; font-weight: 500; border-bottom: 2px solid transparent; }
+.portal-menu-item.portal-menu-ativa { color: var(--tinta); border-bottom-color: var(--tinta); }
+.portal-menu-item:focus-visible { outline: 2px solid var(--tinta); outline-offset: -2px; }
+
+/* o quadro usa a largura toda; as demais telas ficam centradas */
+.portal-mowig .portal-conteudo { max-width: 1440px; padding: 24px 16px 48px; }
+.portal-titulo { margin: 0 0 16px; font-size: 20px; font-weight: 600; }
+.portal-titulo-linha { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.portal-titulo-linha .portal-titulo { margin: 0; }
+.portal-migalha { margin: 0 0 8px; font-size: 13px; }
+.portal-mowig .portal-painel { margin-bottom: 16px; max-width: 960px; }
+.portal-painel h2 { font-size: 16px; }
+
+.portal-centro-num { text-align: center; font-family: var(--fonte-mono); font-variant-numeric: tabular-nums; }
+.portal-dinheiro { text-align: right; font-family: var(--fonte-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.portal-pilula { display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+.portal-pilula-neutro { background: #ecedef; color: var(--texto-3); }
+.portal-pilula-ok { background: var(--ok-fundo); color: var(--ok-texto); }
+.portal-pilula-atencao { background: var(--atencao-fundo); color: var(--atencao-texto); }
+.portal-pilula-critico { background: var(--critico-fundo); color: var(--critico-texto); }
+
+/* quadro: 7 colunas lado a lado, sem rolagem horizontal; abaixo de 1100 px empilha (375 px = uma por linha) */
+.portal-quadro { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 700px) { .portal-quadro { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1100px) { .portal-quadro { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; } }
+.portal-coluna { background: #eceef0; border-radius: var(--radius-cartao); padding: 8px; min-width: 0; }
+.portal-coluna-titulo { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; margin: 0 0 8px; font-size: 11px; line-height: 1.25; font-weight: 700; letter-spacing: 0.02em; color: var(--texto-3); }
+.portal-coluna-contagem { font-family: var(--fonte-mono); background: var(--superficie); border-radius: 999px; padding: 0 7px; min-width: 22px; text-align: center; }
+.portal-coluna-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.portal-coluna-vazia { margin: 0; padding: 8px 4px; color: var(--texto-meta); font-size: 12px; }
+.portal-cartao-pedido { background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--radius-controle); padding: 8px 10px; min-width: 0; }
+.portal-cartao-linha { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap; }
+.portal-pedido-numero { font-family: var(--fonte-mono); font-weight: 600; color: var(--tinta); text-decoration: none; }
+.portal-pedido-numero:hover { text-decoration: underline; }
+.portal-cartao-dados { margin: 6px 0; display: grid; gap: 2px; font-size: 12px; }
+.portal-cartao-dados > div { display: flex; justify-content: space-between; gap: 8px; min-width: 0; }
+.portal-cartao-dados dt { color: var(--texto-meta); }
+.portal-cartao-dados dd { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.portal-cartao-acao { font-size: 13px; min-height: 28px; display: flex; align-items: center; }
+.portal-rodape-quadro { margin-top: 16px; }
+
+.portal-lista-info { margin: 0; }
+.portal-linha-info { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 44px; border-bottom: 1px solid var(--divisoria); }
+.portal-linha-info:last-child { border-bottom: 0; }
+.portal-linha-info dt { color: var(--texto-meta); }
+.portal-linha-info dd { margin: 0; min-width: 0; }
+.portal-linha-total { font-weight: 600; }
+.portal-tempo { list-style: none; margin: 0; padding: 0; }
+.portal-tempo li { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 44px; border-bottom: 1px solid var(--divisoria); }
+.portal-tempo li:last-child { border-bottom: 0; }
+
+.portal-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 16px; }
+.portal-acoes .portal-botao { width: auto; padding: 0 20px; }
+
+.portal-lista-selecao { list-style: none; margin: 12px 0; padding: 0; }
+.portal-selecao-linha { display: grid; grid-template-columns: 24px 1fr 1fr auto; align-items: center; gap: 8px; min-height: 44px; border-bottom: 1px solid var(--divisoria); cursor: pointer; }
+.portal-selecao-linha input { width: 18px; height: 18px; }
+.portal-totais { margin-top: 12px; }
+
+.portal-lista-cobrancas { list-style: none; margin: 0; padding: 0; }
+.portal-cobranca { border-bottom: 1px solid var(--divisoria); padding: 6px 0; }
+.portal-cobranca:last-child { border-bottom: 0; }
+.portal-cobranca-linha { display: grid; grid-template-columns: minmax(130px, 1.4fr) auto 1fr 1fr 1fr auto; align-items: center; gap: 12px; min-height: 44px; }
+.portal-cobranca-acoes { display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+.portal-cobranca-detalhe { padding: 4px 0 8px; }
+@media (max-width: 760px) {
+  .portal-cobranca-linha { grid-template-columns: 1fr auto; gap: 4px 12px; }
+  .portal-cobranca-linha > .portal-centro-num { text-align: left; }
+  .portal-cobranca-linha > .portal-dinheiro { grid-column: 1 / -1; font-weight: 600; }
+  .portal-cobranca-acoes { grid-column: 1 / -1; justify-content: flex-start; }
+}
+
+.portal-pagto-bloco { display: grid; justify-items: start; gap: 8px; margin-top: 12px; max-width: 100%; }
+.portal-qr { display: block; width: 220px; height: 220px; border: 1px solid var(--borda); border-radius: var(--radius-controle); background: #fff; image-rendering: pixelated; }
+.portal-codigo { display: block; max-width: 100%; padding: 10px 12px; background: var(--superficie-sutil); border: 1px solid var(--borda); border-radius: var(--radius-controle); font-family: var(--fonte-mono); font-size: 12px; word-break: break-all; user-select: all; }

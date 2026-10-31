@@ -15,16 +15,9 @@ export const PORTAL_API_URL = (
   "https://mowig-api-596192369800.southamerica-east1.run.app"
 ).replace(/\/$/, "");
 
-export interface PortalMe {
-  ok: true;
-  usuario: { email: string; papel: "LOJISTA_ADMIN" | "LOJISTA_USUARIO" };
-  cliente: {
-    numero: number;
-    razaoSocial: string | null;
-    nomeFantasia: string | null;
-    cnpj: string | null;
-  };
-}
+// J661: o contrato do /me mudou na J557 (papéis GESTOR/FINANCEIRO/IMPLANTADOR/CONSULTA + `capacidades`); o tipo vive em portal-api.ts.
+import type { PortalMe } from "@/lib/portal-api";
+export type { PortalMe };
 
 export type PortalMeResultado =
   | { estado: "ok"; me: PortalMe }
