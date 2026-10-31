@@ -26,9 +26,11 @@ import { Route as AuthenticatedContratosRouteImport } from './routes/_authentica
 import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticated/tarefas'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as PortalIndexRouteImport } from './routes/portal.index'
+import { Route as PortalCobrancasRouteImport } from './routes/portal.cobrancas'
 import { Route as PortalDefinirSenhaRouteImport } from './routes/portal.definir-senha'
 import { Route as PortalEntrarRouteImport } from './routes/portal.entrar'
 import { Route as PortalEsqueciRouteImport } from './routes/portal.esqueci'
+import { Route as PortalUsuarioRouteImport } from './routes/portal.usuario'
 import { Route as SuperadminDashboardRouteImport } from './routes/superadmin/dashboard'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app/index'
 import { Route as AuthenticatedContratosIndexRouteImport } from './routes/_authenticated/contratos/index'
@@ -38,6 +40,8 @@ import { Route as AuthenticatedContratosLotesRouteImport } from './routes/_authe
 import { Route as AuthenticatedContratosMedicaoRouteImport } from './routes/_authenticated/contratos/medicao'
 import { Route as AuthenticatedSectorsSlugRouteImport } from './routes/_authenticated/sectors.$slug'
 import { Route as AuthenticatedTarefasIndexRouteImport } from './routes/_authenticated/tarefas/index'
+import { Route as PortalPagamentoIdRouteImport } from './routes/portal.pagamento.$id'
+import { Route as PortalPedidoNumeroRouteImport } from './routes/portal.pedido.$numero'
 import { Route as AuthenticatedAppAppsSlugRouteImport } from './routes/_authenticated/app/apps.$slug'
 import { Route as AuthenticatedContratosContratoContratoIdRouteImport } from './routes/_authenticated/contratos/contrato.$contratoId'
 import { Route as AuthenticatedContratosLoteLoteIdRouteImport } from './routes/_authenticated/contratos/lote.$loteId'
@@ -126,6 +130,11 @@ const PortalIndexRoute = PortalIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PortalRoute,
 } as any)
+const PortalCobrancasRoute = PortalCobrancasRouteImport.update({
+  id: '/cobrancas',
+  path: '/cobrancas',
+  getParentRoute: () => PortalRoute,
+} as any)
 const PortalDefinirSenhaRoute = PortalDefinirSenhaRouteImport.update({
   id: '/definir-senha',
   path: '/definir-senha',
@@ -139,6 +148,11 @@ const PortalEntrarRoute = PortalEntrarRouteImport.update({
 const PortalEsqueciRoute = PortalEsqueciRouteImport.update({
   id: '/esqueci',
   path: '/esqueci',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalUsuarioRoute = PortalUsuarioRouteImport.update({
+  id: '/usuario',
+  path: '/usuario',
   getParentRoute: () => PortalRoute,
 } as any)
 const SuperadminDashboardRoute = SuperadminDashboardRouteImport.update({
@@ -193,6 +207,16 @@ const AuthenticatedTarefasIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedTarefasRoute,
   } as any)
+const PortalPagamentoIdRoute = PortalPagamentoIdRouteImport.update({
+  id: '/pagamento/$id',
+  path: '/pagamento/$id',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalPedidoNumeroRoute = PortalPedidoNumeroRouteImport.update({
+  id: '/pedido/$numero',
+  path: '/pedido/$numero',
+  getParentRoute: () => PortalRoute,
+} as any)
 const AuthenticatedAppAppsSlugRoute =
   AuthenticatedAppAppsSlugRouteImport.update({
     id: '/apps/$slug',
@@ -228,9 +252,11 @@ export interface FileRoutesByFullPath {
   '/contratos': typeof AuthenticatedContratosRouteWithChildren
   '/tarefas': typeof AuthenticatedTarefasRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
+  '/portal/cobrancas': typeof PortalCobrancasRoute
   '/portal/definir-senha': typeof PortalDefinirSenhaRoute
   '/portal/entrar': typeof PortalEntrarRoute
   '/portal/esqueci': typeof PortalEsqueciRoute
+  '/portal/usuario': typeof PortalUsuarioRoute
   '/superadmin/dashboard': typeof SuperadminDashboardRoute
   '/portal/': typeof PortalIndexRoute
   '/contratos/backlog': typeof AuthenticatedContratosBacklogRoute
@@ -238,6 +264,8 @@ export interface FileRoutesByFullPath {
   '/contratos/lotes': typeof AuthenticatedContratosLotesRoute
   '/contratos/medicao': typeof AuthenticatedContratosMedicaoRoute
   '/sectors/$slug': typeof AuthenticatedSectorsSlugRoute
+  '/portal/pagamento/$id': typeof PortalPagamentoIdRoute
+  '/portal/pedido/$numero': typeof PortalPedidoNumeroRoute
   '/app/': typeof AuthenticatedAppIndexRoute
   '/contratos/': typeof AuthenticatedContratosIndexRoute
   '/tarefas/': typeof AuthenticatedTarefasIndexRoute
@@ -257,9 +285,11 @@ export interface FileRoutesByTo {
   '/superadmin': typeof SuperadminRouteWithChildren
   '/admin': typeof AuthenticatedAdminRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/portal/cobrancas': typeof PortalCobrancasRoute
   '/portal/definir-senha': typeof PortalDefinirSenhaRoute
   '/portal/entrar': typeof PortalEntrarRoute
   '/portal/esqueci': typeof PortalEsqueciRoute
+  '/portal/usuario': typeof PortalUsuarioRoute
   '/superadmin/dashboard': typeof SuperadminDashboardRoute
   '/portal': typeof PortalIndexRoute
   '/contratos/backlog': typeof AuthenticatedContratosBacklogRoute
@@ -267,6 +297,8 @@ export interface FileRoutesByTo {
   '/contratos/lotes': typeof AuthenticatedContratosLotesRoute
   '/contratos/medicao': typeof AuthenticatedContratosMedicaoRoute
   '/sectors/$slug': typeof AuthenticatedSectorsSlugRoute
+  '/portal/pagamento/$id': typeof PortalPagamentoIdRoute
+  '/portal/pedido/$numero': typeof PortalPedidoNumeroRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/contratos': typeof AuthenticatedContratosIndexRoute
   '/tarefas': typeof AuthenticatedTarefasIndexRoute
@@ -292,9 +324,11 @@ export interface FileRoutesById {
   '/_authenticated/contratos': typeof AuthenticatedContratosRouteWithChildren
   '/_authenticated/tarefas': typeof AuthenticatedTarefasRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
+  '/portal/cobrancas': typeof PortalCobrancasRoute
   '/portal/definir-senha': typeof PortalDefinirSenhaRoute
   '/portal/entrar': typeof PortalEntrarRoute
   '/portal/esqueci': typeof PortalEsqueciRoute
+  '/portal/usuario': typeof PortalUsuarioRoute
   '/superadmin/dashboard': typeof SuperadminDashboardRoute
   '/portal/': typeof PortalIndexRoute
   '/_authenticated/contratos/backlog': typeof AuthenticatedContratosBacklogRoute
@@ -302,6 +336,8 @@ export interface FileRoutesById {
   '/_authenticated/contratos/lotes': typeof AuthenticatedContratosLotesRoute
   '/_authenticated/contratos/medicao': typeof AuthenticatedContratosMedicaoRoute
   '/_authenticated/sectors/$slug': typeof AuthenticatedSectorsSlugRoute
+  '/portal/pagamento/$id': typeof PortalPagamentoIdRoute
+  '/portal/pedido/$numero': typeof PortalPedidoNumeroRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/_authenticated/contratos/': typeof AuthenticatedContratosIndexRoute
   '/_authenticated/tarefas/': typeof AuthenticatedTarefasIndexRoute
@@ -327,9 +363,11 @@ export interface FileRouteTypes {
     | '/contratos'
     | '/tarefas'
     | '/auth/callback'
+    | '/portal/cobrancas'
     | '/portal/definir-senha'
     | '/portal/entrar'
     | '/portal/esqueci'
+    | '/portal/usuario'
     | '/superadmin/dashboard'
     | '/portal/'
     | '/contratos/backlog'
@@ -337,6 +375,8 @@ export interface FileRouteTypes {
     | '/contratos/lotes'
     | '/contratos/medicao'
     | '/sectors/$slug'
+    | '/portal/pagamento/$id'
+    | '/portal/pedido/$numero'
     | '/app/'
     | '/contratos/'
     | '/tarefas/'
@@ -356,9 +396,11 @@ export interface FileRouteTypes {
     | '/superadmin'
     | '/admin'
     | '/auth/callback'
+    | '/portal/cobrancas'
     | '/portal/definir-senha'
     | '/portal/entrar'
     | '/portal/esqueci'
+    | '/portal/usuario'
     | '/superadmin/dashboard'
     | '/portal'
     | '/contratos/backlog'
@@ -366,6 +408,8 @@ export interface FileRouteTypes {
     | '/contratos/lotes'
     | '/contratos/medicao'
     | '/sectors/$slug'
+    | '/portal/pagamento/$id'
+    | '/portal/pedido/$numero'
     | '/app'
     | '/contratos'
     | '/tarefas'
@@ -390,9 +434,11 @@ export interface FileRouteTypes {
     | '/_authenticated/contratos'
     | '/_authenticated/tarefas'
     | '/auth/callback'
+    | '/portal/cobrancas'
     | '/portal/definir-senha'
     | '/portal/entrar'
     | '/portal/esqueci'
+    | '/portal/usuario'
     | '/superadmin/dashboard'
     | '/portal/'
     | '/_authenticated/contratos/backlog'
@@ -400,6 +446,8 @@ export interface FileRouteTypes {
     | '/_authenticated/contratos/lotes'
     | '/_authenticated/contratos/medicao'
     | '/_authenticated/sectors/$slug'
+    | '/portal/pagamento/$id'
+    | '/portal/pedido/$numero'
     | '/_authenticated/app/'
     | '/_authenticated/contratos/'
     | '/_authenticated/tarefas/'
@@ -544,6 +592,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PortalIndexRouteImport
       parentRoute: typeof PortalRoute
     }
+    '/portal/cobrancas': {
+      id: '/portal/cobrancas'
+      path: '/cobrancas'
+      fullPath: '/portal/cobrancas'
+      preLoaderRoute: typeof PortalCobrancasRouteImport
+      parentRoute: typeof PortalRoute
+    }
     '/portal/definir-senha': {
       id: '/portal/definir-senha'
       path: '/definir-senha'
@@ -563,6 +618,13 @@ declare module '@tanstack/react-router' {
       path: '/esqueci'
       fullPath: '/portal/esqueci'
       preLoaderRoute: typeof PortalEsqueciRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/portal/usuario': {
+      id: '/portal/usuario'
+      path: '/usuario'
+      fullPath: '/portal/usuario'
+      preLoaderRoute: typeof PortalUsuarioRouteImport
       parentRoute: typeof PortalRoute
     }
     '/superadmin/dashboard': {
@@ -627,6 +689,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/tarefas/'
       preLoaderRoute: typeof AuthenticatedTarefasIndexRouteImport
       parentRoute: typeof AuthenticatedTarefasRoute
+    }
+    '/portal/pagamento/$id': {
+      id: '/portal/pagamento/$id'
+      path: '/pagamento/$id'
+      fullPath: '/portal/pagamento/$id'
+      preLoaderRoute: typeof PortalPagamentoIdRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/portal/pedido/$numero': {
+      id: '/portal/pedido/$numero'
+      path: '/pedido/$numero'
+      fullPath: '/portal/pedido/$numero'
+      preLoaderRoute: typeof PortalPedidoNumeroRouteImport
+      parentRoute: typeof PortalRoute
     }
     '/_authenticated/app/apps/$slug': {
       id: '/_authenticated/app/apps/$slug'
@@ -725,17 +801,25 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 )
 
 interface PortalRouteChildren {
+  PortalCobrancasRoute: typeof PortalCobrancasRoute
   PortalDefinirSenhaRoute: typeof PortalDefinirSenhaRoute
   PortalEntrarRoute: typeof PortalEntrarRoute
   PortalEsqueciRoute: typeof PortalEsqueciRoute
+  PortalUsuarioRoute: typeof PortalUsuarioRoute
   PortalIndexRoute: typeof PortalIndexRoute
+  PortalPagamentoIdRoute: typeof PortalPagamentoIdRoute
+  PortalPedidoNumeroRoute: typeof PortalPedidoNumeroRoute
 }
 
 const PortalRouteChildren: PortalRouteChildren = {
+  PortalCobrancasRoute: PortalCobrancasRoute,
   PortalDefinirSenhaRoute: PortalDefinirSenhaRoute,
   PortalEntrarRoute: PortalEntrarRoute,
   PortalEsqueciRoute: PortalEsqueciRoute,
+  PortalUsuarioRoute: PortalUsuarioRoute,
   PortalIndexRoute: PortalIndexRoute,
+  PortalPagamentoIdRoute: PortalPagamentoIdRoute,
+  PortalPedidoNumeroRoute: PortalPedidoNumeroRoute,
 }
 
 const PortalRouteWithChildren =
