@@ -1,5 +1,5 @@
 // Portal Mowig (J661) — Playwright contra a API em dublê (e2e/servidor-fake.mjs): nenhum backend real, nenhum segredo.
-// Dois tamanhos de tela (375 e 1440). Capturas em docs/capturas/j661/.
+// Dois tamanhos de tela (375 e 1440). Capturas em docs/capturas/j661/ (J661) e docs/capturas/j664/ (coletas, e2e/coletas.e2e.ts).
 import { defineConfig } from "@playwright/test";
 
 const PORTA_APP = 4398;

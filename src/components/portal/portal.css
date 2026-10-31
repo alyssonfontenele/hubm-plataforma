@@ -303,3 +303,31 @@
 .portal-pagto-bloco { display: grid; justify-items: start; gap: 8px; margin-top: 12px; max-width: 100%; }
 .portal-qr { display: block; width: 220px; height: 220px; border: 1px solid var(--borda); border-radius: var(--radius-controle); background: #fff; image-rendering: pixelated; }
 .portal-codigo { display: block; max-width: 100%; padding: 10px 12px; background: var(--superficie-sutil); border: 1px solid var(--borda); border-radius: var(--radius-controle); font-family: var(--fonte-mono); font-size: 12px; word-break: break-all; user-select: all; }
+
+/* ---- J664: coletas ---- */
+.portal-coluna-acao { margin: 0 0 8px; }
+.portal-coluna-acao .portal-botao { width: 100%; font-size: 12px; padding: 0 6px; white-space: normal; height: auto; min-height: 34px; }
+.portal-cartao-marca { width: 18px; height: 18px; margin: 0 6px 0 0; flex: none; }
+.portal-coleta-acoes { display: grid; gap: 6px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--divisoria); font-size: 12px; min-width: 0; }
+.portal-coleta-resumo { margin: 0; line-height: 1.35; overflow-wrap: anywhere; }
+.portal-coleta-botoes { display: flex; flex-wrap: wrap; gap: 6px; }
+.portal-coleta-botoes .portal-botao { font-size: 12px; padding: 0 8px; width: auto; flex: 1 1 auto; white-space: normal; height: auto; min-height: 34px; }
+.portal-confirmar { background: var(--atencao-fundo); color: var(--atencao-texto); border-radius: var(--radius-controle); padding: 8px; }
+.portal-confirmar p { margin: 0 0 8px; }
+.portal-form-coleta { display: grid; gap: 0; max-width: 960px; }
+.portal-pilulas { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.portal-slots { display: grid; gap: 12px; }
+.portal-slot-dia { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.portal-slot-dia legend { font-weight: 600; margin-bottom: 6px; padding: 0; width: 100%; }
+.portal-slot { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--borda); border-radius: var(--radius-controle); background: var(--superficie); cursor: pointer; }
+.portal-slot-ativo { border-color: var(--tinta); box-shadow: inset 0 0 0 1px var(--tinta); }
+.portal-slot input, .portal-opcao input { width: 18px; height: 18px; }
+.portal-opcoes { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.portal-opcao { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--borda); border-radius: var(--radius-controle); background: var(--superficie); cursor: pointer; }
+.portal-campo select, .portal-campo textarea { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--borda); border-radius: var(--radius-controle); font: inherit; background: var(--superficie); color: inherit; }
+.portal-campo select { height: 44px; }
+.portal-lista-documentos { list-style: none; margin: 0; padding: 0; }
+.portal-documento { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 52px; padding: 8px 0; border-bottom: 1px solid var(--divisoria); }
+.portal-documento:last-child { border-bottom: 0; }
+.portal-documento > div { min-width: 0; }
+.portal-chave { font-family: var(--fonte-mono); overflow-wrap: anywhere; }

@@ -17,6 +17,12 @@ export function PedidosPagina() {
   const api = usePortalApi();
   const me = usePortalMe();
   const q = useQuery({ queryKey: ["portal", "quadro"], queryFn: () => api.quadro(), retry: false });
+  // coletas da loja (todos os papéis veem); se a API de coletas estiver fora, o quadro segue sem as ações de coleta
+  const c = useQuery({
+    queryKey: ["portal", "coletas"],
+    queryFn: () => api.coletas().catch(() => []),
+    retry: false,
+  });
 
   return (
     <>
@@ -25,7 +31,7 @@ export function PedidosPagina() {
       {q.isError && <Aviso tipo="erro">{mensagemDeErro(q.error)}</Aviso>}
       {q.data && (
         <>
-          <QuadroPedidos quadro={q.data} capacidades={me.capacidades} />
+          <QuadroPedidos quadro={q.data} capacidades={me.capacidades} coletas={c.data ?? []} />
           {q.data.foraDoQuadro > 0 && (
             <p className="portal-meta portal-rodape-quadro">
               {q.data.foraDoQuadro} pedido(s) cancelado(s) ou arquivado(s) não aparecem no quadro.
