@@ -1,7 +1,9 @@
 // supabase/functions/portal-lojista-admin/handler.ts
 // Função RESTRITA do Portal Mowig (J558 · POR-H1/H8; J661 testes). Chamada só pelo ERP (servidor a servidor), nunca pelo navegador.
 // Autenticação: Authorization: Bearer <PORTAL_ADMIN_TOKEN>, comparado em tempo constante. O segredo da função é guardado
-// como digest SHA-256 (PORTAL_ADMIN_TOKEN_SHA256) — o valor do token só existe no Secret Manager do GCP (hubm-portal-admin-token).
+// como digest SHA-256 (PORTAL_ADMIN_TOKEN_SHA256) — o valor do token só existe no Secret Manager do GCP (projeto importanfe):
+// `hubm-portal-admin-token` na produção e `hubm-portal-admin-token-sandbox` no branch Supabase portal-mowig (API de TESTE).
+// Cada ambiente tem o seu digest e o seu token; o do sandbox nunca vale na produção.
 // Só 4 ações: convidar, reenviar, desativar, reativar. Não lê nem lista usuários; só age sobre usuários com app_metadata.tipo = 'lojista'
 // (um e-mail/sub de colaborador é recusado, nunca convertido).
 //
